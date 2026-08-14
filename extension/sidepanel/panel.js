@@ -36,12 +36,19 @@ let selection = new Set() ;
 let analysisSource = { tabId: null, url: '' } ;
 
 // ---------- 분석 실행 ----------
-async function analyze() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
+async function analyze(force = false) {
+  let tab ;
+  const [active] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
+  // 패널(확장 페이지)이 활성 탭이면 같은 창의 웹 탭으로 폴백
+  if (active?.url && /^https?:/.test(active.url)) tab = active ;
+  else {
+    const tabs = await chrome.tabs.query({ currentWindow: true }) ;
+    tab = tabs.find((t) => t.url && /^https?:/.test(t.url)) || null ;
+  }
   // 빈 URL/특수 페이지(확장 페이지, 새 탭 등)는 분석 불가 — 주입 시도 자체를 생략
   if (!tab?.id || !tab.url || !/^https?:/.test(tab.url)) return ;
-  // 같은 탭·같은 URL이면 이미 표시 중 — 중복 분석 방지
-  if (analysisSource.tabId === tab.id && analysisSource.url === (tab.url || '')) return ;
+  // 같은 탭·같은 URL이면 이미 표시 중 — 중복 분석 방지 (force면 무조건 재실행)
+  if (!force && analysisSource.tabId === tab.id && analysisSource.url === (tab.url || '')) return ;
   DebugLogger.info('[PANEL] 분석 시작', { url: tab.url || '' }) ;
   // 시작 시점에 출처 선점 (분석 중 중복 이벤트 트리거 방지)
   analysisSource = { tabId: tab.id, url: tab.url || '' } ;
@@ -368,7 +375,7 @@ function setCategory(tab) {
 $('pk-reload').addEventListener('click', () => {
   // 수동 새로고침 = 강제 재분석 (같은 탭·같은 URL이어도 재실행)
   analysisSource = { tabId: null, url: '' } ;
-  analyze() ;
+  analyze(true) ;
 }) ;
 $('pk-search').addEventListener('input', render) ;
 $('pk-article-only').addEventListener('change', render) ;
@@ -495,23 +502,10 @@ function isM3u8Url(url) {
   return /\.m3u8(\?|#|$)/i.test(url || '') ;
 }
 
-// 초기 로드: 팝업이 방금 분석한 결과가 있으면 재사용 (재분석으로 숫자가 달라지는 것 방지)
-// 단, 같은 탭·같은 URL일 때만 — 같은 탭에서 다른 페이지로 이동했으면 옛 결과를 보여주면 안 됨
+// 초기 로드: 패널이 열릴 때마다 자동 재분석 (사용자가 새로고침하지 않아도 최신 수집)
 DebugLogger.feature('PANEL', '사이드 패널 로드 완료') ;
 ;(async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
-  if (tab?.id) {
-    const { lastAnalysis } = await chrome.storage.session.get('lastAnalysis') ;
-    if (lastAnalysis && lastAnalysis.tabId === tab.id && lastAnalysis.url === (tab.url || '') && lastAnalysis.result) {
-      analysis = lastAnalysis.result ;
-      analysisSource = { tabId: lastAnalysis.tabId, url: lastAnalysis.url } ;
-      selection = new Set() ;
-      render() ;
-      DebugLogger.feature('PANEL', '이전 분석 결과 재사용', analysis.stats) ;
-      return ;
-    }
-  }
-  analyze() ;
+  analyze(true) ;
 })() ;
 
 // ---------- 자동 갱신 ----------
@@ -520,7 +514,7 @@ function maybeReanalyze() {
   chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
     if (!tab?.id) return ;
     if (analysisSource.tabId === tab.id && analysisSource.url === (tab.url || '')) return ; // 이미 표시 중
-    analyze() ;
+    analyze(true) ;
   }).catch(() => {}) ;
 }
 chrome.tabs.onActivated.addListener(() => maybeReanalyze()) ;
