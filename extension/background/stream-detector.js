@@ -124,16 +124,16 @@ export async function getCapturedStreams() {
 }
 
 export function initStreamDetector() {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _sender) => {
     if (message?.type === 'pk.settings.set' && message.payload && 'streamDetect' in message.payload) {
       applyRules(Boolean(message.payload.streamDetect)) ;
     }
     if (message?.type === 'pk.settings.get') {
+      // 응답은 하지 않음 — SW의 SETTINGS_GET 핸들러가 실제 설정을 반환해야 함
+      // (sendResponse 최초 호출만 유효 — 여기서 응답하면 data 없는 {ok:true}로 무효화됨)
       storage.getSettings().then((s) => {
         if (s.streamDetect) applyRules(true) ;
       }) ;
-      sendResponse({ ok: true }) ;
-      return false ;
     }
     return false ;
   }) ;
