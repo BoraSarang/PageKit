@@ -1,0 +1,1 @@
+{"id":"int-3d3f5469a177563e0d442eb9b7cd0a1f","kind":"field_change","created_at":"2026-08-14T10:32:56.049598Z","actor":"BoraSarang","issue_id":"WPageTools-ulq","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"구현+실측 완료: 네이버 m3u8 5세그먼트 병합 .ts 저장(ffprobe mpegts 17.08s), 패널 직접 fetch+조립 구조 확정, E-CHR-DL-1003/1004 매핑, PLAN_v0.2_chrome.md 기록"}}

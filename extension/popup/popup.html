@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="popup.css" />
+  <title>PageKit</title>
+</head>
+<body>
+  <header class="pk-header">
+    <img src="../icons/icon32.png" alt="PageKit" class="pk-logo" />
+    <h1>PageKit</h1>
+    <span class="pk-badge" id="pk-dl-badge" hidden>0</span>
+  </header>
+
+  <main class="pk-main">
+    <button id="pk-analyze" class="pk-btn pk-btn-primary">🔍 이 페이지 분석</button>
+
+    <section class="pk-section" id="pk-summary" hidden>
+      <div class="pk-summary-title" id="pk-page-title"></div>
+      <div class="pk-summary-stats" id="pk-stats"></div>
+      <div class="pk-summary-article" id="pk-article"></div>
+    </section>
+
+    <button id="pk-open-panel" class="pk-btn pk-btn-secondary" hidden>▶ 사이드 패널에서 전체 보기</button>
+
+    <section class="pk-section">
+      <button id="pk-float-toggle" class="pk-btn pk-btn-ghost">페이지에 플로팅 버튼 표시</button>
+    </section>
+
+    <section class="pk-section" id="pk-dl-section" hidden>
+      <h2>📥 다운로드 중</h2>
+      <div id="pk-dl-list"></div>
+    </section>
+  </main>
+
+  <footer class="pk-footer">
+    <a href="#" id="pk-open-options">설정</a>
+  </footer>
+
+  <script src="../debug.js"></script>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

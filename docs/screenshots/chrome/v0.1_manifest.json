@@ -1,0 +1,40 @@
+{
+  "name": "PageKit",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "downloads",
+    "contextMenus",
+    "commands",
+    "scripting",
+    "activeTab",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "commands": {
+    "pagekit-open-panel": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "PageKit 사이드 패널 열기"
+    },
+    "pagekit-toggle-debug": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D",
+        "mac": "Command+Shift+D"
+      },
+      "description": "PageKit 디버그 창 열기/닫기"
+    }
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": []
+}

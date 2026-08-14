@@ -1,0 +1,14 @@
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+
+# 테스트용 브라우저 프로필 (CDP 디버깅)
+.whale-profile/
+.chrome-profile/
+.pkg/
+
+# 세션 로그 / 임시 파일
+.agent/

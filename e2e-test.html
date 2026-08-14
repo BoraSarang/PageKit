@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>PageKit E2E 테스트 페이지</title>
+  <meta property="og:image" content="http://127.0.0.1:8899/img-in-article.png">
+  <meta property="og:image:url" content="http://127.0.0.1:8899/img-in-article.png">
+  <meta property="og:title" content="PageKit E2E 테스트">
+  <meta property="og:url" content="http://127.0.0.1:8899/e2e-test.html">
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    article { line-height: 1.7; }
+    .ad-banner { background: #eee; padding: 20px; text-align: center; margin: 20px 0; }
+    img { max-width: 300px; }
+  </style>
+</head>
+<body>
+  <article id="main-article">
+    <h1>테스트 기사 제목</h1>
+    <p>본문 첫 단락입니다. PageKit이 이 텍스트를 본문으로 추출해야 합니다.</p>
+    <p>본문 두 번째 단락. 이미지와 함께 설명합니다.</p>
+    <figure>
+      <img src="http://127.0.0.1:8899/img-in-article.png?v=2" alt="기사 본문 이미지" width="640" height="480">
+      <figcaption>본문 이미지 1</figcaption>
+    </figure>
+    <img src="http://127.0.0.1:8899/img-icon-24.png?v=2" alt="아이콘 1" width="24" height="24">
+    <svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="8"/></svg>
+    <p>본문 세 번째 단락 끝.</p>
+  </article>
+
+  <div class="ad-banner">
+    <img src="http://127.0.0.1:8899/img-ad-banner.png?v=2" alt="광고 배너" width="100" height="100">
+    <a href="https://example.com/ads">광고 링크</a>
+  </div>
+
+  <section>
+    <h2>추가 자료</h2>
+    <a href="https://example.com/report.pdf">PDF 리포트</a>
+    <a href="https://example.com/file.zip">ZIP 압축파일</a>
+    <a href="https://example.com/page1">일반 링크 1</a>
+    <video src="https://example.com/video.mp4" controls></video>
+    <audio src="https://example.com/audio.mp3" controls></audio>
+    <a href="https://example.com/hls/master.m3u8">HLS 스트림</a>
+  </section>
+
+  <section>
+    <h2>JW Player (blob 재생 시뮬레이션)</h2>
+    <video id="jw-video" class="jw-video" playsinline src="blob:http://127.0.0.1:8899/8d999bd6-e692-48a2-9fd1-d85c4e6e6ee1"></video>
+  </section>
+
+  <script>
+    window.jwplayer = function () {
+      return {
+        getPlaylist: () => [{ file: "https://example.com/stream/video-720.mp4" }]
+      };
+    };
+  </script>
+  <script>
+    jwplayer("jw-video").setup({
+      file: "https://example.com/stream/master.m3u8",
+      image: "https://example.com/poster.jpg"
+    });
+  </script>
+
+  <script>
+    console.log('[test] page ready');
+  </script>
+</body>
+</html>

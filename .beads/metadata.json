@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "WPageTools",
+  "project_id": "21139822-cf55-461e-b75f-2a88648551e3"
+}

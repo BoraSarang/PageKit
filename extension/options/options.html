@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="options.css" />
+  <title>PageKit 설정</title>
+</head>
+<body>
+  <main class="pk-wrap">
+    <header class="pk-head">
+      <img src="../icons/icon48.png" alt="PageKit" />
+      <div>
+        <h1>PageKit 설정</h1>
+        <p>사이드 패널 열기: <kbd>⌘/Ctrl + Shift + K</kbd> · 우클릭 메뉴 "PageKit으로 분석"</p>
+      </div>
+    </header>
+
+    <section class="pk-card">
+      <h2>🔓 우클릭/복사 제한 해제 (화이트리스트)</h2>
+      <p class="pk-desc">아래 사이트에서만 우클릭·복사·선택 제한을 풉니다. (기본 꺼짐 — 심사 안전)</p>
+      <div class="pk-row">
+        <input id="pk-unlock-input" type="text" placeholder="예: example.com" />
+        <button id="pk-unlock-add" class="pk-btn">추가</button>
+      </div>
+      <ul id="pk-unlock-list" class="pk-taglist"></ul>
+    </section>
+
+    <section class="pk-card">
+      <h2>📌 사이트별 본문 규칙</h2>
+      <p class="pk-desc">본문 감지가 안 되는 사이트의 본문 CSS 선택자를 지정합니다. (콤마 구분)</p>
+      <div class="pk-row">
+        <input id="pk-rule-domain" type="text" placeholder="도메인: 예: news.example.com" />
+        <input id="pk-rule-selector" type="text" placeholder="본문 선택자: 예: .article-body" />
+        <button id="pk-rule-add" class="pk-btn">저장</button>
+      </div>
+      <ul id="pk-rule-list" class="pk-taglist"></ul>
+    </section>
+
+    <section class="pk-card">
+      <h2>🔗 링크 프리셋 (정규식)</h2>
+      <p class="pk-desc">특수 링크 조사에 쓰는 정규식 프리셋. 형식: 이름|정규식</p>
+      <div class="pk-row">
+        <input id="pk-preset-name" type="text" placeholder="이름: 예: 문서" />
+        <input id="pk-preset-regex" type="text" placeholder="정규식: 예: ^.*\.pdf$" />
+        <button id="pk-preset-add" class="pk-btn">추가</button>
+      </div>
+      <ul id="pk-preset-list" class="pk-taglist"></ul>
+    </section>
+
+    <section class="pk-card">
+      <h2>⚙️ 다운로드 설정</h2>
+      <div class="pk-row">
+        <label>동시 다운로드 수</label>
+        <input id="pk-concurrent" type="number" min="1" max="10" value="3" />
+      </div>
+      <div class="pk-row">
+        <label>최소 이미지 폭 (px, 0=제한 없음)</label>
+        <input id="pk-min-width" type="number" min="0" value="0" />
+      </div>
+      <div class="pk-row">
+        <label>최소 이미지 크기 (KB, 0=제한 없음)</label>
+        <input id="pk-min-size" type="number" min="0" value="0" />
+      </div>
+      <div class="pk-row">
+        <label>스트림 URL 감지 (dNR)</label>
+        <input id="pk-stream-detect" type="checkbox" />
+      </div>
+      <button id="pk-save-settings" class="pk-btn pk-btn-primary">설정 저장</button>
+    </section>
+
+    <section class="pk-card">
+      <h2>🐞 디버그</h2>
+      <p class="pk-desc">디버그 로그 수집 여부. 끄면 디버그 창(Cmd+Shift+D)이 비어 보입니다.</p>
+      <div class="pk-row">
+        <label>디버그 로그 수집</label>
+        <input id="pk-debug-enabled" type="checkbox" />
+      </div>
+    </section>
+
+    <footer class="pk-foot">PageKit v0.1.0 · 모든 데이터는 로컬에서만 처리됩니다.</footer>
+  </main>
+  <script src="../debug.js"></script>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

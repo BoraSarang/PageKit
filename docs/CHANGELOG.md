@@ -1,0 +1,137 @@
+# CHANGELOG — PageKit (Chrome Extension v0.1.0)
+
+## v0.2.0 (2026-08-14) — 스트림(m3u8) 병합 다운로드 — 독립 작업 창
+
+### 기능 [chrome]
+- **스트림 다운로드 작업 창 (v2 구조)**: 패널/팝업의 스트림 다운로드는 BG가 작은 팝업 창(520×400)을 열어 수행 — 페이지 클릭/패널 닫힘과 무관하게 지속. 확장 페이지라 fetch+Blob+downloads 모두 가능 (MV3 SW의 createObjectURL 불가/Whale offscreen 미지원 우회)
+- **매니페스트 해석**: `shared/m3u8.js` — 마스터(#EXT-X-STREAM-INF) 재귀 해석(깊이 2), 최고 화질 자동 선택, AES-128 암호화 불가 안내, LIVE 판정(ENDLIST/PLAYLIST-TYPE/2회 fetch 세그먼트 수 비교), 200세그먼트/300MB 가드, 15초 타임아웃
+- **화질(해상도) 선택**: 마스터면 변형 드롭다운 표시 (해상도·fps·kbps — `856x480 · 60fps · 652kbps`), 기본=최고 화질로 자동 시작, 시작 전에만 변경. `parseM3U8`에 RESOLUTION/FRAME-RATE 파싱 추가
+- **진행률 표시**: 세그먼트 i/N · MB · % + **평균 속도(MB/s, 최근 3개 세그먼트 이동 평균)** + 아이콘 배지 진행률 %
+- **파일명 기본값 = 페이지 제목** (`t=` 파라미터 전달, 특수문자 필터 + 80자 제한), **진행 중에도 변경 가능**(저장 직전 최종값 반영), 확장자 생략 시 .ts 자동
+- **완료 처리**: 완료 화면에 **저장 경로 표시 + "파일 위치 열기" 버튼**(chrome.downloads.show), 시스템 알림(클릭 시 파일 위치 열기), **10초 후 자동 닫기(창이 직접 닫음 — SW 타이머 유실 방지)**
+- **순차 대기열**: 스트림 여러 개 선택 시 BG가 큐 보관 → 완료 후 다음 자동 시작, 마지막 완료 시에만 알림+자동 닫기, 창 닫힘=항목 포기로 다음 진행
+- **화질 변형 통합**: 스트림 목록에서 마스터를 fetch해 판별(병렬+6초 타임아웃, 비동기로 즉시 렌더 후 갱신) → 변형 url과 일치하는 항목은 숨기고 마스터에 "화질 N개 통합" 표시 — 같은 영상의 화질들이 항목으로 중복 노출되던 문제 해소
+- **순차 세그먼트 수신**: 1회 재시도 + 1.2초 간격 (웨일 네트워크 서비스 크래시 대응), 취소(AbortController), `PageKit/{도메인}/videos/{이름}.ts` 저장 (conflictAction uniquify)
+- **스트림 항목 이름**: extractor가 url 기반 이름 부여(`streamName`), 패널 표시명 name 우선
+- **"본문만" 필터 예외**: 스트림 카테고리는 본문 판정과 무관하게 항상 표시 (재생 중일 때만 잡히는 실용 항목)
+
+### 수정 (E2E 검증 중 발견) [chrome]
+- 토렌트씨 마스터 매니페스트(ENDLIST 없음)를 LIVE로 오판 → ENDLIST 부재 VOD는 2회 fetch 세그먼트 수 비교로 구분 (E-CHR-DL-1003)
+- `t=`(페이지 제목) 파라미터가 작업 창에 전달 안 되던 문제 → **서비스 워커 캐시가 구버전 코드 실행** — `.whale-profile/Default/Service Worker` 캐시 삭제 후 재시작으로 해결 (확장 리로드만으로는 SW 코드 갱신이 안 되는 웨일 특성)
+- 완료 후 10초 자동 닫기가 간헐 실패 → SW의 `setTimeout(windows.remove)`는 서비스 워커 수명과 함께 유실될 수 있어 **다운로더 창이 직접 window.close()** 하도록 변경
+- 스트림 변형 통합 fetch가 순차 15초 타임아웃으로 렌더를 최대 60초 블로킹 → **병렬(6초 타임아웃) + 즉시 렌더 후 비동기 갱신**
+
+### 검증
+- 스마트스토어(완숙토마토 상품): 파일명=페이지 제목(완숙토마토 5kg…경북유통.ts) ✓ 속도 표시 ✓ 진행 중 파일명 변경 ✓ 완료+경로+열기 ✓ 10초 자동 닫기 ✓ ffprobe mpegts 17.08s(h264 270×480+aac) ✓
+- 순차 큐: 스트림 2건 → 첫 완료 후 두 번째 자동 시작 → (1).ts 1.2MB + (2).ts 1.9MB → 자동 닫힘 ✓
+- 토렌트씨 마스터: 화질 변형 3개 드롭다운(856×480·854×480·640×360) ✓ 최고 화질 자동 선택 ✓ 97세그먼트(962s, 80.1MB) 전체 병합 저장 ✓
+
+## v0.1.0 (2026-08-14) — 최초 릴리스 후보
+
+### 기능 [chrome]
+- 본문 추출: Readability clone 기반 (타이틀/발췌/본문텍스트, 1MB 가드)
+- 미디어 수집: 이미지(srcset/lazy/background/currentSrc) · 비디오/오디오(m3u8·mpd 감지) · 링크(pdf/zip 타입 분류)
+- 본문 내/외부(inArticle) 분류 — 광고 배너 vs 기사 이미지 구분
+- 배치 다운로드: `chrome.downloads`, 동시 N건(설정), 실패 재시도 2회, `PageKit/{도메인}/{카테고리}/{파일명}` 저장, filename 옵션 지원, 배지 표시, `pk.dl.state` 조회
+- 진입점 5종: 아이콘 팝업 · 컨텍스트 메뉴 · 단축키(Cmd+Shift+K) · 팝업 버튼 · 플로팅 버튼(요청 시 주입)
+- 사이드 패널: 분류 탭·배지, 본문만 필터, 형식/검색 필터, 선택·다운로드, 토스트
+- 우클릭/복사 제한 해제 + 화이트리스트, 사이트별 preRemove 규칙, 정규식 프리셋
+- 본문 하이라이트 + Shift 드래그 보정
+- **DebugPanel** (AGENTS.md 19장): DebugLogger(storage.local debugLog 최대 2000건 FIFO, content→BG 위임, 300ms 디바운스, PERF/CACHE/FEATURE 레벨), 전용 디버그 창(Cmd+Shift+D, 2초 폴링, 레벨/탭/검색 필터, 복사/지우기), 전 기능 디버그 메시지 통합
+
+### 수정 (E2E 검증 중 발견) [chrome]
+- 팝업 분석 전 콘텐츠 스크립트 주입 누락 → `MSG.ENSURE_INJECTED` 추가
+- 확장 페이지 메시지의 `sender.tab` 없음 문제 → `ENSURE_INJECTED`에 `payload.tabId` 명시 전달 (팝업/패널/단축키 분석 실패 해결)
+- 다운로더가 `item.filename` 무시 → 우선 사용
+- 이중 확장자(.png.png) → 확장자 중복 방지
+- `pk.dl.state` 핸들러 누락 → 추가
+- debugEnabled 캐시 미갱신(SW 장수명) → `chrome.storage.onChanged` 구독
+- **디버그 로그 기본 꺼짐 문제** → 기본 활성화 + 옵션/디버그 창에서 ON/OFF 토글 + 디버그 창 상태 배너 (꺼짐 시 경고 표시)
+- YouTube 등 blob 재생 페이지에서 동영상 0 → `og:video` 메타 폴백 추가
+- 사이드 패널/단축키에서 임의 사이트 분석 불가 → host_permissions `<all_urls>` 추가 (사용자 확정)
+- 패널 아이템 URL에 `CSS.escape` 사용으로 백슬래시 표시 → HTML 이스케이프(esc)로 교체
+- 패널 "본문만" 필터 기본 ON
+- 쿠팡 등 쇼핑몰에서 본문 이미지가 안 보이던 문제 → Readability 본문 미디어가 10개 미만이면 본문/상품 컨테이너(.product-image, .prod-atf, cafe24 .xans-* 등)에서 fallback URL 보강 (inArticle 판정 개선)
+- 이미지 `type` 판정: 확장자 화이트리스트(14종) 미포함 시 `unknown` → 패널에 "알수없음" 표기 (파일명 뒷자리 노출 방지)
+- 썸네일 표시 실패(CSS 변수 url() 토큰 파싱 문제) → 인라인 background-image + JS 팝오버(마우스 오버 260×260 대형 미리보기)로 전환
+- 주소 줄임: CSS ellipsis와 중복 잘림 → 표시 폭(38자)에 맞춰 앞만 줄임 + 파일명 중간 축약(9+…+4), 툴팁에 전체 URL
+- 이미지 크기 표시 누락 → naturalWidth/naturalHeight 우선 사용 (로드된 이미지는 원본 크기)
+- 이미지 크기(픽셀) 필터 추가 (100/500/1000/2000px 이상, max(w,h) 기준) — 이미지 카테고리 전용
+- **og:image 대표 이미지 우선 배치**: og:image 메타가 DOM에 없으면 추가, 있으면 맨 앞으로 이동 (쿼리 제거 비교로 중복 방지) — YouTube 대표 썸네일 보장
+- **아이콘 숨김 토글**: svg 또는 48px 이하 이미지 숨김 (이미지 카테고리 전용, 필터 요약 표기)
+- **blob: 재생 대응 (JW Player 등)**: `og:video`에 이어 ① jwplayer 플레이리스트 ② 인라인 설정 스크립트(`file:` 키의 mp4/m3u8/mpd) ③ performance resource entries 순으로 실제 파일 URL 폴백 (kind='player')
+- **교차 오리진 iframe 플레이어**: iframe src(embed/player/stream/watch)를 동영상 후보로 표시 (kind='iframe', label='플레이어(iframe)', 본문 판정 밖이어도 "본문만" 필터에서 유지) — torrentsee349.com → rubyvidhub embed 대응
+- **iframe 내부 미디어 직접 추출**: 분석 스크립트를 모든 프레임에 주입(allFrames) + 메인 프레임이 iframe에 postMessage 협업 요청 → iframe 내 jwplayer 등에서 실제 m3u8/mp4 URL 병합 (타임아웃 1.5초, videos/audios/streams만). `tabs.sendMessage`는 `{ frameId: 0 }` 명시(모든 프레임 전달/응답 경쟁 방지), iframe 컨텍스트는 직접 분석 메시지에 응답하지 않음
+
+### 검증
+- JS 18개 파일 `node --check` 통과
+- E2E(Whale CDP): 분석 분류 정확도 · 배치 다운로드 저장 경로 · 디버그 창 폴링/필터/지우기 — docs/e2e/PLAN.md
+- a11y-dump 3종 세트: docs/screenshots/chrome/v0.1_*
+- webstore-publish --dry-run 통과 (unsafe-eval 없음, WAR 0, host_permissions 배포용 OK)
+
+### 알려진 제약
+- 정식 Chrome 137+는 `--load-extension` 무시 → 로컬 테스트는 Whale 사용
+- Whale 다운로드 확인 프롬프트는 설정(다운로드 전 저장 위치 확인) 해제 필요
+- **Whale/Chrome은 확장 SW 스크립트를 프로필 `Service Worker/ScriptCache`에 캐시** — 코드 수정 후에도 옛 코드가 실행될 수 있음. 재로드 후에도 반영 안 되면 `~/.whale-profile/Default/Service Worker` 삭제 후 브라우저 재시작
+
+### 수정 (v0.1.1 후보 — 실사용 테스트 반영) [chrome]
+- **HLS/플레이어 m3u8 다운로드 403(SERVER_FORBIDDEN) 해결**: ① 추출 시 시그니처 쿼리(토큰)를 보존 (성능 엔트리에서 `split('?')` 제거하던 문제) ② CDN Referer 체크 대응 — extractor가 출처 페이지(referer)를 기록, 다운로드 시 `declarativeNetRequest` 동적 규칙으로 Referer/Origin 헤더 주입 후 해제
+- **패널 "링크 복사" 버튼 추가**: 선택 항목 URL을 줄 단위로 클립보드 복사 (Clipboard API 실패 시 execCommand 폴백, 토스트 안내)
+- m3u8/mpd 파일명 이중 확장자(`master.m3u8.m3u8`) 방지
+- **네이버 스마트스토어 상세 이미지 미수집 해결**: 상세 이미지가 `src="data:(1px placeholder)"` + `data-src="실제 URL"` 구조인데 `img.src`가 truthy라 `data-src`까지 도달 못 하던 문제 → http URL 우선 선택(`firstHttp`)으로 srcset/currentSrc/src/data-src 중 첫 http URL 사용 (이미지/본문 URL 판정 양쪽 적용) — 상세 본문 이미지 19개 표시 확인 (본문만 필터 기준)
+- 본문 폴백 일반화: Readability 본문 미디어가 10개 미만일 때 해시 클래스 쇼핑몰(스마트스토어 등) 대응 — "이미지 10개 이상 + 텍스트 500자 이상인 최대 컨테이너"를 본문으로 보강 (기존 선택자 기반 폴백 후순위)
+- 분석 결과에 디버그 필드 추가: `debug.articleMediaCount` / `debug.fallback` (분석 진단용)
+- **iframe 협업 재요청/타임아웃 확장**: 페이지를 연 직후 분석하면 iframe이 아직 로드 전이라 협업 postMessage가 유실될 수 있음 → 미응답 iframe에 1초 후 1회 재전송, 타임아웃 1.5초→3초 (torrentsee 782322·782288에서 iframe 내부 m3u8 2개 + iframe 항목 캐치 확인)
+- **사이드 패널이 이전 페이지 분석 결과를 재사용하던 문제**: `lastAnalysis`에 `url` 미저장 + `tabId`만 비교 → 같은 탭에서 다른 페이지로 이동 후 패널을 열어도 옛 결과 표시 → `lastAnalysis.url` 저장 + 재사용 조건을 `tabId + url` 모두 일치로 변경 (URL 변경 시 자동 재분석)
+- **네이버 스마트스토어 대표 동영상(navertv VOD) 미추출 해결**: 영상 `src="blob:"`이라 http 필터에서 누락되고 재생 전에는 m3u8 요청이 없었음 → 플레이어가 자동 호출하는 `neonplayer/vodplay/v3/playback/{vid}` 성능 엔트리 URL을 fetch(credentials 포함)해 응답에서 HLS m3u8/DASH MPD URL 추출 (kind='player', referer=페이지 URL, inArticle=true, 품질별 최대 4건) — gyeongbuk/products/11771879987에서 동영상 4건 캐치 확인
+- **패널 이미지 1×1 크기 표시 해결**: 스마트에디터 lazy 이미지가 placeholder(1×1)로 로드되어 naturalWidth=1이던 문제 → ① manifest CSP에 `img-src https: data: blob:` 추가 (확장 페이지에서 실제 이미지 로드 허용) ② 패널에서 1×1 항목(최대 60개)을 `Image()`로 로드해 실측 크기 갱신 — `allItems()`가 복사본을 만들어 원본 갱신이 소실되던 문제도 원본(`analysis.media.images`) 직접 갱신으로 수정 (780×1021 등 실측 표시 확인)
+- **플로팅 버튼 "표시됨" 문구만 뜨고 버튼이 안 보이던 문제**: ① extractor.js만 주입된 페이지(주입 부분 실패 등)에서는 onMessage가 `pk.ui.floatVisible`을 흡수하고 응답이 없어도 `tabs.sendMessage`가 에러 없이 성공 → popup.js가 "성공"으로 오판해 주입 경로를 건너뜀 → popup.js가 `resp?.ok === true`일 때만 성공 처리, 응답 없으면 float-button.js(+debug.js) 주입 후 재전송 ② extractor.js에 `pk.ui.floatVisible` 핸들러 추가 — extractor만 있어도 직접 버튼 생성/표시(기존 float-button.js와 동일 DOM, 이중 주입 가드) ③ 팝업이 항상 `float-button.css`를 미리 주입(extractor 경로는 CSS를 안 주입하므로) ④ BG `MAIN_SCRIPTS`에 `debug.js` 추가 (float-button.js의 DebugLogger 의존성) — 3케이스(정상/extractor만/빈 페이지) 실측 통과
+- **리로드 후 분석/플로팅 실패 근본 해결**: `ensureInjected`가 세션 키(`injected:{tabId}`)만 보고 주입을 스킵 → 리로드로 스크립트가 사라져도 키가 남아 "주입됨"으로 오판, 분석은 "Receiving end does not exist" 실패 · 플로팅은 extractor-only 상태 유발 → 세션 키 대신 `pk.ping` 실시간 검증으로 교체 (extractor.js에 ping 핸들러 추가, 메인 프레임만 응답)
+- **사이드바 자동 갱신**: 패널이 열린 상태에서 탭 전환/같은 탭 URL 변경 시 자동 재분석 추가 (`tabs.onActivated`/`onUpdated` — changeInfo.url은 tabs 권한이 없으면 안 오므로 `status==='complete'`만 사용, URL 비교는 활성 탭 재조회). 표시 중인 분석과 같은 탭·같은 URL이면 재분석 생략, 실패 시 재시도 가능하도록 출처(analysisSource) 초기화
+- **분석 시점 최적화**: ① extractor가 `pk.analyze.page` 수신 시 페이지 로드 완료까지 대기(최대 8초) — 로드 중 분석 시 lazy 이미지 미수집으로 빈약한 결과가 나오는 문제 ② navertv VOD: 플레이어 신호(`.webplayer-internal-video` 등)가 있으면 vodplay 메타 요청(로드 후 ~2초 자동 호출)을 최대 3초 대기 후 추출 — 페이지 연 직후 분석에서도 동영상 캐치
+- **iframe 협업 강화**: 협업 postMessage 1차 재전송(1초)에도 미응답이면 iframe에 extractor가 없는 것(주입 이후 로드) → BG에 `pk.inject.frames` 요청으로 iframe 재주입 후 2차 재전송 (타임아웃 4.5초, extractor는 `__pkExtractorLoaded` 가드로 중복 주입 안전) — 페이지 연 직후 분석에서도 torrentsee iframe 내부 m3u8 캐치 확인
+- **카운터 정합성 수정**: async 수집(navertv VOD/iframe 협업)이 `media.videos` 등에 push한 뒤 `stats`를 갱신하지 않아 동영상 4개가 0으로 표시되던 문제 — 분석 결과 반환 직전에 stats를 media 기준으로 최종 동기화 (collectFrameMedia는 iframe이 없으면 조기 종료되어 stats를 갱신하지 않음)
+- **분석 시점 안정화**: readyState 완료 후에도 lazy 이미지 로드가 남아 있어 스마트스토어가 4개로 분석되던 문제 — 이미지 안정화 대기 추가 (DOM img 개수 고정 + 미로드 0이 3회 연속, 최대 12초)
+- **빈 URL/특수 페이지 분석 가드**: 패널/팝업이 `onActivated` 직후 URL 미설정 탭(`url:""`)을 분석하려다 "주입 실패 respective host" 에러를 남기던 문제 — http/https가 아니면 분석·주입 시도 자체를 생략
+- **WAF 403 대응 (다운로드)**: torrentsee 등이 확장 오리진 요청을 403(SERVER_FORBIDDEN)으로 차단하던 문제 — 실패 시 페이지 컨텍스트(MAIN world) fetch → Blob(objectURL) 다운로드 폴백 1회 자동 시도 (executeScript + world:MAIN)
+- **썸네일 폴백**: 확장 오리진에서 403으로 안 보이던 썸네일 — 오프스크린 preload 실패분만 페이지 컨텍스트에서 120px dataURL로 축소 가져와 bg-image 교체 (`pk.thumb.fetch`, 배치 10개) — 캐시된 dataURL은 새 렌더에서 즉시 적용되도록 수정 (캐시 존재 시 교체 로직이 통째로 return하던 버그)
+- **새로고침 버튼 = 강제 재분석**: `pk-reload`가 `analyze` 그대로라 같은 탭·같은 URL이면 skip(로그 없음)하던 문제 — 분석 출처 초기화 후 재분석하도록 수정
+- **플로팅 버튼 → 사이드바 열기 폴백**: content script 클릭은 MV3에서 user gesture가 전달되지 않아 `sidePanel.open()`이 항상 실패(로그에만 남고 반응 없음) — 실패 시 기존 패널 탭이 있으면 활성화, 없으면 새 패널 탭 생성하도록 폴백 (`runtime.getContexts`로 패널 탭 정확 탐지 — `tabs.query({url})`는 chrome-extension:// 스킴을 매치 못 함)
+- **썸네일 폴백 실패 사유 로깅**: `[THUMB] ... err={사유:개수}` 형식으로 실패 원인(HTTP 상태/CORS/타임아웃) 집계 + fetch 실패 시 0.5초 후 1회 재시도
+- **썸네일 폴백 서버 차단 대응**: 사용자 로그에서 `TypeError: Failed to fetch` 확인 — 토렌트씨 WAF가 짧은 시간 내 연속 요청을 임시 차단(10개 배치 시 9/10 실패 → 시간 경과 후 회복) — 배치 10→5개, 배치 간 700ms 대기, 개별 재시도 1회(1초)로 분산
+- **썸네일 중복 요청 방지**: 패널 리로드/재분석 시 `_thumbCache`가 비어 있어도 이미 dataURL로 교체된 썸네일은 재요청하지 않음 (bg-image data: 스킵)
+- **썸네일 폴백 확장 오리진 2차 시도**: MAIN(페이지 컨텍스트) fetch 실패분(cross-origin CSP/CORS 차단 — 유튜브 i.ytimg.com 등)을 BG(확장 오리진) fetch로 재시도 — content script ISOLATED world fetch는 페이지 CSP를 받아 실패하므로 BG 직접 수행 (OffscreenCanvas 리사이즈 + FileReader dataURL)
+- **extractor 이미지 추출 오류 수정**: ① img src가 자기 페이지 URL(유튜브 shorts: src=".../shorts/<id>")인 경우 이미지로 오추출하던 것 제외 규칙 추가 ② og:image 없고 클래스 CSS bg 썸네일만 있는 페이지(유튜브 shorts 피드 등) 대응 — 이미지 부족 시 썸네일/이미지 후보 요소(`ytd-thumbnail`, `[class*="thumb"]` 등)의 computed bg 스캔 추가
+- **썸네일 fetch 실패 시 `<img>`+canvas 폴백**: WAF가 fetch(Accept: */*)는 차단하지만 `<img>` 로드(Accept: image/*)는 허용하는 사이트 대응 — MAIN world에서 fetch → img 로드(crossOrigin=anonymous) → canvas 120px dataURL 순서로 시도
+- **썸네일 요청 재진입 가드**: 패널 로드/카테고리 전환/분석 표시가 겹치면 ensureThumbs가 3중 실행되어 동일 URL을 반복 요청 → WAF 연속 요청 차단 악화 — `_thumbsRunning` 락으로 중복 실행 방지 (사용자 로그에서 동일 URL 5회 반복 확인)
+- **분석 안정화 확장**: `waitPageStable`이 img 개수뿐 아니라 iframe 개수 안정도 함께 확인 — iframe(동영상 협업)이 뒤늦게 추가되는 페이지에서 동영상 0건으로 분석되던 변동 방지
+
+- **썸네일 실패 원인 확정 — 광고 차단기(ADGuard)**: 사용자 환경에서 `uploadfile/*.gif` 요청이 ADGuard에 의해 광고로 판단·차단되어 페이지 `<img>` 로드까지 실패 (fetch/`<img>`/BG 전 경로 차단) — 확장 결함이 아닌 브라우저 필터 문제로 확정, 사용자 측 광고차단 비활성화로 해결 (확장이 DNR 차단을 우회하는 것은 불가)
+- **광고 차단 의심 안내 배너**: 폴백 전부 실패(`ok===0`) 시 세션당 1회 패널 상단 배너 표시 (실패 수치 포함, 문구는 광고차단/서버 거부 중립) + 부분/전체 성공 시 남아 있던 배너 자동 숨김 + 닫기(X) 버튼
+- **`[hidden]` CSS 덮어쓰기 버그 수정**: `.pk-adblock-hint { display:flex }`가 `hidden` 속성보다 우선해 배너가 숨겨지지 않던 문제 — 전역 `[hidden] { display: none !important; }` 규칙 추가 (배너/팝/토스트 등 공통 안전)
+- **manifest `webRequest` 권한 추가**: 유튜브 blob 재생 페이지의 실제 스트림(googlevideo.com videoplayback) 캡처 준비 (구현은 미완 — 남은 작업 참고)
+
+- **og:video 폴백 동영상이 "본문만" 필터에서 숨겨지던 문제 해결**: blob 재생 페이지(유튜브 등)에서 og:video로 대체된 동영상(kind='og')이 inArticle=false로 분류되어 "본문만"(기본 ON)에서 제거됨 → kind='og'는 페이지 대표 동영상으로 판정해 inArticle=true 부여 (embed 플레이어와 동일하게 "본문" 태그로 표시)
+
+- **다운로드 가능성 판정 도입 (`downloadable` 필드)**: 다운로드 기준을 명확화 — ① 실제 미디어/파일 URL만 저장 가능 (이미지 14종 · mp4/webm/mkv/mp3/m4a 등 · pdf/zip/doc 등 파일 링크) ② 매니페스트(m3u8/mpd)·embed 페이지(og:video)·iframe 플레이어·html 링크는 **저장 불가**로 판정 (저장해도 재생 불가한 파일만 받아지는 문제 해소) — extractor의 각 수집 지점에서 판정, iframe 협업 병합 항목은 옛 버전 결과 보정 포함
+- **패널 UI**: 저장 불가 항목은 체크박스 비활성 + "저장 불가" 배지 표시 (선택/다운로드에서 자동 제외)
+- **다운로더 방어**: `pk.dl.start` 수신 시 `downloadable === false` 항목 스킵 (패널 우회 방지)
+- 실측: 토렌트씨 — 이미지 25개 전부 저장 가능 / iframe 플레이어·m3u8 3개 저장 불가 · 유튜브 og:video 저장 불가 확인
+
+- **매니페스트 스트림 탭 통일**: m3u8/mpd는 발견 경로(성능 엔트리 playerUrls · iframe 협업 · DOM 선언)와 무관하게 **스트림 탭으로 통일** — 동영상 탭은 실제 재생 소스(mp4/embed/iframe/og)만 표시 ("스트림 vs 영상" 구분 명확화, 중복 URL 제거)
+- **패널 툴바 잘림 수정**: 검색/필터가 좁은 패널에서 오른쪽으로 넘어가던 문제 — `.pk-toolbar`에 `flex-wrap: wrap` 추가 (280px 폭에서 3줄 감싸기 실측, 크기 드롭다운 표시 정상)
+
+- **툴바 레이아웃 개선**: 검색 input만 유동 폭(`flex: 1 1 120px` + `order: 99`) — 나머지 필터(본문만/형식/크기/아이콘 숨김)는 고정 크기로 먼저 배치되고 검색이 남은 공간을 자동으로 채움 (858px에서 한 줄, 260px에서 필터 줄바꿈 시 잘림 없음 실측)
+
+- **m3u8 스트림 세그먼트 병합 다운로드 (v0.2)**: 스트림 탭의 HLS 매니페스트를 실제 동영상(.ts)으로 저장 — 매니페스트 fetch → 세그먼트 순차 수신(1회 재시도 + 1.2초 간격 — 네트워크 서비스 크래시 대응) → Blob concat → `PageKit/{도메인}/videos/{이름}.ts` 저장
+  - **저장 실행 위치**: MV3 서비스 워커는 `URL.createObjectURL` 불가 + Whale(Chrome/150 기반)은 `chrome.offscreen` 미지원 + content script은 `chrome.downloads` 불가 → **사이드 패널(확장 페이지)이 직접 fetch+조립+저장** (BG는 스트림 요청 시 "사이드 패널 사용" 안내)
+  - v1 제약: AES-128 암호화(EXT-X-KEY)·LIVE(ENDLIST 없음)·DASH(mpd)는 미지원 → E-CHR-DL-1003 안내, 총 300MB 가드 → E-CHR-DL-1004
+  - extractor: m3u8 `downloadable=true` (mpd는 false 유지) + **navertv VOD 버그 수정** — vodplay 응답의 m3u8이 `result.media.videos` 직접 push로 스트림 분리 로직을 우회 → `media.streams`로 이동 (네이버 스마트스토어 4건 스트림 탭 정상 표시)
+  - 실측: 네이버 스마트스토어(gyeongbuk/products/11771879987) — 5세그먼트 17.08초 영상 저장 → ffprobe mpegts 확인. 토렌트씨 CDN(webmeetup.com)은 fetch/다운로드 전면 차단(미디어 재생만 허용 + 서명 만료) — 저장 불가 안내 확인
+  - 오류코드 추가: E-CHR-DL-1003(암호화/LIVE/차단 사이트), E-CHR-DL-1004(수신 실패/용량 초과) — error_message_ko.json 반영
+
+### 남은 작업 (v0.2.0+)
+- T-35 진입점 5종 전수 검증 · T-36 Playwright 자동 E2E · TC-E2E-CHR-004~006, 008
+- **DASH(mpd) 세그먼트 병합**: 초기화 세그먼트 + SegmentTemplate 파싱
+- **유튜브 동영상 수집 (webRequest 스트림 캡처)**: blob 재생(watch/shorts) + og:video가 embed 페이지 URL뿐 → googlevideo.com videoplayback 캡처 + 패널 병합 구현 필요 (manifest webRequest 권한 추가됨). 틱톡은 currentSrc CDN URL로 수집 정상 확인됨
+- 정규식 필터 CSV 내보내기, ZIP 패키징, Firefox/Safari 포팅

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="panel.css" />
+  <title>PageKit 패널</title>
+</head>
+<body>
+  <header class="pk-header">
+    <img src="../icons/icon32.png" alt="PageKit" class="pk-logo" />
+    <div class="pk-header-title">
+      <h1>PageKit</h1>
+      <div class="pk-page-title" id="pk-page-title">페이지 분석 대기 중...</div>
+    </div>
+    <button id="pk-reload" class="pk-icon-btn" title="다시 분석">⟳</button>
+  </header>
+
+  <div class="pk-cat-row">
+    <button id="pk-cat-images" class="pk-cat-btn" title="이미지">🖼 <span id="pk-c-images">0</span></button>
+    <button id="pk-cat-videos" class="pk-cat-btn" title="동영상">🎬 <span id="pk-c-videos">0</span></button>
+    <select id="pk-cat-select" class="pk-cat-select">
+      <option value="all">전체</option>
+    </select>
+  </div>
+  <div id="pk-filter-info" class="pk-filter-info" hidden></div>
+
+  <div class="pk-toolbar">
+    <input id="pk-search" type="search" placeholder="검색..." />
+    <label class="pk-check"><input type="checkbox" id="pk-article-only" checked /> 본문만</label>
+    <select id="pk-type-filter" hidden>
+      <option value="">전체 형식</option>
+      <option value="jpg">JPG</option>
+      <option value="png">PNG</option>
+      <option value="webp">WEBP</option>
+      <option value="gif">GIF</option>
+      <option value="pdf">PDF</option>
+      <option value="zip">ZIP</option>
+      <option value="mp4">MP4</option>
+    </select>
+    <select id="pk-size-filter" hidden>
+      <option value="">전체 크기</option>
+      <option value="100">100px 이상</option>
+      <option value="500">500px 이상</option>
+      <option value="1000">1000px 이상</option>
+      <option value="2000">2000px 이상</option>
+    </select>
+    <label class="pk-check" id="pk-hide-icons-wrap" hidden><input type="checkbox" id="pk-hide-icons" /> 아이콘 숨김</label>
+  </div>
+  <div id="pk-filter-info" class="pk-filter-info" hidden></div>
+
+  <div id="pk-adblock-hint" class="pk-adblock-hint" hidden>
+    <span><b class="pk-adblock-count"></b>썸네일을 불러오지 못했습니다. 광고 차단기(ADGuard 등)가 차단 중이거나, 사이트가 요청을 거부하고 있을 수 있습니다 — 페이지를 새로고침한 후 ⟳ 버튼으로 다시 분석해 보세요.</span>
+    <button id="pk-adblock-close" title="닫기">✕</button>
+  </div>
+
+  <main id="pk-list" class="pk-list"></main>
+  <div id="pk-empty" class="pk-empty" hidden>분석 결과가 없습니다.<br />상단 ⟳ 버튼으로 페이지를 분석하세요.</div>
+
+  <footer class="pk-footer">
+    <div class="pk-selected">선택 <b id="pk-selected-count">0</b>건 · <span id="pk-selected-size">0B</span></div>
+    <button id="pk-copy-links" class="pk-btn" disabled>링크 복사</button>
+    <button id="pk-download" class="pk-btn pk-btn-primary" disabled>다운로드</button>
+  </footer>
+
+  <div id="pk-pop" class="pk-pop" hidden></div>
+  <div id="pk-toast" class="pk-toast" hidden></div>
+
+  <script src="../debug.js"></script>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

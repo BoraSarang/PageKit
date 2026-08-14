@@ -1,0 +1,95 @@
+/* debug-view.css — PageKit 디버그 창 스타일 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "SF Mono", Menlo, monospace;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.d-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+.d-head h1 { font-size: 14px; font-weight: 700; }
+.d-head-right { display: flex; align-items: center; gap: 8px; }
+.d-hint { color: #94a3b8; font-size: 11px; }
+
+.d-btn {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.d-btn:hover { background: #475569; }
+.d-danger { color: #fca5a5; border-color: #7f1d1d; }
+.d-danger:hover { background: #450a0a; }
+
+.d-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-wrap: wrap;
+}
+.d-filters label { color: #94a3b8; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+.d-filters select, .d-filters input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+.d-search input { width: 260px; }
+
+.d-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: inherit;
+}
+.d-meta { color: #64748b; }
+.d-err { color: #f87171; font-weight: 700; }
+.d-warn { color: #fbbf24; }
+.d-perf { color: #34d399; }
+.d-cache { color: #67e8f9; }
+.d-feature { color: #a78bfa; font-weight: 700; }
+.d-debug { color: #94a3b8; }
+
+.d-foot {
+  padding: 6px 14px;
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 11px;
+}
+.d-status {
+  padding: 8px 14px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #b91c1c;
+}
+.d-status[hidden] { display: none; }
+.d-status .d-btn { background: #dc2626; border-color: #f87171; color: #fff; font-weight: 700; }

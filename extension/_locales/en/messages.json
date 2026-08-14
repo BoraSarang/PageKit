@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "PageKit",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Smart web toolkit: analyze articles and organize images, videos and links.",
+    "description": "Extension description"
+  }
+}

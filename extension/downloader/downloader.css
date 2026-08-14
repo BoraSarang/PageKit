@@ -1,0 +1,163 @@
+/* downloader.css — PageKit 스트림 다운로드 작업 창 */
+
+* { box-sizing: border-box ; margin: 0 ; padding: 0 ; }
+
+:root {
+  --pk-bg: #f6f7f9 ;
+  --pk-card: #ffffff ;
+  --pk-border: #e2e5ea ;
+  --pk-text: #1f2430 ;
+  --pk-muted: #6b7380 ;
+  --pk-accent: #2563eb ;
+  --pk-ok: #16a34a ;
+  --pk-err: #dc2626 ;
+}
+
+body {
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif ;
+  background: var(--pk-bg) ;
+  color: var(--pk-text) ;
+  padding: 14px ;
+  display: flex ;
+  flex-direction: column ;
+  gap: 12px ;
+}
+
+.dl-head h1 {
+  font-size: 14px ;
+  font-weight: 700 ;
+  color: var(--pk-text) ;
+}
+
+.dl-name, .dl-quality, .dl-progress, .dl-result {
+  background: var(--pk-card) ;
+  border: 1px solid var(--pk-border) ;
+  border-radius: 10px ;
+  padding: 12px ;
+}
+
+.dl-quality label {
+  display: block ;
+  font-size: 11px ;
+  font-weight: 600 ;
+  color: var(--pk-muted) ;
+  margin-bottom: 6px ;
+}
+
+.dl-quality select {
+  width: 100% ;
+  border: 1px solid var(--pk-border) ;
+  border-radius: 8px ;
+  padding: 8px 10px ;
+  font-size: 13px ;
+  background: #fff ;
+  color: var(--pk-text) ;
+  outline: none ;
+}
+
+.dl-quality select:disabled { opacity: 0.6 ; }
+
+.dl-name label {
+  display: block ;
+  font-size: 11px ;
+  font-weight: 600 ;
+  color: var(--pk-muted) ;
+  margin-bottom: 6px ;
+}
+
+.dl-name-row {
+  display: flex ;
+  gap: 8px ;
+}
+
+.dl-name-row input {
+  flex: 1 ;
+  min-width: 0 ;
+  border: 1px solid var(--pk-border) ;
+  border-radius: 8px ;
+  padding: 8px 10px ;
+  font-size: 13px ;
+  background: #fff ;
+  color: var(--pk-text) ;
+  outline: none ;
+}
+
+.dl-name-row input:focus { border-color: var(--pk-accent) ; }
+
+.dl-hint {
+  font-size: 11px ;
+  color: var(--pk-muted) ;
+  margin-top: 6px ;
+}
+
+.dl-btn {
+  border: 1px solid var(--pk-border) ;
+  background: #fff ;
+  color: var(--pk-text) ;
+  border-radius: 8px ;
+  padding: 8px 14px ;
+  font-size: 13px ;
+  font-weight: 600 ;
+  cursor: pointer ;
+  white-space: nowrap ;
+}
+
+.dl-btn:hover:not(:disabled) { background: #f0f2f5 ; }
+
+.dl-btn:disabled { opacity: 0.5 ; cursor: not-allowed ; }
+
+.dl-btn.primary { background: var(--pk-accent) ; border-color: var(--pk-accent) ; color: #fff ; }
+.dl-btn.primary:hover:not(:disabled) { background: #1d4ed8 ; }
+.dl-btn.danger { background: #fef2f2 ; border-color: #fecaca ; color: var(--pk-err) ; }
+.dl-btn.danger:hover:not(:disabled) { background: #fee2e2 ; }
+
+.dl-state {
+  font-size: 13px ;
+  font-weight: 600 ;
+  margin-bottom: 8px ;
+}
+
+.dl-bar {
+  height: 10px ;
+  background: #eef0f3 ;
+  border-radius: 5px ;
+  overflow: hidden ;
+}
+
+.dl-bar-fill {
+  height: 100% ;
+  width: 0% ;
+  background: var(--pk-accent) ;
+  border-radius: 5px ;
+  transition: width 0.25s ease ;
+}
+
+.dl-meta {
+  font-size: 12px ;
+  color: var(--pk-muted) ;
+  margin-top: 8px ;
+  font-variant-numeric: tabular-nums ;
+}
+
+.dl-actions {
+  display: flex ;
+  gap: 8px ;
+  justify-content: flex-end ;
+  margin-top: 12px ;
+}
+
+.dl-result-title {
+  font-size: 14px ;
+  font-weight: 700 ;
+  margin-bottom: 6px ;
+}
+
+.dl-result-title.ok { color: var(--pk-ok) ; }
+.dl-result-title.err { color: var(--pk-err) ; }
+
+.dl-result-msg {
+  font-size: 12.5px ;
+  color: var(--pk-text) ;
+  word-break: break-all ;
+  line-height: 1.5 ;
+}

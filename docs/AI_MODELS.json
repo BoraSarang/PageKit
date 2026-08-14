@@ -1,0 +1,29 @@
+{
+  "version": "0.1.0",
+  "language_lock": {
+    "response": "ko",
+    "reasoning": "ko",
+    "enforced": true
+  },
+  "doc_first": {
+    "enabled": true,
+    "required_files": ["docs/plans/PLAN_v0.1_chrome.md", "docs/TODO.md"],
+    "session_auto_save_minutes": 15
+  },
+  "models": {
+    "chat": { "model": "openrouter/auto", "temperature": 0.2, "max_tokens": 4096, "prompt_version": "chat_v0.1", "vision_support": false },
+    "code": { "model": "gemini-1.5-pro", "temperature": 0.1, "max_tokens": 8192, "prompt_version": "code_v0.1", "vision_support": false },
+    "vision": { "model": "gemini-1.5-flash", "temperature": 0.2, "prompt_version": "vision_v0.1", "vision_support": true }
+  },
+  "platforms": {
+    "chrome": { "model": "code", "perf_budget": { "sw_wake_ms": 500, "popup_ms": 300 } }
+  },
+  "cache_policy": {
+    "enabled": false,
+    "ttl_days": 7,
+    "max_entries_chrome": 500,
+    "hit_rate_target": 0.7
+  },
+  "cost_guard": { "max_cost_per_task_usd": 1.0, "alert_at_usd": 0.5 },
+  "e2e": { "playwright_project": "chrome", "k6_threshold_p95_ms": 300 }
+}

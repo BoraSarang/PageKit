@@ -1,0 +1,87 @@
+:root {
+  --pk-primary: #3b82f6;
+  --pk-accent: #06b6d4;
+  --pk-bg: #f1f5f9;
+  --pk-text: #0f172a;
+  --pk-muted: #64748b;
+  --pk-border: #e2e8f0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  background: var(--pk-bg);
+  color: var(--pk-text);
+  font-size: 14px;
+}
+
+.pk-wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
+
+.pk-head { display: flex; gap: 14px; align-items: center; margin-bottom: 20px; }
+.pk-head h1 { font-size: 20px; }
+.pk-head p { color: var(--pk-muted); font-size: 12px; margin-top: 4px; }
+.pk-head kbd {
+  background: #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.pk-card {
+  background: white;
+  border: 1px solid var(--pk-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.pk-card h2 { font-size: 15px; margin-bottom: 6px; }
+.pk-desc { color: var(--pk-muted); font-size: 12px; margin-bottom: 10px; }
+
+.pk-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.pk-row label { font-size: 13px; color: var(--pk-muted); flex-basis: 100%; }
+.pk-row input[type="text"], .pk-row input[type="number"] {
+  border: 1px solid var(--pk-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 140px;
+}
+.pk-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--pk-primary); }
+
+.pk-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--pk-border);
+  color: var(--pk-text);
+}
+.pk-btn:hover { filter: brightness(0.97); }
+.pk-btn-primary { background: var(--pk-primary); color: white; margin-top: 6px; }
+
+.pk-taglist { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pk-taglist li {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pk-taglist li button {
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pk-foot { text-align: center; color: var(--pk-muted); font-size: 12px; margin-top: 20px; }
