@@ -10,7 +10,7 @@ const DEFAULT_SETTINGS = {
   minImageSize: 0,
   concurrentDownloads: 3,
   retryCount: 2,
-  streamDetect: false,
+  streamDetect: true,
   unlockEnabled: false,
 } ;
 

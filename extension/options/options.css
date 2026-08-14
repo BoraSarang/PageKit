@@ -84,4 +84,4 @@ body {
   line-height: 1;
 }
 
-.pk-foot { text-align: center; color: var(--pk-muted); font-size: 12px; margin-top: 20px; }
+.pk-foot { text-align: center; color: var(--pk-muted); font-size: 12px; margin-top: 20px; }.pk-version { font-size: 12px; opacity: 0.6; font-weight: normal; margin-left: 6px; }

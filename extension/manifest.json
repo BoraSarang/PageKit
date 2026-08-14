@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PageKit",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "웹페이지 군더더기는 빼고, 알짜배기 미디어만 쏙! 본문을 분석하고 이미지·동영상·링크를 정리하는 스마트 웹 툴킷",
   "default_locale": "ko",
   "minimum_chrome_version": "116",

@@ -164,3 +164,5 @@ renderRules() ;
 renderPresets() ;
 loadSettings() ;
 loadDebug() ;
+const pkVersionEl = document.getElementById('pk-version') ;
+if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().version}` ;

@@ -504,6 +504,8 @@ function isM3u8Url(url) {
 
 // 초기 로드: 패널이 열릴 때마다 자동 재분석 (사용자가 새로고침하지 않아도 최신 수집)
 DebugLogger.feature('PANEL', '사이드 패널 로드 완료') ;
+const pkVersionEl = document.getElementById('pk-version') ;
+if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().version}` ;
 ;(async () => {
   analyze(true) ;
 })() ;
