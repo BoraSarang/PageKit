@@ -232,7 +232,11 @@ function render() {
       ${it.mergedCount ? `<span class="pk-tag" title="같은 영상의 화질 변형 ${it.mergedCount}건을 하나로 통합했습니다">화질 ${it.mergedCount}개 통합</span>` : ''}
       ${it.downloadable === false ? '<span class="pk-tag pk-tag-no" title="실제 파일이 아니거나 매니페스트라 저장할 수 없습니다">저장 불가</span>' : ''}
       <input type="checkbox" data-id="${it.id}" ${selection.has(it.id) ? 'checked' : ''} ${it.downloadable === false ? 'disabled' : ''} />
-    </label>`).join('') + (items.length > 500 ? '<div class="pk-empty">500개까지만 표시됩니다.</div>' : '') ;
+    </label>`).join('') + (items.length > 500 ? '<div class="pk-empty">500개까지만 표시됩니다.</div>' : '')
+    // 유튜브 캡처 안내: 스트림 탭이 비었고 유튜브 페이지면 재생 안내
+    // (webRequest 캡처는 media 요청이 발생하는 재생 시에만 수집 — shorts는 스크롤 시 자동 재생으로 자연 캡처)
+    + (currentTab === 'streams' && items.length === 0 && /^https?:\/\/(www\.|m\.)?youtube\.com\//i.test(analysis.url || '')
+      ? '<div class="pk-empty">📡 동영상을 재생하면 스트림이 자동 캡처됩니다.<br>캡처 후 ⟳ 버튼으로 다시 분석해 주세요.<br><span style="opacity:.6;font-size:11px">(설정 › 스트림 감지 ON 필요)</span></div>' : '') ;
 
   updateSelectionUI() ;
   fixImageDims() ;
@@ -435,7 +439,7 @@ $('pk-copy-links').addEventListener('click', async () => {
 $('pk-download').addEventListener('click', async () => {
   const items = allItems().filter((it) => selection.has(it.id)) ;
   DebugLogger.feature('PANEL', `다운로드 시작 요청 (${items.length}건)`, { urls: items.slice(0, 5).map((i) => i.url) }) ;
-  const streamItems = items.filter((it) => isM3u8Url(it.url)) ; // 스트림은 작업 창에서 병합 저장
+  const streamItems = items.filter((it) => isM3u8Url(it.url) || it.source === 'youtube-capture') ; // m3u8 병합 + 유튜브 캡처(직접 수신)는 작업 창에서
   const normalItems = items.filter((it) => !isM3u8Url(it.url)) ;
   for (const it of streamItems) {
     try {

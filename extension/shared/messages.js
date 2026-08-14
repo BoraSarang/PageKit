@@ -16,6 +16,7 @@ export const MSG = {
   STREAM_DONE: 'pk.stream.done',         // 작업 창 → BG 완료 (알림 + 10초 후 창 닫기)
   STREAM_FAIL: 'pk.stream.fail',         // 작업 창 → BG 실패 (배지 정리)
   STREAM_CANCEL: 'pk.stream.cancel',     // 작업 창 → BG 취소 (배지 정리)
+  GET_CAPTURED_STREAMS: 'pk.stream.captured.get', // content → BG: 유튜브 webRequest 캡처 목록 조회
   THUMB_FETCH: 'pk.thumb.fetch',
   HIGHLIGHT_TOGGLE: 'pk.ui.highlight',
   FLOAT_BUTTON_READY: 'pk.content.floatReady',

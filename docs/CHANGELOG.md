@@ -1,5 +1,26 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.3.0 (2026-08-14) — 유튜브 스트림 캡처 (webRequest) + UMP 감지
+
+### 기능 [chrome]
+- **유튜브 스트림 캡처 (webRequest)**: watch/shorts는 blob 재생이라 성능 엔트리로 실스트림 추출 불가 → `onBeforeRequest`로 googlevideo.com `videoplayback` media 요청 캡처 → itag 파싱(화질 라벨·progressive/video-only 판별) + range 필터(부분 요청 제외) + `storage.session` 최대 5개(itag별 dedup, capturedAt) → 패널 스트림 탭에 병합 ("동영상을 재생하면 자동 캡처됩니다" 안내)
+- **UMP/SABR 감지 (E-CHR-DL-1006)**: 캡처된 googlevideo URL은 무로그인 재생이 전부 UMP 전환(2026-08-14 실측) — fetch 후 Content-Type에 `yt-ump|sabr`가 있으면 즉시 중단 + 안내 문구 (실측: 시작 후 15초 내 안내 표시)
+- **다운로더 타임아웃/취소 재작성**: 웨일 확장 페이지는 AbortController로 in-flight fetch/read를 중단하지 못함(실측) → Promise.race 기반 (연결 25초, read idle 15초 — 0바이트 chunk는 타이머 리셋 안 함, 취소는 `globalThis.__dlCancelCurrent`)
+
+### 수정 (실측 검증 중 발견) [chrome]
+- **`downloadDirect` 내 `const tErr` 중복 선언 → module SyntaxError로 다운로더 JS 전체 미실행** — "웨일이 구버전 JS를 캐시한다"로 오인되던 근본 원인. 노드 `node --check`는 통과하므로 코드레벨 검수 필요
+- **`runDownload`의 `return downloadDirect()` await 누락** → E-CHR-DL-1006 throw가 unhandled rejection으로 나가 **에러가 UI에 안 보이고 "수신 중"이 무한 유지** — `return await`로 수정
+- **다운로더 디렉터리 `extension/downloader2/`로 이전**: 웨일은 확장 JS를 경로 기반으로 캐시(`?v=` 쿼리 무시, 파일명 변경만 우회) → 폴더명이 버전 역할 (script src에 `?v=1` 유지)
+
+### 검증
+- UMP 영상 실측: fetch 200 + `application/vnd.yt-ump` (sabr.malformed_config 31B) → E-CHR-DL-1006 "다운로드 실패" 안내 정상 표시 ✓ 다시 시도 버튼 ✓
+- 캡처 → BG 경유 다운로더 창 → URL 파라미터(u/n/f/t/r) 전달 정상 ✓ Referer 규칙 등록 로그 ✓
+
+### 남은 작업 (v0.3.0+)
+- HTTP 미디어 제공 영상 탐색 (UMP 전면 전환 이전 샘플 필요 — 없으면 mp4 실저장 검증 불가)
+- UMP/SABR 프로토콜 파싱으로 세션 재구성 연구 (확장 지점 5)
+- options.js의 `?dl=` 디버그 훅·`__PKDL_VER` 마커 유지 (웨일 테스트 워크플로우 필수 — SW CDP attach 500 우회)
+
 ## v0.2.0 (2026-08-14) — 스트림(m3u8) 병합 다운로드 — 독립 작업 창
 
 ### 기능 [chrome]

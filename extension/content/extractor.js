@@ -625,6 +625,35 @@
     }
   }
 
+  // 유튜브 watch/shorts 대응: blob 재생이라 성능 엔트리에서 확장자 매칭 불가 → BG가 webRequest로
+  // 캡처한 googlevideo.com media 요청(서명 URL)을 스트림으로 병합 (streamDetect 옵션 ON일 때 수집됨)
+  async function mergeCapturedStreams(result) {
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'pk.stream.captured.get' }) ;
+      const caps = resp?.ok ? resp.data : [] ;
+      if (!Array.isArray(caps) || !caps.length) return ;
+      const seen = new Set(result.media.streams.map((s) => s.url)) ;
+      for (const c of caps) {
+        if (seen.has(c.url)) continue ;
+        seen.add(c.url) ;
+        result.media.streams.push({
+          id: `s${result.media.streams.length}`,
+          url: c.url,
+          name: `유튜브 ${c.label || '동영상'}${c.format === 'video-only' ? ' (영상 전용)' : ''}`,
+          protocol: 'direct',
+          format: c.format || 'progressive',
+          itag: c.itag,
+          qualities: [],
+          inArticle: true,
+          downloadable: true,
+          source: 'youtube-capture',
+          capturedAt: c.capturedAt,
+        }) ;
+      }
+      DebugLogger.feature('EXTRACT', `유튜브 캡처 병합 (${caps.length}건)`) ;
+    } catch { /* BG 미응답/오류 시 캡처 없음으로 처리 */ }
+  }
+
   // 플로팅 버튼 (float-button.js와 동일 DOM — 이중 주입 가드로 안전)
   function ensureFloatButton() {
     if (document.getElementById('pk-float-btn')) return document.getElementById('pk-float-btn') ;
@@ -697,6 +726,7 @@
           const result = analyze() ;
           await collectNaverVod(result) ; // navertv VOD는 먼저 (frameId 재할당은 collectFrameMedia가 수행)
           await collectFrameMedia(result) ;
+          await mergeCapturedStreams(result) ; // 유튜브 googlevideo webRequest 캡처 병합
           // async 수집(navertv VOD/iframe 협업)이 media에 push한 항목을 stats에 최종 동기화
           // (collectFrameMedia는 iframe이 없으면 조기 종료되어 stats를 갱신하지 않음)
           result.stats.totalImages = result.media.images.length ;

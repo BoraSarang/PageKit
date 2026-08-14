@@ -12,3 +12,7 @@
 
 # 세션 로그 / 임시 파일
 .agent/
+
+# 테스트용 임시 브라우저/확장 복사본
+.whale-profile-yt/
+extension-yt/

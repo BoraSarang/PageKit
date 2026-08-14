@@ -6,7 +6,7 @@ import { openSidePanel } from './sidepanel-controller.js' ;
 import { MSG, msgOk, msgErr } from '../shared/messages.js' ;
 import * as storage from './storage.js' ;
 import { initDownloader, ensureReferer } from './downloader.js' ;
-import { initStreamDetector } from './stream-detector.js' ;
+import { initStreamDetector, getCapturedStreams } from './stream-detector.js' ;
 
 const RUN_SCRIPTS = [
   'debug.js',
@@ -90,10 +90,11 @@ let streamDownloadId = null ; // 완료된 파일 (알림 클릭 시 다운로�
 let streamQueue = [] ; // 대기 중인 스트림 작업 (여러 개 선택 시 순차 다운로드)
 
 function streamWinUrl(job) {
+  // downloader2: 웨일이 확장 페이지를 경로 기반으로 캐시해 html 수정이 반영 안 됨 → 캐시 우회용 별도 파일명
   const q = new URLSearchParams({ u: job.url, n: job.name || '', f: job.folder || 'page' }) ;
   if (job.title) q.set('t', job.title) ;
   if (job.referer) q.set('r', job.referer) ;
-  return chrome.runtime.getURL(`downloader/downloader.html?${q.toString()}`) ;
+  return chrome.runtime.getURL(`downloader2/downloader2.html?${q.toString()}`) ;
 }
 
 async function openStreamWindow(job) {
@@ -272,6 +273,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch((e) => BGLogger.error('DL', `스트림 작업 창 열기 실패 ${e.message}`, { code: 'E-CHR-DL-1001' })) ;
       sendResponse(msgOk()) ;
       return false ;
+    }
+    case MSG.GET_CAPTURED_STREAMS: {
+      // 유튜브 googlevideo 캡처 목록 (webRequest — streamDetect ON일 때 수집)
+      getCapturedStreams().then((caps) => sendResponse(msgOk(caps))) ;
+      return true ;
     }
     case MSG.STREAM_PROGRESS: {
       const pct = Math.max(0, Math.min(100, message.payload?.percent ?? 0)) ;

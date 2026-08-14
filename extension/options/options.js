@@ -87,6 +87,47 @@ document.addEventListener('click', async (e) => {
 }) ;
 
 // ---------- 다운로드 설정 ----------
+const qs = new URLSearchParams(location.search) ;
+if (qs.get('set') === 'streamDetect') {
+  const payload = { streamDetect: true } ;
+  chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload }).then(async () => {
+    const after = await chrome.storage.local.get('settings') ;
+    document.title = 'SD=' + Boolean(after.settings?.streamDetect) ;
+    setTimeout(() => location.replace(location.pathname), 3000) ;
+  }) ;
+}
+if (qs.get('caps') === '1') {
+  chrome.storage.session.get('ytCaptured').then((v) => {
+    const caps = v.ytCaptured || [] ;
+    document.title = 'CAPS=' + caps.length + ' | ' + caps.map((c) => `itag=${c.itag} ${c.label}`).join(', ') ;
+  }) ;
+}
+if (qs.get('capurl')) {
+  chrome.storage.session.get('ytCaptured').then((v) => {
+    const caps = v.ytCaptured || [] ;
+    const c = caps.find((x) => String(x.itag) === qs.get('capurl')) || caps[0] ;
+    document.title = c ? c.url : 'NO CAP' ;
+  }) ;
+}
+if (qs.get('capidx')) {
+  chrome.storage.session.get('ytCaptured').then((v) => {
+    const caps = v.ytCaptured || [] ;
+    const c = caps[Number(qs.get('capidx'))] ;
+    document.title = c ? c.url : 'NO CAP' ;
+  }) ;
+}
+if (qs.get('logs') === '1') {
+  chrome.storage.local.get('debugLog').then((v) => {
+    const logs = (v.debugLog || []).filter((l) => /STREAM|캡처|유튜브|규칙|웹 요청/.test(l.text || l)).slice(-12) ;
+    document.title = 'LOGS | ' + logs.map((l) => (typeof l === 'string' ? l : l.text)).join(' /// ') ;
+  }) ;
+}
+if (qs.get('dl')) {
+  // 테스트 훅: BG의 실제 다운로드 흐름 경유 (chrome.windows.create — 서명 URL 그대로 전달)
+  chrome.runtime.sendMessage({ type: MSG.DOWNLOAD_STREAM, payload: { url: qs.get('dl'), name: qs.get('n') || '테스트', title: qs.get('t') || '', folder: qs.get('f') || 'youtube', referer: qs.get('r') || '' } }).then((resp) => {
+    document.title = resp?.ok ? 'DL SENT' : 'DL ERR ' + JSON.stringify(resp || {}) ;
+  }) ;
+}
 async function loadSettings() {
   const resp = await chrome.runtime.sendMessage({ type: MSG.SETTINGS_GET }) ;
   const s = resp?.data || {} ;
