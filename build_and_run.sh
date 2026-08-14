@@ -56,21 +56,22 @@ PY
 }
 
 run_chrome() {
-  local profile="$ROOT/.whale-profile"
-  log "Whale 실행 (확장 로드, 프로필: $profile)"
+  local profile="$ROOT/.chrome-profile"
+  log "Chrome 실행 (확장 로드, 프로필: $profile)"
   mkdir -p "$profile"
-  # 정식 Chrome 137+는 --load-extension 무시 → Whale(플래그 지원) 사용
-  local whale_bin="/Applications/Whale.app/Contents/MacOS/Whale"
-  if [ ! -x "$whale_bin" ]; then
-    warn "Whale 미설치 — 수동으로 chrome://extensions → '압축해제된 확장 프로그램 로드' ($EXT)"
+  # 테스트 브라우저는 Chrome (2026-08-15 사용자 확정 — Whale은 실사용 중이므로 금지)
+  # Chrome 137+는 --load-extension 단독 사용을 무시 → --disable-extensions-except 병행으로 우회
+  local chrome_bin="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  if [ ! -x "$chrome_bin" ]; then
+    warn "Chrome 미설치 — 수동으로 chrome://extensions → '압축해제된 확장 프로그램 로드' ($EXT)"
     return 0
   fi
-  "$whale_bin" \
+  "$chrome_bin" \
     --user-data-dir="$profile" \
     --disable-extensions-except="$EXT" \
     --load-extension="$EXT" \
     --no-first-run --no-default-browser-check >/dev/null 2>&1 &
-  log "Whale 시작됨 (PID $!). 종료: 해당 창 닫기"
+  log "Chrome 시작됨 (PID $!). 종료: 해당 창 닫기"
   sleep 1
 }
 

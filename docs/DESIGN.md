@@ -112,8 +112,11 @@ async function openSidePanel(source) {
 
 - content `unlock.js`: `contextmenu`/`copy`/`selectstart` 캡처 단계에서 `stopPropagation` + `preventDefault` 제거
 - CSS 주입: `* { user-select: text !important; }` 등
-- 화이트리스트: `chrome.storage.local`의 `unlockSites` (도메인 배열), 옵션에서 관리
-- 기본: **꺼짐**, 사용자가 켠 사이트만 활성 (심사 안전)
+- **전역 체크박스** (v0.4): `settings.unlockEnabled` true면 모든 사이트에서 활성 (기본 false — 심사 안전)
+  - 기존 화이트리스트(`unlockSites` 도메인 배열) 방식은 v0.4에서 제거 — 미동작 이슈(WPageTools-ik7)로 단순화
+  - 기존 보유 데이터는 getSettings()에서 1회 `unlockEnabled=true` 승계 후 정리
+  - 옵션 토글은 `chrome.storage.onChanged`(settings 키)로 콘텐츠 스크립트에 즉시 반영
+- 화이트리스트: **제거됨** (v0.4)
 
 ## 8. 상태 저장 (storage)
 

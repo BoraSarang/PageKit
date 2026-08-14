@@ -1,8 +1,8 @@
 // background/storage.js — chrome.storage 래퍼
-// local: settings / unlockSites / siteRules / linkPresets
+// local: settings / siteRules / linkPresets
 // session: lastAnalysis / downloadJobs
 
-const LOCAL_KEYS = ['settings', 'unlockSites', 'siteRules', 'linkPresets'] ;
+const LOCAL_KEYS = ['settings', 'siteRules', 'linkPresets'] ;
 const SESSION_KEYS = ['lastAnalysis', 'downloadJobs'] ;
 
 const DEFAULT_SETTINGS = {
@@ -34,7 +34,15 @@ export async function setSession(key, value) {
 
 export async function getSettings() {
   const s = await getLocal('settings', null) ;
-  return { ...DEFAULT_SETTINGS, ...(s || {}) } ;
+  const next = { ...DEFAULT_SETTINGS, ...(s || {}) } ;
+  // v0.4 마이그레이션: 기존 화이트리스트(unlockSites) 보유 시 전역 체크박스 ON으로 1회 승계 후 정리
+  const legacy = await getLocal('unlockSites', []) ;
+  if (Array.isArray(legacy) && legacy.length) {
+    next.unlockEnabled = true ;
+    await setLocal('settings', next) ;
+    await setLocal('unlockSites', []) ;
+  }
+  return next ;
 }
 
 export async function setSettings(patch) {
@@ -42,19 +50,6 @@ export async function setSettings(patch) {
   const next = { ...cur, ...patch } ;
   await setLocal('settings', next) ;
   return next ;
-}
-
-export async function getUnlockSites() {
-  return (await getLocal('unlockSites', [])) || [] ;
-}
-
-export async function toggleUnlockSite(domain) {
-  const sites = await getUnlockSites() ;
-  const idx = sites.indexOf(domain) ;
-  if (idx >= 0) sites.splice(idx, 1) ;
-  else sites.push(domain) ;
-  await setLocal('unlockSites', sites) ;
-  return sites ;
 }
 
 export async function getSiteRules() {

@@ -15,4 +15,5 @@
 
 # 테스트용 임시 브라우저/확장 복사본
 .whale-profile-yt/
+.whale-profile-dev/
 extension-yt/

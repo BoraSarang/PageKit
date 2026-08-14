@@ -30,6 +30,22 @@ const MAIN_SCRIPTS = [
   'content/float-button.js',
 ] ;
 
+// 우클릭/복사 제한 해제 전용: 옵션(settings.unlockEnabled) ON이면 페이지 로드 시 자동 주입
+// (manifest content_scripts 미사용 — 요청 시 주입 구조. unlock.js는 __pkUnlockLoaded 가드로 중복 안전)
+async function maybeInjectUnlock(tabId, tabUrl) {
+  if (!/^https?:/.test(tabUrl || '')) return ;
+  const s = await storage.getSettings() ;
+  if (!s.unlockEnabled) return ;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ['debug.js', 'content/unlock.js'],
+    }) ;
+  } catch (e) {
+    BGLogger.debug('UNLOCK', `자동 주입 실패 tab=${tabId}: ${e.message}`) ;
+  }
+}
+
 // 주입 여부는 ping으로 실시간 검증 (세션 키는 페이지 리로드 후 스크립트가 사라져도 남아 있어 부정확)
 async function ensureInjected(tabId, force = false) {
   if (!force) {
@@ -90,11 +106,10 @@ let streamDownloadId = null ; // 완료된 파일 (알림 클릭 시 다운로�
 let streamQueue = [] ; // 대기 중인 스트림 작업 (여러 개 선택 시 순차 다운로드)
 
 function streamWinUrl(job) {
-  // downloader2: 웨일이 확장 페이지를 경로 기반으로 캐시해 html 수정이 반영 안 됨 → 캐시 우회용 별도 파일명
   const q = new URLSearchParams({ u: job.url, n: job.name || '', f: job.folder || 'page' }) ;
   if (job.title) q.set('t', job.title) ;
   if (job.referer) q.set('r', job.referer) ;
-  return chrome.runtime.getURL(`downloader2/downloader2.html?${q.toString()}`) ;
+  return chrome.runtime.getURL(`downloader/downloader.html?${q.toString()}`) ;
 }
 
 async function openStreamWindow(job) {
@@ -323,6 +338,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case MSG.SETTINGS_SET: {
       storage.setSettings(message.payload || {}).then((s) => {
         BGLogger.info('SETTINGS', '설정 저장됨', s) ;
+        // 우클릭 해제 ON → 현재 활성 탭에 즉시 주입 (새로고침 없이 바로 동작)
+        if (s.unlockEnabled && message.payload?.unlockEnabled) {
+          chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+            const tab = tabs[0] ;
+            if (tab?.id != null) maybeInjectUnlock(tab.id, tab.url) ;
+          }) ;
+        }
         sendResponse(msgOk(s)) ;
       }) ;
       return true ;
@@ -334,6 +356,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onStartup.addListener(() => {
   BGLogger.info('BG', '브라우저 시작 감지') ;
+}) ;
+
+// 우클릭/복사 제한 해제: 페이지 로드 완료 시 unlockEnabled ON이면 unlock.js 자동 주입
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return ;
+  maybeInjectUnlock(tabId, tab.url) ;
 }) ;
 
 BGLogger.feature('BG', 'PageKit 백그라운드 서비스 워커 기동 완료') ;

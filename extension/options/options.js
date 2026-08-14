@@ -1,4 +1,4 @@
-// options/options.js — 옵션 페이지 (화이트리스트 / 사이트 규칙 / 프리셋 / 다운로드 설정)
+// options/options.js — 옵션 페이지 (우클릭 해제 / 사이트 규칙 / 프리셋 / 다운로드 설정)
 
 import { MSG } from '../shared/messages.js' ;
 
@@ -11,23 +11,6 @@ async function get(key, fallback) {
 async function set(key, value) {
   await chrome.storage.local.set({ [key]: value }) ;
 }
-
-// ---------- 우클릭 화이트리스트 ----------
-async function renderUnlock() {
-  const sites = await get('unlockSites', []) ;
-  $('pk-unlock-list').innerHTML = sites.map((s) => `<li>${s} <button data-act="del" data-key="unlockSites" data-val="${s}">✕</button></li>`).join('') ;
-}
-$('pk-unlock-add').addEventListener('click', async () => {
-  const v = $('pk-unlock-input').value.trim().replace(/^https?:\/\//, '') ;
-  if (!v) return ;
-  const sites = await get('unlockSites', []) ;
-  if (!sites.includes(v)) {
-    sites.push(v) ;
-    await set('unlockSites', sites) ;
-  }
-  $('pk-unlock-input').value = '' ;
-  renderUnlock() ;
-}) ;
 
 // ---------- 사이트 규칙 ----------
 async function renderRules() {
@@ -73,15 +56,9 @@ document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-act="del"]') ;
   if (!btn) return ;
   const { key, val } = btn.dataset ;
-  const obj = await get(key, key === 'unlockSites' ? [] : {}) ;
-  if (Array.isArray(obj)) {
-    const idx = obj.indexOf(val) ;
-    if (idx >= 0) obj.splice(idx, 1) ;
-  } else {
-    delete obj[val] ;
-  }
+  const obj = await get(key, {}) ;
+  delete obj[val] ;
   await set(key, obj) ;
-  renderUnlock() ;
   renderRules() ;
   renderPresets() ;
 }) ;
@@ -135,7 +112,13 @@ async function loadSettings() {
   $('pk-min-width').value = s.minImageWidth ?? 0 ;
   $('pk-min-size').value = s.minImageSize ?? 0 ;
   $('pk-stream-detect').checked = Boolean(s.streamDetect) ;
+  $('pk-unlock-enabled').checked = Boolean(s.unlockEnabled) ;
 }
+$('pk-unlock-enabled').addEventListener('change', () => {
+  const on = $('pk-unlock-enabled').checked ;
+  DebugLogger.feature('OPTIONS', `우클릭/복사 제한 해제 ${on ? '켬' : '끔'}`) ;
+  chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload: { unlockEnabled: on } }) ;
+}) ;
 $('pk-save-settings').addEventListener('click', async () => {
   const payload = {
     concurrentDownloads: Math.max(1, parseInt($('pk-concurrent').value, 10) || 3),
@@ -159,7 +142,6 @@ $('pk-debug-enabled').addEventListener('change', () => {
 }) ;
 
 DebugLogger.feature('OPTIONS', '옵션 페이지 로드 완료') ;
-renderUnlock() ;
 renderRules() ;
 renderPresets() ;
 loadSettings() ;

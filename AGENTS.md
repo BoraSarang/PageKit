@@ -1,5 +1,12 @@
 # Agent Instructions
 
+> ## ⚠️ 테스트 브라우저 규칙 (2026-08-15 사용자 확정 — 최우선)
+> 1. **테스트 브라우저 = Google Chrome** (`/Applications/Google Chrome.app`, 프로필 `.chrome-profile`, CDP `--remote-debugging-port`)
+> 2. **웨일(Whale)은 절대 건드리지 않는다** — 프로세스 종료/재시작/프로필(`.whale-profile*`) 삭제·수정/확장 리로드 전부 금지 (사용자가 실사용 중)
+> 3. 크롬과 웨일은 동일하게 동작하므로 크롬 테스트 결과 = 웨일 동일 적용
+> 4. Chrome 137+ 제약(`--load-extension` 무시)은 `--disable-extensions-except` 병행 또는 `chrome://extensions` 개발자 모드 수동 로드로 우회 (bd WPageTools-hq0 참조)
+> 5. `build_and_run.sh`의 실행/킬/재시작 대상은 Chrome만 — Whale 관련 명령 금지
+
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
 > **Architecture in one line:** Issues live in a local Dolt database

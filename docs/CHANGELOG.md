@@ -1,5 +1,37 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.4.2 (2026-08-15) — 다운로더 폴더명 정리 (downloader2 → downloader)
+
+### 변경 [chrome]
+- **`extension/downloader2/` → `extension/downloader/`**: 웨일 경로 기반 JS 캐시 우회용 폴더명이었으나, 테스트 브라우저가 Chrome으로 전환(2026-08-15 사용자 확정)되어 불필요해짐 — `?v=` 쿼리 캐시 버스터로 일원화
+- 웨일 실사용 리로드 시에는 기존 절차(`.whale-profile/Default/Service Worker` 캐시 삭제 + 재시작)로 대응
+- 참조 갱신: service-worker.js `streamWinUrl()`, downloader.html css/js 경로
+
+### 검증
+- Chrome CDP: `downloader/downloader.html` 200 응답 + 다운로더 창 정상 로드(UI 렌더 확인) ✅
+
+## v0.4.1 (2026-08-15) — 우클릭 해제 페이지 로드 시 자동 주입 (실사용 리포트 대응)
+
+### 수정 [chrome]
+- **근본 원인 (실사용 리포트)**: 체크박스 ON + 사이트 접속 시 우클릭 해제 미동작 — PageKit은 manifest `content_scripts` 자동 주입이 없고 **요청 시(분석/패널 열기)에만 스크립트 주입**하므로, 그냥 페이지에 들어가면 `unlock.js`가 페이지에 존재하지 않았음 (화이트리스트 시절부터 동일한 구조적 문제)
+- **해결**: BG `tabs.onUpdated`(status=complete)에서 `settings.unlockEnabled === true`면 해당 탭에 `debug.js`+`unlock.js` 자동 주입 (`__pkUnlockLoaded` 가드로 중복 안전). 옵션에서 ON 토글 시에도 현재 활성 탭에 즉시 주입 (새로고침 없이 바로 동작)
+- 전역 자동 주입이 아닌 **설정 ON 시에만** 주입 — 심사 친화적
+
+### 검증
+- Whale CDP 실측 (2026-08-15): 옵션 체크 ON → 네이버 브랜드 스토어(products/13171351553) 열기 → `#pk-unlock-style` CSS 주입 + `user-select: text` 적용 확인 (ISOLATED world 주입 정상)
+
+## v0.4.0 (2026-08-15) — 우클릭/복사 제한 해제 전역 체크박스 전환
+
+### 변경 [chrome]
+- **화이트리스트(도메인 배열) 방식 제거 → 전역 체크박스**: 옵션 "🔓 우클릭/복사 제한 해제"를 `settings.unlockEnabled` 1개 체크박스로 단순화 (모든 사이트 즉시 적용). 호스트 기반 미동작 이슈(WPageTools-ik7) 해소 — 입력 도메인 vs 실제 hostname 불일치/www 접두사 등으로 동작하지 않던 문제
+- **즉시 반영**: 옵션 토글 → `chrome.storage.onChanged`(settings 키)로 콘텐츠 스크립트가 즉시 활성/비활성 (새로고침 불필요)
+- **기존 데이터 마이그레이션**: `unlockSites` 보유 시 1회 `unlockEnabled=true`로 승계 후 정리 (기존 사용자 보호)
+- **미사용 코드 정리**: `UNLOCK_TOGGLE` 메시지, `getUnlockSites`/`toggleUnlockSite`(storage.js), 옵션 화이트리스트 렌더/추가/공통 삭제 unlockSites 분기 제거
+
+### 검증
+- JS 5개 파일 `node --check` 통과
+- Whale CDP 실측 (2026-08-15) — ① 옵션 체크박스 렌더(레거시 입력/리스트 제거 확인) ② ON 토글 → `settings.unlockEnabled=true` 저장 + 테스트 페이지(우클릭 차단 + user-select none)에 `#pk-unlock-style` 즉시 주입 + user-select text 적용 ③ OFF 토글 → CSS 제거 + user-select none 원복 (새로고침 없이 즉시) ④ 레거시 `unlockSites` 보유 → `unlockEnabled=true` 1회 승계 + 배열 정리 확인
+
 ## v0.3.0 (2026-08-14) — 유튜브 스트림 캡처 (webRequest) + UMP 감지
 
 ### 기능 [chrome]

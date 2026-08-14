@@ -22,7 +22,6 @@ export const MSG = {
   FLOAT_BUTTON_READY: 'pk.content.floatReady',
   SETTINGS_GET: 'pk.settings.get',
   SETTINGS_SET: 'pk.settings.set',
-  UNLOCK_TOGGLE: 'pk.unlock.toggle',
 } ;
 
 export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup', 'float'] ;

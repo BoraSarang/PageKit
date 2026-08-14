@@ -48,6 +48,21 @@
 | T-40 | DebugPanel: debug-view 창 (필터/복사/지우기/2초 폴링) + toggle-debug 단축키 | ✅ | Cmd+Shift+D |
 | T-41 | 모든 기능 디버그 메시지 통합 (extractor/unlock/highlight/float/popup/panel/options) | ✅ | 19.1장 FEATURE 로그 |
 
+## v0.4 (chrome) — 우클릭/복사 제한 해제 전역 체크박스
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-42 | 우클릭/복사 제한 해제를 전역 체크박스(`settings.unlockEnabled`)로 전환 (화이트리스트 제거) | ✅ | bd WPageTools-ik7 (close는 사용자 확인 후) |
+| T-42-1 | storage.js — getSettings() 마이그레이션 + unlockSites 함수 제거 | ✅ | |
+| T-42-2 | unlock.js — settings.unlockEnabled 기반 활성/비활성 | ✅ | |
+| T-42-3 | options.html — 화이트리스트 카드 → 체크박스 카드 | ✅ | |
+| T-42-4 | options.js — 체크박스 토글(즉시 저장) + 화이트리스트 코드 제거 | ✅ | |
+| T-42-5 | messages.js — UNLOCK_TOGGLE 제거 (미사용 확인) | ✅ | |
+| T-42-6 | docs — DESIGN.md(7장) / CHANGELOG.md / e2e PLAN 갱신 | ✅ | |
+| T-42-7 | 검증 — node --check + Whale 실측 (토글 즉시 반영) | ✅ | CDP 실측 4종 통과 |
+| T-43 | unlock.js 페이지 로드 시 자동 주입 (tabs.onUpdated — unlockEnabled ON일 때만) | ✅ | 근본 원인: 요청 시 주입 구조라 페이지에 unlock.js 부재 → 자동 주입으로 해결, CDP 실측 통과 |
+| T-44 | 다운로더 폴더명 정리 (downloader2 → downloader) — 웨일 경로 캐시 우회 불필요 (Chrome 테스트 전환) | ✅ | service-worker.js + downloader.html 참조 갱신, Chrome CDP 실측 통과 |
+
 ## 진행 이력
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
@@ -59,3 +74,4 @@
 - 2026-08-14: debugEnabled 캐시 미갱신 버그 수정(storage.onChanged 구독). 디버그 창 폴링/필터/지우기 검증. a11y-dump + webstore --dry-run 통과. CHANGELOG.md 작성.
 - 2026-08-14: 사용자 실사용 테스트 리포트로 버그 6건 수정 — ① ENSURE_INJECTED sender.tab 없음(tabId 명시 전달), ② 디버그 로그 기본 꺼짐(기본 켬 + 토글 + 상태 배너), ③ 사이드바 분석 실패(ensureInjected 누락), ④ YouTube blob 비디오 0(og:video 폴백), ⑤ 패널 URL CSS.escape 백슬래시(esc 교체), ⑥ host_permissions <all_urls> 추가(사용자 확정).
 - 2026-08-14: **Whale SW ScriptCache 문제 발견** — 확장 SW 스크립트가 프로필 Service Worker/ScriptCache에 캐시되어 수정 코드가 반영 안 됨. 캐시 삭제 후 정상 확인.
+- 2026-08-15: **T-42 (v0.4)** — 우클릭/복사 제한 해제를 전역 체크박스로 전환. 화이트리스트(unlockSites) 제거 → `settings.unlockEnabled` 1개 체크박스, onChanged 즉시 반영, 레거시 데이터 1회 승계 마이그레이션. Whale CDP 실측 4종 통과 (체크박스 렌더/ON 활성/OFF 원복/마이그레이션).
