@@ -75,6 +75,15 @@
 | T-55 | P2-2 링크 CSV 내보내기 (패널 검색 결과) | ✅ | 링크 탭 [CSV] 버튼, BOM 포함 — Chrome CDP 실측 통과 |
 | T-56 | 통합 검증 (Chrome CDP) | ✅ | ZIP/DASH/CSV CDP 실측 + 웨일 사용자 확인 |
 
+## v0.6 (landing) — PageKit 홍보 랜딩 페이지
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-60 | PLAN_v0.6_landing.md 작성 + TODO 등록 | ✅ | 본 행 |
+| T-61 | landing/index.html 구현 (Flat Design, 이미지 없음) | ✅ | Tailwind CDN + Plus Jakarta Sans, CSS 브라우저 모형, 푸터 제작자/문의 |
+| T-62 | Chrome CDP 검증 (렌더/다크모드/반응형) + Lighthouse | ✅ | TC-01~04 통과 — Lighthouse a11y/Best Practices/SEO/Agentic 100점 (대비 7건 수정 후) |
+| T-63 | 커밋 + push | ⏳ | feat(landing): ... |
+
 ## 진행 이력
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
