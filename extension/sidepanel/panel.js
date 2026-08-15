@@ -190,6 +190,7 @@ function render() {
   $('pk-type-filter').hidden = !(currentTab === 'images' || currentTab === 'links') ;
   $('pk-size-filter').hidden = !(currentTab === 'images') ;
   $('pk-hide-icons-wrap').hidden = !(currentTab === 'images') ;
+  $('pk-export-csv').hidden = currentTab !== 'links' ;
 
   // 카운트 배지 = 실제 추출 개수 (stats) → 팝업 요약과 일치
   const articleUsable = analysis.article?.found !== false ;
@@ -443,11 +444,45 @@ $('pk-copy-links').addEventListener('click', async () => {
   }
 }) ;
 
+// CSV 내보내기 (T-55): 검색·필터가 적용된 현재 탭 목록을 CSV로 저장 (링크 탭에서만)
+$('pk-export-csv').addEventListener('click', () => {
+  const items = tabItems() ;
+  if (!items.length) {
+    toast('내보낼 항목이 없습니다.') ;
+    return ;
+  }
+  const csvEsc = (v) => {
+    const s = String(v ?? '') ;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s ;
+  } ;
+  const header = ['URL', '이름', '형식', '카테고리', '크기(byte)', '폭', '높이', '본문', '출처'] ;
+  const rows = items.map((it) => [
+    it.url, it.name || it.text || '', it.type || '', it.cat, it.size || 0, it.w || '', it.h || '',
+    it.inArticle ? '본문' : '외부', it.source || '',
+  ].map(csvEsc)) ;
+  const csv = '\uFEFF' + [header, ...rows].map((r) => r.join(',')).join('\r\n') ; // BOM — Excel 한글 깨짐 방지
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }) ;
+  const objectUrl = URL.createObjectURL(blob) ;
+  let host = 'page' ;
+  try { host = new URL(analysis?.url || '').hostname.replace(/^www\./, '') || 'page' ; } catch {}
+  const filename = `PageKit/${host}/links/${new Date().toISOString().slice(0, 10)}_pagekit.csv` ;
+  chrome.downloads.download({ url: objectUrl, filename, conflictAction: 'uniquify' }, (id) => {
+    URL.revokeObjectURL(objectUrl) ;
+    if (chrome.runtime.lastError) {
+      DebugLogger.error('[PANEL] CSV 저장 실패', chrome.runtime.lastError.message, { code: 'E-CHR-DL-1002' }) ;
+      toast('CSV 저장 실패 — 다시 시도해 주세요.') ;
+      return ;
+    }
+    DebugLogger.feature('PANEL', `CSV 내보내기 완료 (${items.length}건, 필터 적용) → ${filename}`) ;
+    toast(`CSV ${items.length}건 저장됨`) ;
+  }) ;
+}) ;
+
 $('pk-download').addEventListener('click', async () => {
   const items = allItems().filter((it) => selection.has(it.id)) ;
   DebugLogger.feature('PANEL', `다운로드 시작 요청 (${items.length}건)`, { urls: items.slice(0, 5).map((i) => i.url) }) ;
-  const streamItems = items.filter((it) => isM3u8Url(it.url) || it.source === 'youtube-capture') ; // m3u8 병합 + 유튜브 캡처(직접 수신)는 작업 창에서
-  const normalItems = items.filter((it) => !isM3u8Url(it.url)) ;
+  const streamItems = items.filter((it) => isStreamManifestUrl(it.url) || it.source === 'youtube-capture' || it.source === 'youtube-player') ; // m3u8/mpd 병합 + 유튜브(직접 수신)는 작업 창에서
+  const normalItems = items.filter((it) => !isStreamManifestUrl(it.url)) ;
   for (const it of streamItems) {
     try {
       const resp = await chrome.runtime.sendMessage({
@@ -475,10 +510,11 @@ $('pk-download').addEventListener('click', async () => {
     if (streamItems.length) toast('스트림 다운로드 창을 엽니다.') ;
     return ;
   }
-  const resp = await chrome.runtime.sendMessage({ type: MSG.DOWNLOAD_START, payload: { tabId: analysisSource.tabId, items: normalItems } }) ;
+  const zipMode = $('pk-zip-pack')?.checked === true ;
+  const resp = await chrome.runtime.sendMessage({ type: MSG.DOWNLOAD_START, payload: { tabId: analysisSource.tabId, items: normalItems, zip: zipMode } }) ;
   if (resp?.ok) {
-    DebugLogger.feature('PANEL', `다운로드 시작됨 (${normalItems.length}건)`) ;
-    toast(`다운로드 시작 (${normalItems.length}건)`) ;
+    DebugLogger.feature('PANEL', `다운로드 시작됨 (${normalItems.length}건${zipMode ? ' · ZIP 패키징' : ''})`) ;
+    toast(zipMode ? `ZIP 패키징 시작 (${normalItems.length}건)` : `다운로드 시작 (${normalItems.length}건)`) ;
   } else {
     DebugLogger.error('[PANEL] 다운로드 시작 실패', resp?.error?.message, resp?.error, { code: 'E-CHR-DL-1001' }) ;
     toast(resp?.error?.message || '다운로드 실패') ;
@@ -500,6 +536,14 @@ chrome.storage.session.onChanged.addListener((changes) => {
 
 function isM3u8Url(url) {
   return /\.m3u8(\?|#|$)/i.test(url || '') ;
+}
+
+function isMpdUrl(url) {
+  return /\.mpd(\?|#|$)/i.test(url || '') ;
+}
+
+function isStreamManifestUrl(url) {
+  return isM3u8Url(url) || isMpdUrl(url) ;
 }
 
 // 초기 로드: 패널이 열릴 때마다 자동 재분석 (사용자가 새로고침하지 않아도 최신 수집)

@@ -63,6 +63,18 @@
 | T-43 | unlock.js 페이지 로드 시 자동 주입 (tabs.onUpdated — unlockEnabled ON일 때만) | ✅ | 근본 원인: 요청 시 주입 구조라 페이지에 unlock.js 부재 → 자동 주입으로 해결, CDP 실측 통과 |
 | T-44 | 다운로더 폴더명 정리 (downloader2 → downloader) — 웨일 경로 캐시 우회 불필요 (Chrome 테스트 전환) | ✅ | service-worker.js + downloader.html 참조 갱신, Chrome CDP 실측 통과 |
 
+## v0.5 (chrome) — HTTP 미디어 + UMP 연구 + DASH 병합 + ZIP/CSV
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-50 | PLAN_v0.5_chrome.md 작성 + TODO/DESIGN 갱신 | ✅ | 본 행 |
+| T-51 | P1-1 HTTP 미디어(mp4) 제공 사이트 탐색 + 실저장 검증 | ⬜ | bd WPageTools-38p |
+| T-52 | P1-2 UMP/SABR 프로토콜 연구 (문서화) | ✅ | extractor mergeYoutubePlayerFormats(innertube ANDROID_SDKLESS) — 웨일 실측 통과 |
+| T-53 | P2-1 DASH(mpd) 파싱/병합 — m3u8.js 확장 + downloader 분기 | ✅ | SegmentTemplate+SegmentList+SegmentBase 지원, ISO8601 Y/M 파싱 수정 — Bitmovin 웨일 실측 통과 (segs=53) |
+| T-54 | P2-2 ZIP 패키징 (BG blob 재조합) | ✅ | SW createObjectURL 버그 수정 → data URL 저장 — Chrome CDP + 웨일 실측 통과 |
+| T-55 | P2-2 링크 CSV 내보내기 (패널 검색 결과) | ✅ | 링크 탭 [CSV] 버튼, BOM 포함 — Chrome CDP 실측 통과 |
+| T-56 | 통합 검증 (Chrome CDP) | ✅ | ZIP/DASH/CSV CDP 실측 + 웨일 사용자 확인 |
+
 ## 진행 이력
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
@@ -75,3 +87,4 @@
 - 2026-08-14: 사용자 실사용 테스트 리포트로 버그 6건 수정 — ① ENSURE_INJECTED sender.tab 없음(tabId 명시 전달), ② 디버그 로그 기본 꺼짐(기본 켬 + 토글 + 상태 배너), ③ 사이드바 분석 실패(ensureInjected 누락), ④ YouTube blob 비디오 0(og:video 폴백), ⑤ 패널 URL CSS.escape 백슬래시(esc 교체), ⑥ host_permissions <all_urls> 추가(사용자 확정).
 - 2026-08-14: **Whale SW ScriptCache 문제 발견** — 확장 SW 스크립트가 프로필 Service Worker/ScriptCache에 캐시되어 수정 코드가 반영 안 됨. 캐시 삭제 후 정상 확인.
 - 2026-08-15: **T-42 (v0.4)** — 우클릭/복사 제한 해제를 전역 체크박스로 전환. 화이트리스트(unlockSites) 제거 → `settings.unlockEnabled` 1개 체크박스, onChanged 즉시 반영, 레거시 데이터 1회 승계 마이그레이션. Whale CDP 실측 4종 통과 (체크박스 렌더/ON 활성/OFF 원복/마이그레이션).
+- 2026-08-15: **T-52/T-53/T-54/T-55 (v0.5)** — ① T-52 유튜브 innertube player API(ANDROID_SDKLESS) 직접 호출로 m3u8 포맷 확보 — 웨일 실측 통과. ② T-53 DASH(mpd) 병합 — parseMPD에 SegmentBase(on-demand) 추가 + ISO8601 Y/M 파싱 버그 수정, Bitmovin art-of-motion 웨일 실측 통과. ③ T-54 ZIP 패키징 — SW URL.createObjectURL 불가 버그를 base64 data URL 저장으로 수정 (viaPage 경로 포함), Chrome CDP + 웨일 실측 통과. ④ T-55 링크 CSV 내보내기 — 링크 탭 [CSV] 버튼 (필터 적용 결과, BOM), Chrome CDP 실측 통과.

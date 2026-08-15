@@ -89,9 +89,8 @@
   // mpd(DASH)는 세그먼트 병합 미구현 → 불가. kind='og'(embed 페이지 URL), 'iframe'(플레이어 페이지)도 저장 시 HTML이 받아짐 → 불가능.
   function downloadableOf(url, kind) {
     if (!url || !url.startsWith('http')) return false ;
-    if (/\.m3u8(\?|#|$)/i.test(url)) return true ;
-    if (/\.mpd(\?|#|$)/i.test(url)) return false ;
-    if (kind === 'hls' || kind === 'dash' || kind === 'stream' || kind === 'og' || kind === 'iframe') return false ;
+    if (/\.(m3u8|mpd)(\?|#|$)/i.test(url)) return true ;
+    if (kind === 'dash' || kind === 'stream' || kind === 'og' || kind === 'iframe') return false ;
     if (kind === 'video' || kind === 'source' || kind === 'player' || kind === 'audio') return true ;
     if (kind === 'img' || kind === 'bg' || kind === 'poster') return true ;
     return false ;
@@ -625,6 +624,75 @@
     }
   }
 
+  // 유튜브 무로그인 UMP 전면 전환 대응 (v0.5): 웹 플레이어는 SABR만 제공 → innertube player API를
+  // ANDROID_SDKLESS 클라이언트(20.10.38, PO Token 불필요 — yt-dlp #14693 검증)로 직접 호출해
+  // adaptiveFormats URL을 획득. same-origin(youtube.com) fetch라 CORS 통과.
+  // 결과: formats(progressive) + adaptiveFormats(video-only/audio-only)를 스트림으로 병합.
+  async function mergeYoutubePlayerFormats(result) {
+    try {
+      if (!/^(?:www\.)?youtube\.com$/i.test(location.hostname)) return ;
+      const videoId = new URLSearchParams(location.search).get('v') || (location.pathname.match(/^\/shorts\/([\w-]+)/) || [])[1] ;
+      if (!videoId) return ;
+      // 페이지 재생 중 이미 API 호출이 있으면 재사용 (ytcfg 캐시 응답은 URL 미포함 — 직접 호출이 확실)
+      const body = {
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '20.10.38',
+            osName: 'Android',
+            osVersion: '11',
+            androidSdkVersion: 30,
+            hl: 'ko',
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      } ;
+      const resp = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }) ;
+      if (!resp.ok) return ;
+      const json = await resp.json() ;
+      const st = json.streamingData || {} ;
+      const all = [...(st.formats || []), ...(st.adaptiveFormats || [])]
+        .filter((f) => f.url && /^https:\/\//.test(f.url))
+        .sort((a, b) => (parseInt(b.bitrate || 0, 10) - parseInt(a.bitrate || 0, 10))) ;
+      if (!all.length) return ;
+      const seen = new Set(result.media.streams.map((s) => s.url)) ;
+      const title = (document.title || '').replace(/\s*-\s*YouTube\s*$/, '').trim() || videoId ;
+      for (const f of all) {
+        if (seen.has(f.url)) continue ;
+        seen.add(f.url) ;
+        const mime = f.mimeType?.split(';')[0] || '' ;
+        const isVideo = mime.startsWith('video') ;
+        const isAudio = mime.startsWith('audio') ;
+        const res = f.width && f.height ? `${f.height}p${f.fps > 30 ? f.fps : ''}` : (isAudio ? '오디오' : '') ;
+        const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'm4a' ;
+        const size = f.contentLength ? ` · ${(Number(f.contentLength) / 1048576).toFixed(1)}MB` : '' ;
+        const kind = !isVideo && !isAudio ? '' : isAudio ? ' (오디오 전용)' : ' (영상 전용)' ;
+        result.media.streams.push({
+          id: `s${result.media.streams.length}`,
+          url: f.url,
+          name: `유튜브 ${res}${kind} · ${ext}${size}`,
+          protocol: 'direct',
+          format: isAudio ? 'audio-only' : isVideo ? 'video-only' : 'progressive',
+          itag: f.itag,
+          qualities: [],
+          inArticle: true,
+          downloadable: true,
+          source: 'youtube-player',
+          referer: location.href,
+        }) ;
+      }
+      DebugLogger.feature('EXTRACT', `유튜브 player API 병합 (${all.length}건) — ${title.slice(0, 30)}`) ;
+    } catch (e) {
+      DebugLogger.debug('EXTRACT', `유튜브 player API 병합 실패: ${e.message}`) ;
+    }
+  }
+
   // 유튜브 watch/shorts 대응: blob 재생이라 성능 엔트리에서 확장자 매칭 불가 → BG가 webRequest로
   // 캡처한 googlevideo.com media 요청(서명 URL)을 스트림으로 병합 (streamDetect 옵션 ON일 때 수집됨)
   async function mergeCapturedStreams(result) {
@@ -726,6 +794,7 @@
           const result = analyze() ;
           await collectNaverVod(result) ; // navertv VOD는 먼저 (frameId 재할당은 collectFrameMedia가 수행)
           await collectFrameMedia(result) ;
+          await mergeYoutubePlayerFormats(result) ; // 유튜브 player API(ANDROID_SDKLESS) adaptiveFormats 병합
           await mergeCapturedStreams(result) ; // 유튜브 googlevideo webRequest 캡처 병합
           // async 수집(navertv VOD/iframe 협업)이 media에 push한 항목을 stats에 최종 동기화
           // (collectFrameMedia는 iframe이 없으면 조기 종료되어 stats를 갱신하지 않음)

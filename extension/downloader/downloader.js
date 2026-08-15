@@ -4,7 +4,7 @@ globalThis.__PKDL_VER = 7 ;
 // 진행률은 BG로 전송 → 확장 아이콘 배지 표시. 완료 시 BG가 시스템 알림 + 10초 후 창 자동 닫기.
 
 import {
-  parseM3U8, fetchStreamText, fetchStreamBinary,
+  parseM3U8, fetchStreamText, fetchStreamBinary, parseMPD,
   MAX_STREAM_TOTAL, MAX_SEGMENTS, streamError,
 } from '../shared/m3u8.js' ;
 import { MSG } from '../shared/messages.js' ;
@@ -90,6 +90,22 @@ function isM3u8Url(url) {
   return /\.m3u8(\?|#|$)/i.test(url || '') ;
 }
 
+function isMpdUrl(url) {
+  return /\.mpd(\?|#|$)/i.test(url || '') ;
+}
+
+// DASH(mpd) — 파싱 + 화질 선택 (마스터형이면 최고 대역폭 Representation 자동 선택)
+async function resolveMPD(url, depth = 0) {
+  const d = parseMPD(await fetchStreamText(url), url) ;
+  if (!d.isDash) throw streamError('E-CHR-DL-1003', 'DASH 매니페스트가 아닙니다.') ;
+  if (d.error === 'LIVE') throw streamError('E-CHR-DL-1003', 'LIVE 스트림은 저장할 수 없습니다.') ;
+  if (!d.segs.length) throw streamError('E-CHR-DL-1003', 'DASH 세그먼트를 해석하지 못했습니다. (SegmentList/SegmentTemplate/SegmentBase static만 지원)') ;
+  if (d.segs.length > MAX_SEGMENTS) throw streamError('E-CHR-DL-1003', '세그먼트가 너무 많아 LIVE 스트림으로 판단됩니다.') ;
+  if (depth > 0) throw streamError('E-CHR-DL-1003', 'DASH 중첩 매니페스트는 지원하지 않습니다.') ;
+  DebugLogger.info('DLWIN', `DASH 해석 완료 segs=${d.segs.length} init=${!!d.initUrl}${d.onDemand ? ' on-demand' : ''} ${d.width}×${d.height} ${d.codecs}`) ;
+  return d ;
+}
+
 // mp4 등 단일 URL 직접 수신용 진행 표시 (바이트 단위 — Content-Length 있으면 %)
 function setProgressBytes(bytes, totalBytes, mbps) {
   const percent = totalBytes > 0 ? Math.min(100, Math.round((bytes / totalBytes) * 100)) : 0 ;
@@ -147,65 +163,84 @@ async function downloadDirect() {
   globalThis.__dlCancelCurrent = () => cancelReject?.(tErr('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.')) ;
   const cleanup = () => { globalThis.__dlCancelCurrent = prevCancel ; } ;
   const connectP = new Promise((_, rej) => setTimeout(() => rej(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다. 유튜브의 새 스트리밍 방식(UMP/SABR) 영상은 저장할 수 없습니다.')), 25000)) ; // UMP 등 무응답 서버 대비 25초 제한
-  let resp = null ;
-  try {
-    resp = await Promise.race([fetch(JOB.url), connectP, cancelP]) ;
-  } catch (e) {
-    cleanup() ;
-    if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006') throw streamError(e.code, e.message) ;
-    return downloadViaDownloads() ; // CORS 등 fetch 불가 → 브라우저 다운로더
-  }
-  cleanup() ;
-  if (!resp.ok) {
-    // googlevideo 등 서명 URL은 확장 fetch(쿠키 없음)를 403으로 거부 → 브라우저 다운로더(세션 쿠키)로 폴백
-    if (resp.status === 401 || resp.status === 403) return downloadViaDownloads() ;
-    throw streamError('E-CHR-DL-1005', `캡처된 주소가 만료되었거나 유효하지 않습니다. (HTTP ${resp.status})\n동영상을 다시 재생한 뒤 분석해 주세요.`) ;
-  }
-  // 유튜브 UMP/SABR(application/vnd.yt-ump 등) — 실제 미디어가 아닌 스트리밍 설정 응답 → 저장 불가 안내
-  const respType = resp.headers.get('Content-Type') || '' ;
-  const totalBytes = Number(resp.headers.get('Content-Length')) || 0 ;
-  if (/yt-ump|sabr/i.test(respType) || (/application\/octet-stream/i.test(respType) && totalBytes > 0 && totalBytes < 1024)) {
-    throw streamError('E-CHR-DL-1006', '이 영상은 유튜브의 새 스트리밍 방식(UMP/SABR)으로만 제공되어 저장할 수 없습니다.\n저장 가능한 영상은 일반 HTTP 스트림을 제공하는 영상입니다.') ;
-  }
-  const reader = resp.body.getReader() ;
   const parts = [] ;
-  let total = 0 ;
+  let totalBytes = 0 ; // 총 크기 — Content-Range(청크) 또는 Content-Length에서 확보
+  let received = 0 ;   // 지금까지 수신한 바이트 (다음 Range offset 기준)
+  let prevReceived = 0 ; // 직전 청크 시작 시점의 received
+  const CHUNK = 1 << 20 ; // 1MB 청크 — googlevideo 등 서명 URL은 열린 Range(전체 GET)를 403으로 거부, 한정 Range만 허용
+  let first = true ;
   speedWin = [] ;
   let lastT = performance.now() ;
-  // 본문 수신 중 15초 무응답 시 중단 (UMP/SABR 세션 대비) — race 기반 (abort 미지원 대응)
-  // 0바이트 chunk는 응답으로 치지 않음 (무한 keepalive 방지)
-  (code, msg) => Object.assign(new Error(msg), { code }) ;
   const makeIdleP = () => {
     let timer = null ;
     const p = new Promise((_, r) => { timer = setTimeout(() => r(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다. 유튜브의 새 스트리밍 방식(UMP/SABR) 영상은 저장할 수 없습니다.')), 15000) ; }) ;
     return { p, timer } ;
   } ;
-  let idle = makeIdleP() ;
   try {
     for (;;) {
-      let value = null ;
-      let done = false ;
+      let resp = null ;
       try {
-        ({ done, value } = await Promise.race([reader.read(), idle.p, cancelP])) ;
+        resp = await Promise.race([fetch(JOB.url, { headers: { Range: `bytes=${received}-${received + CHUNK - 1}` } }), connectP, cancelP]) ;
       } catch (e) {
-        clearTimeout(idle.timer) ;
+        cleanup() ;
         if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006') throw streamError(e.code, e.message) ;
-        throw e ;
+        return downloadViaDownloads() ; // CORS 등 fetch 불가 → 브라우저 다운로더
       }
-      if (done) break ;
-      if (!value || value.byteLength === 0) continue ; // 0바이트 keepalive — idle 타이머 유지
-      clearTimeout(idle.timer) ;
-      idle = makeIdleP() ;
-      parts.push(value) ;
-      total += value.byteLength ;
-      if (total > MAX_STREAM_TOTAL) throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.') ;
-      const now = performance.now() ;
-      speedWin.push({ bytes: value.byteLength, dt: (now - lastT) / 1000 }) ;
-      if (speedWin.length > 3) speedWin.shift() ;
-      lastT = now ;
-      const agg = speedWin.reduce((a, s) => ({ bytes: a.bytes + s.bytes, dt: a.dt + s.dt }), { bytes: 0, dt: 0 }) ;
-      const mbps = agg.dt > 0 ? (agg.bytes / 1048576) / agg.dt : 0 ;
-      setProgressBytes(total, totalBytes, mbps) ;
+      if (!resp.ok) {
+        cleanup() ;
+        // googlevideo 등 서명 URL은 확장 fetch(쿠키 없음)를 403으로 거부 → 브라우저 다운로더(세션 쿠키)로 폴백
+        if (resp.status === 401 || resp.status === 403) return downloadViaDownloads() ;
+        throw streamError('E-CHR-DL-1005', `캡처된 주소가 만료되었거나 유효하지 않습니다. (HTTP ${resp.status})\n동영상을 다시 재생한 뒤 분석해 주세요.`) ;
+      }
+      if (first) {
+        first = false ;
+        // 유튜브 UMP/SABR(application/vnd.yt-ump 등) — 실제 미디어가 아닌 스트리밍 설정 응답 → 저장 불가 안내
+        const respType = resp.headers.get('Content-Type') || '' ;
+        if (/yt-ump|sabr/i.test(respType)) {
+          cleanup() ;
+          throw streamError('E-CHR-DL-1006', '이 영상은 유튜브의 새 스트리밍 방식(UMP/SABR)으로만 제공되어 저장할 수 없습니다.\n저장 가능한 영상은 일반 HTTP 스트림을 제공하는 영상입니다.') ;
+        }
+        // 총 크기 확보: Content-Range "bytes s-e/total" 우선, 없으면 Content-Length
+        const cr = resp.headers.get('Content-Range') ;
+        const m = cr && cr.match(/\/(\d+)\s*$/) ;
+        if (m) totalBytes = Number(m[1]) ;
+        else totalBytes = Number(resp.headers.get('Content-Length')) || 0 ;
+      }
+      const reader = resp.body.getReader() ;
+      let idle = makeIdleP() ;
+      try {
+        for (;;) {
+          let value = null ;
+          let done = false ;
+          try {
+            ({ done, value } = await Promise.race([reader.read(), idle.p, cancelP])) ;
+          } catch (e) {
+            clearTimeout(idle.timer) ;
+            if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006') throw streamError(e.code, e.message) ;
+            throw e ;
+          }
+          if (done) break ;
+          if (!value || value.byteLength === 0) continue ; // 0바이트 keepalive — idle 타이머 유지
+          clearTimeout(idle.timer) ;
+          idle = makeIdleP() ;
+          parts.push(value) ;
+          received += value.byteLength ;
+          if (received > MAX_STREAM_TOTAL) throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.') ;
+          const now = performance.now() ;
+          speedWin.push({ bytes: value.byteLength, dt: (now - lastT) / 1000 }) ;
+          if (speedWin.length > 3) speedWin.shift() ;
+          lastT = now ;
+          const agg = speedWin.reduce((a, s) => ({ bytes: a.bytes + s.bytes, dt: a.dt + s.dt }), { bytes: 0, dt: 0 }) ;
+          const mbps = agg.dt > 0 ? (agg.bytes / 1048576) / agg.dt : 0 ;
+          setProgressBytes(received, totalBytes, mbps) ;
+        }
+      } finally {
+        clearTimeout(idle.timer) ;
+      }
+      const chunkGot = received - prevReceived ;
+      prevReceived = received ;
+      if (totalBytes > 0 && received >= totalBytes) break ; // 마지막 청크 도달
+      if (chunkGot < CHUNK) break ; // 크기 정보 없음 + 마지막 청크 판정
     }
   } finally {
     cleanup() ;
@@ -273,6 +308,61 @@ async function runDownload() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms)) ;
   try {
     DebugLogger.feature('DLWIN', `스트림 다운로드 시작 ${JOB.url.slice(0, 90)}`) ;
+    // DASH(mpd): 매니페스트 → 초기화 세그먼트 + 미디어 세그먼트 병합
+    if (isMpdUrl(JOB.url)) {
+      setState('DASH 매니페스트 해석 중…') ;
+      const d = await resolveMPD(JOB.url) ;
+      const segs = d.segs ;
+      setState('세그먼트 수신 중…') ;
+      const parts = [] ;
+      let total = 0 ;
+      // 초기화 세그먼트(moov 박스) 먼저 수신 — 실패 시 중단
+      if (d.initUrl) {
+        let initBuf = null ;
+        for (let attempt = 0 ; attempt < 2 && !initBuf ; attempt++) {
+          try { initBuf = await fetchStreamBinary(d.initUrl) ; }
+          catch (e) { if (attempt === 0) await sleep(1200) ; else throw streamError('E-CHR-DL-1004', `초기화 세그먼트 수신 실패 (${e.message})`) ; }
+        }
+        parts.push(initBuf) ;
+        total += initBuf.byteLength ;
+      }
+      for (let i = 0 ; i < segs.length ; i++) {
+        if (abortCtl.signal.aborted) throw streamError('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.') ;
+        const t0 = performance.now() ;
+        let buf = null ;
+        let lastErr = null ;
+        for (let attempt = 0 ; attempt < 2 ; attempt++) {
+          try {
+            buf = await fetchStreamBinary(segs[i]) ;
+            break ;
+          } catch (e) {
+            lastErr = e ;
+            if (attempt === 0) await sleep(1200) ;
+          }
+        }
+        if (!buf) {
+          parts.length = 0 ;
+          throw streamError('E-CHR-DL-1004', `세그먼트 수신 실패 (${lastErr?.message || '알 수 없음'})`) ;
+        }
+        total += buf.byteLength ;
+        if (total > MAX_STREAM_TOTAL) {
+          parts.length = 0 ;
+          throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.') ;
+        }
+        parts.push(buf) ;
+        speedWin.push({ bytes: buf.byteLength, dt: (performance.now() - t0) / 1000 }) ;
+        if (speedWin.length > 3) speedWin.shift() ;
+        const agg = speedWin.reduce((a, s) => ({ bytes: a.bytes + s.bytes, dt: a.dt + s.dt }), { bytes: 0, dt: 0 }) ;
+        const mbps = agg.dt > 0 ? (agg.bytes / 1048576) / agg.dt : 0 ;
+        setProgress(i + 1, segs.length, total, mbps) ;
+        if (i + 1 < segs.length) await sleep(1200) ;
+      }
+      setState('파일 저장 중…') ;
+      const blob = new Blob(parts, { type: 'video/mp4' }) ;
+      parts.length = 0 ;
+      await saveBlob(blob, '.mp4') ;
+      return ;
+    }
     // 유튜브 googlevideo 등 m3u8이 아닌 단일 URL → 직접 수신 모드
     if (!isM3u8Url(JOB.url)) return await downloadDirect() ;
     setState('매니페스트 해석 중…') ;

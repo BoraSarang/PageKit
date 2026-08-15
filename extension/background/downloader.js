@@ -3,6 +3,7 @@
 
 import { BGLogger } from './logger.js' ;
 import * as storage from './storage.js' ;
+import { createZip } from '../shared/zip.js' ;
 
 const MAX_RETRY = 2 ;
 let jobSeq = 0 ;
@@ -101,7 +102,7 @@ async function startJob(item, tabId) {
 
 async function fetchViaPage(tabId, url) {
   // WAF 등이 확장 오리진 요청을 403으로 차단하는 사이트 대응:
-  // 페이지 컨텍스트(MAIN world)에서 fetch → base64 → BG가 Blob(objectURL)로 다운로드
+  // 페이지 컨텍스트(MAIN world)에서 fetch → base64 반환 (SW는 createObjectURL 불가 → data URL로 다운로드)
   const [res] = await chrome.scripting.executeScript({
     target: { tabId, frameIds: [0] },
     world: 'MAIN',
@@ -119,15 +120,69 @@ async function fetchViaPage(tabId, url) {
     },
     args: [url],
   }) ;
-  const data = res?.result ;
+const data = res?.result ;
   if (!data?.ok) throw new Error(`페이지 fetch 실패 status=${data?.status || data?.error || '?'}`) ;
-  const bin = atob(data.b64) ;
-  const bytes = new Uint8Array(bin.length) ;
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) ;
-  return { blob: new Blob([bytes], { type: data.mime }), size: data.size } ;
+  return { b64: data.b64, mime: data.mime, size: data.size } ;
 }
 
-// ---------- HLS 스트림 저장 안내 ----------
+function b64ToBytes(b64) {
+  const bin = atob(b64) ;
+  const bytes = new Uint8Array(bin.length) ;
+  for (let i = 0 ; i < bin.length ; i++) bytes[i] = bin.charCodeAt(i) ;
+  return bytes ;
+}
+
+// ---------- ZIP 패키징 (T-54) ----------
+// 선택 항목 전체를 fetch → Store ZIP 하나로 저장. CORS 실패 시 페이지 컨텍스트(viaPage) 폴백.
+// 100MB 가드 (메모리 보호) — 초과 시 실패 안내.
+const ZIP_MAX_TOTAL = 100 * 1024 * 1024 ;
+
+async function zipPack(items, tabId) {
+  const usable = items.filter((it) => it?.url?.startsWith('http') && it.downloadable !== false) ;
+  if (!usable.length) throw new Error('ZIP으로 묶을 항목이 없습니다.') ;
+  const entries = [] ;
+  let total = 0 ;
+  for (let i = 0 ; i < usable.length ; i++) {
+    const it = usable[i] ;
+    const name = (it.name || it.url.split('?')[0].split('/').pop() || `item_${i}`).replace(/[\\/:*?"<>|]/g, '_') ;
+    let data = null ;
+    let lastErr = null ;
+    for (let attempt = 0 ; attempt < 2 && !data ; attempt++) {
+      try {
+        const r = await fetch(it.url, { credentials: 'include' }) ;
+        if (!r.ok) throw new Error(`HTTP ${r.status}`) ;
+        data = await r.arrayBuffer() ;
+      } catch (e) {
+        lastErr = e ;
+        if (attempt === 0 && tabId) {
+          try {
+            const page = await fetchViaPage(tabId, it.url) ;
+            data = b64ToBytes(page.b64) ;
+          } catch (e2) { lastErr = e2 ; }
+        }
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 500)) ;
+      }
+    }
+    if (!data) throw new Error(`${name} 수신 실패 (${lastErr?.message || '알 수 없음'})`) ;
+    total += data.byteLength ;
+    if (total > ZIP_MAX_TOTAL) throw new Error('ZIP 용량이 100MB를 초과해 중단합니다.') ;
+    entries.push({ name, data }) ;
+    BGLogger.info('DLZIP', `수신 ${i + 1}/${usable.length} ${name} (${(data.byteLength / 1024).toFixed(0)}KB)`) ;
+  }
+  const blob = createZip(entries) ;
+  const folder = usable[0]?.folder || 'page' ;
+  const site = domainFrom(usable[0].url) ;
+  const filename = `PageKit/${folder}/${site}/${new Date().toISOString().slice(0, 10)}_pagekit_${usable.length}개.zip` ;
+  // SW는 URL.createObjectURL 미지원 (Whale offscreen 미지원 동일 제약) → data URL로 다운로드
+  const bytes = new Uint8Array(await blob.arrayBuffer()) ;
+  let bin = '' ;
+  for (let i = 0 ; i < bytes.length ; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)) ;
+  }
+  const downloadId = await chrome.downloads.download({ url: `data:application/zip;base64,${btoa(bin)}`, filename, conflictAction: 'uniquify' }) ;
+  BGLogger.feature('DLZIP', `ZIP 저장 완료 ${(blob.size / 1048576).toFixed(1)}MB (${usable.length}건) → ${filename}`) ;
+  return { count: usable.length, size: blob.size, filename } ;
+}
 // 스트림(m3u8) 병합 저장은 사이드 패널이 직접 수행 (SW는 createObjectURL 불가 + Whale offscreen 미지원).
 // BG가 직접 받은 스트림 요청(팝업 등)은 패널 사용을 안내.
 // CORS를 허용하지 않는 CDN(서버가 다운로드 차단)은 실패하며 E-CHR-DL-1003/1004로 안내.
@@ -147,24 +202,20 @@ async function runDownload(job, viaPage = false) {
       catch (e) { BGLogger.warn('DL', `Referer 규칙 등록 실패 ${e.message}`) ; }
     }
     let downloadId ;
-    if (/\.m3u8(\?|#|$)/i.test(job.item.url)) {
-      // HLS 스트림: 매니페스트 → 세그먼트 병합 저장 (확장 오리진 fetch — CORS 허용 CDN만 가능)
+    if (/\.(m3u8|mpd)(\?|#|$)/i.test(job.item.url)) {
+      // HLS/DASH 스트림: 매니페스트 → 세그먼트 병합 저장 (확장 오리진 fetch — CORS 허용 CDN만 가능)
       // 저장은 사이드 패널(확장 페이지) 경유: SW는 createObjectURL 불가 + Whale offscreen 미지원
       downloadId = await downloadStream(job) ;
     } else if (viaPage) {
-      // WAF가 확장 오리진을 차단하는 사이트: 페이지 컨텍스트 fetch → Blob(objectURL) 다운로드
+      // WAF가 확장 오리진을 차단하는 사이트: 페이지 컨텍스트 fetch → base64 data URL로 다운로드
+      // (SW는 URL.createObjectURL 미지원 — Whale offscreen 미지원 동일 제약)
       const page = await fetchViaPage(job.tabId, job.item.url) ;
       job.item.size = page.size ;
-      const objectUrl = URL.createObjectURL(page.blob) ;
-      try {
-        downloadId = await chrome.downloads.download({
-          url: objectUrl,
-          filename,
-          conflictAction: 'uniquify',
-        }) ;
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000) ;
-      }
+      downloadId = await chrome.downloads.download({
+        url: `data:${page.mime || 'application/octet-stream'};base64,${page.b64}`,
+        filename,
+        conflictAction: 'uniquify',
+      }) ;
     } else {
       downloadId = await chrome.downloads.download({
         url: job.item.url,
@@ -251,6 +302,13 @@ export function initDownloader(deps = {}) {
       if (!items.length) {
         sendResponse({ ok: false, error: { code: 'E-CHR-DL-1001', message: '선택된 항목이 없습니다.' } }) ;
         return false ;
+      }
+      const zipMode = message.payload?.zip === true ;
+      if (zipMode) {
+        zipPack(items, tabId)
+          .then((data) => sendResponse({ ok: true, data }))
+          .catch((e) => sendResponse({ ok: false, error: { code: 'E-CHR-DL-1002', message: `ZIP 패키징 실패: ${e.message}` } })) ;
+        return true ;
       }
       const settings = storage.getSettings().then((s) => {
         const queue = [...items] ;

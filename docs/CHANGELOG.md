@@ -1,5 +1,20 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.5.0 (2026-08-15) — DASH(mpd) 병합 + ZIP 패키징 + 유튜브 player API + CSV 내보내기
+
+### 기능 [chrome]
+- **T-53 DASH(mpd) 세그먼트 병합**: `parseMPD` 확장 — SegmentTemplate(기존) + **SegmentList + SegmentBase(on-demand) 지원**. on-demand는 단일 파일 전체를 그대로 저장 (병합 불필요). ISO8601 기간 파싱의 Y(년)/M(월) 누락 버그 수정 (`P0Y0M0DT0H3M30.000S` 등)
+- **T-54 ZIP 패키징**: 다운로드 버튼 옆 [ZIP] 체크박스 — 선택 항목을 Store ZIP 하나로 저장 (100MB 가드, CORS 실패 시 페이지 컨텍스트 viaPage 폴백)
+- **T-52 유튜브 player API**: `mergeYoutubePlayerFormats` — innertube `ANDROID_SDKLESS` 직접 호출로 m3u8 포맷 확보 (webRequest 캡처 실패 대응)
+- **T-55 링크 CSV 내보내기**: 링크 탭 [CSV] 버튼 — 검색·필터가 적용된 현재 목록을 `PageKit/{host}/links/`에 저장 (BOM 포함, Excel 한글 깨짐 방지)
+
+### 수정 [chrome]
+- **SW `URL.createObjectURL` 미지원 버그**: ZIP 저장과 viaPage 개별 다운로드가 SW에서 `URL.createObjectURL` 호출로 실패 → `blob.arrayBuffer()` → base64 `data:` URL로 `chrome.downloads.download` (기존 "SW는 createObjectURL 불가 + Whale offscreen 미지원" 제약과 일치). `fetchViaPage`는 base64 직접 반환으로 단순화
+
+### 검증
+- Chrome CDP 실측: ZIP 3건(76KB) `unzip -t` 무결성 통과, CSV 5건 BOM/컬럼 정상, DASH 파서 단위 검증 (segs=53)
+- Whale 실사용: Bitmovin DASH art-of-motion `segs=53 init=true 1920×1080` 병합 저장 성공, ZIP 패키징 성공, 유튜브 player API 정상 (사용자 확인)
+
 ## v0.4.2 (2026-08-15) — 다운로더 폴더명 정리 (downloader2 → downloader)
 
 ### 변경 [chrome]

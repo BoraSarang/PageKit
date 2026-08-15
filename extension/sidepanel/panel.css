@@ -110,6 +110,7 @@ body {
   flex: 0 0 auto;
 }
 .pk-check { font-size: 12px; color: var(--pk-muted); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pk-footer .pk-check.pk-zip-check { margin-right: 4px; }
 .pk-filter-info { font-size: 11px; color: var(--pk-muted); padding: 4px 10px 0; }
 .pk-adblock-hint {
   margin: 4px 10px;

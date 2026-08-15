@@ -83,8 +83,7 @@
 
 - BG `downloader.js`가 `chrome.downloads.download()` 순차/병렬 실행 (동시 3건)
 - `chrome.downloads.onChanged` → `JobState`를 `chrome.storage.session`에 저장 → UI broadcast
-- ZIP: JSZip 사용, 다운로드 완료 파일을 재조합 → `chrome.downloads.download({ url: blobURL })`
-  (v0.1: 개별 파일 다운로드 우선, ZIP은 v0.2 후보 — JSZip 의존성 추가 검토)
+- ZIP (v0.5): BG가 선택 항목을 순차 fetch → 자체 Store ZIP(`shared/zip.js createZip`, JSZip 미사용) → **SW는 URL.createObjectURL 미지원(Whale offscreen 미지원 동일 제약)이므로 base64 `data:` URL로 `chrome.downloads.download`** — 100MB 가드, CORS 실패 시 페이지 컨텍스트(viaPage) 폴백
 - 폴더: `~/Downloads/PageKit/{domain}/{category}/`
 - 실패: 재시도 2회 후 `E-CHR-DL-1002` 알림 + UI에 실패 목록 표시
 
