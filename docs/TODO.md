@@ -8,7 +8,7 @@
 |---|------|------|------|
 | T-01 | docs/PRD.md 작성 | ✅ | 2026-08-14 |
 | T-02 | docs/plans/PLAN_v0.1_chrome.md 작성 | ✅ | 2026-08-14 |
-| T-03 | docs/TODO.md + docs/DESIGN.md | ⏳ | 진행중 |
+| T-03 | docs/TODO.md + docs/DESIGN.md | ✅ | v0.1~v0.5 갱신 완료 (2026-08-15) |
 | T-04 | docs/chrome/PERMISSIONS.md + MESSAGING.md | ✅ | |
 | T-05 | error_message_ko.json + AI_MODELS.json | ✅ | |
 | T-06 | manifest.json (MV3) + 아이콘 | ✅ | 아이콘 생성 후 manifest 반영 |
@@ -43,7 +43,7 @@
 | T-35 | 진입점 5종 테스트 + a11y-dump | 🔍 | 팝업/단축키/플로팅 검증, 컨텍스트메뉴·패널 진입점은 T-36에 잔여 |
 | T-36 | E2E 시나리오 | 🔍 | Whale CDP 수동 검증 완료, Playwright 자동화는 잔여 |
 | T-37 | 심사 체크리스트 + webstore --dry-run | ✅ | unsafe-eval 없음, WAR 0, host_permissions 배포용 OK |
-| T-38 | CHANGELOG + 세션 로그 + bd | 🔍 | CHANGELOG 작성됨, 세션 로그·bd는 이번 작업 종료 시 |
+| T-38 | CHANGELOG + 세션 로그 + bd | ✅ | CHANGELOG v0.5.0 + 세션 로그 + bd close 전부 완료 (2026-08-15) |
 | T-39 | DebugPanel: debug.js DebugLogger (storage 누적, content 위임) | ✅ | Shop WiseBar 참고 |
 | T-40 | DebugPanel: debug-view 창 (필터/복사/지우기/2초 폴링) + toggle-debug 단축키 | ✅ | Cmd+Shift+D |
 | T-41 | 모든 기능 디버그 메시지 통합 (extractor/unlock/highlight/float/popup/panel/options) | ✅ | 19.1장 FEATURE 로그 |
@@ -68,7 +68,7 @@
 | T | 작업 | 상태 | 비고 |
 |---|------|------|------|
 | T-50 | PLAN_v0.5_chrome.md 작성 + TODO/DESIGN 갱신 | ✅ | 본 행 |
-| T-51 | P1-1 HTTP 미디어(mp4) 제공 사이트 탐색 + 실저장 검증 | ⬜ | bd WPageTools-38p |
+| T-51 | P1-1 HTTP 미디어(mp4) 제공 사이트 탐색 + 실저장 검증 | ✅ | w3schools mp4 실저장(mov_bbb.mp4 788KB, ffprobe 정상) + DASH 병합 mp4 저장으로 갱신 — bd WPageTools-38p CLOSED |
 | T-52 | P1-2 UMP/SABR 프로토콜 연구 (문서화) | ✅ | extractor mergeYoutubePlayerFormats(innertube ANDROID_SDKLESS) — 웨일 실측 통과 |
 | T-53 | P2-1 DASH(mpd) 파싱/병합 — m3u8.js 확장 + downloader 분기 | ✅ | SegmentTemplate+SegmentList+SegmentBase 지원, ISO8601 Y/M 파싱 수정 — Bitmovin 웨일 실측 통과 (segs=53) |
 | T-54 | P2-2 ZIP 패키징 (BG blob 재조합) | ✅ | SW createObjectURL 버그 수정 → data URL 저장 — Chrome CDP + 웨일 실측 통과 |
@@ -88,3 +88,4 @@
 - 2026-08-14: **Whale SW ScriptCache 문제 발견** — 확장 SW 스크립트가 프로필 Service Worker/ScriptCache에 캐시되어 수정 코드가 반영 안 됨. 캐시 삭제 후 정상 확인.
 - 2026-08-15: **T-42 (v0.4)** — 우클릭/복사 제한 해제를 전역 체크박스로 전환. 화이트리스트(unlockSites) 제거 → `settings.unlockEnabled` 1개 체크박스, onChanged 즉시 반영, 레거시 데이터 1회 승계 마이그레이션. Whale CDP 실측 4종 통과 (체크박스 렌더/ON 활성/OFF 원복/마이그레이션).
 - 2026-08-15: **T-52/T-53/T-54/T-55 (v0.5)** — ① T-52 유튜브 innertube player API(ANDROID_SDKLESS) 직접 호출로 m3u8 포맷 확보 — 웨일 실측 통과. ② T-53 DASH(mpd) 병합 — parseMPD에 SegmentBase(on-demand) 추가 + ISO8601 Y/M 파싱 버그 수정, Bitmovin art-of-motion 웨일 실측 통과. ③ T-54 ZIP 패키징 — SW URL.createObjectURL 불가 버그를 base64 data URL 저장으로 수정 (viaPage 경로 포함), Chrome CDP + 웨일 실측 통과. ④ T-55 링크 CSV 내보내기 — 링크 탭 [CSV] 버튼 (필터 적용 결과, BOM), Chrome CDP 실측 통과.
+- 2026-08-15: **T-51 완료 확정 + v0.5 마무리** — w3schools mp4 실저장 + DASH 병합으로 HTTP 미디어 저장 검증 확정(bd 38p CLOSED), bd 8gk/jz6/hq0 CLOSED, origin push 완료. 웨일 진입점 검증: 플로팅/컨텍스트 메뉴는 sidePanel gesture 제약으로 새 탭 폴백 동작(정상), 후속 WPageTools-ee8(P3) 등록.
