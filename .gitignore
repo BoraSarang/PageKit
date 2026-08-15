@@ -17,3 +17,6 @@
 .whale-profile-yt/
 .whale-profile-dev/
 extension-yt/
+
+# 검증 스크린샷 (로컬 산출물 — 커밋 제외)
+docs/screenshots/
