@@ -1,5 +1,20 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.0 (2026-08-19) — 스트림 병렬 다운로드 (독립 창)
+
+### 변경 [chrome]
+- **T-71 스트림 다운로드 병렬화**: 다운로드 진행 중(또는 창이 열려 있는 상태) 두 번째 스트림 다운로드 요청 시
+  - 기존: SW가 살아있으면 `streamBusy=true` → **대기열에 조용히 추가**되어 창이 열리지 않음 (토스트만 "창을 엽니다" 표시), SW가 잠들었다 깨어나면 상태 초기화로 새 창이 열려 **동작이 상황에 따라 달랐음**
+  - 변경: `streamQueue`/`streamBusy`/`streamWinId` 대기열 로직 **제거** — 요청마다 **항상 독립된 새 창**을 열어 병렬 다운로드
+- `openStreamWindow()`: 기존 창 재사용(URL 덮어쓰기) 로직 제거 → 항상 `chrome.windows.create`
+- `DOWNLOAD_STREAM` 핸들러: `streamBusy` 분기 제거, 무조건 새 창 시작
+- `STREAM_DONE` 핸들러: 대기열 다음 작업 분기 제거 → 항상 완료 시스템 알림
+- `windows.onRemoved`: 배지 정리만 수행 (병렬 진행 중인 다른 창은 `STREAM_PROGRESS`로 배지 재갱신)
+
+### 검증
+- `node --check` 통과, 잔여 참조(`streamQueue` 등) 0건
+- Chrome CDP 실측 (확장 수동 로드, ID fpmeemda…): 스트림 2건 연속 요청 → **독립 팝업 창 2개가 동시에 열려 각자 다운로드 진행** (창1: tears-of-steel 2/184 세그먼트 · 창2: Big Buck Bunny 1/64 세그먼트) — 취소 후 정리
+
 ## v0.5.0 (2026-08-15) — DASH(mpd) 병합 + ZIP 패키징 + 유튜브 player API + CSV 내보내기
 
 ### 기능 [chrome]

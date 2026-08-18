@@ -98,12 +98,9 @@ function openDebugWindow() {
 }
 
 // --- 스트림 다운로드 작업 창 관리 ---
-// 다운로드는 독립 팝업 창(downloader.html)에서 수행 — 페이지 클릭/패널 닫힘과 무관하게 지속.
-// 진행률은 배지, 완료는 시스템 알림 + 10초 후 자동 닫기.
-let streamWinId = null ;
-let streamBusy = false ;
+// v0.7: 다운로드는 항상 독립 팝업 창(downloader.html)에서 수행 — 요청마다 새 창(병렬).
+// 진행률은 배지, 완료는 시스템 알림 + 10초 후 자동 닫기 (창 측에서 수행).
 let streamDownloadId = null ; // 완료된 파일 (알림 클릭 시 다운로드 항목 표시)
-let streamQueue = [] ; // 대기 중인 스트림 작업 (여러 개 선택 시 순차 다운로드)
 
 function streamWinUrl(job) {
   const q = new URLSearchParams({ u: job.url, n: job.name || '', f: job.folder || 'page' }) ;
@@ -113,51 +110,22 @@ function streamWinUrl(job) {
 }
 
 async function openStreamWindow(job) {
-  streamBusy = true ;
   if (job.referer) {
     try { await ensureReferer(new URL(job.url).hostname.replace(/^www\./, ''), job.referer) ; }
     catch (e) { BGLogger.warn('DL', `스트림 Referer 규칙 등록 실패 ${e.message}`) ; }
   }
   const url = streamWinUrl(job) ;
-  if (streamWinId != null) {
-    try {
-      const win = await chrome.windows.get(streamWinId, { populate: true }) ;
-      const tab = win?.tabs?.[0] ;
-      if (tab) {
-        await chrome.tabs.update(tab.id, { url }) ;
-        await chrome.windows.update(streamWinId, { focused: true }) ;
-        BGLogger.info('DL', `스트림 작업 창 재사용 win=${streamWinId}`) ;
-        return ;
-      }
-    } catch { streamWinId = null ; }
-  }
   const win = await chrome.windows.create({ url, type: 'popup', width: 520, height: 400, focused: true }) ;
   if (chrome.runtime.lastError || !win) {
-    streamBusy = false ;
-    nextStreamJob() ; // 창 생성 실패 시 다음 대기 작업으로
+    BGLogger.error('DL', '스트림 작업 창 열기 실패', { code: 'E-CHR-DL-1001' }) ;
     return ;
   }
-  streamWinId = win.id ;
   BGLogger.feature('DL', '스트림 다운로드 작업 창 열림') ;
 }
 
-// 큐의 다음 작업 시작 (완료/닫힘/생성 실패 시 호출)
-function nextStreamJob() {
-  if (streamQueue.length && streamWinId == null && !streamBusy) {
-    const next = streamQueue.shift() ;
-    BGLogger.info('DL', `대기열 다음 작업 시작 ${(next.url || '').slice(0, 70)}`) ;
-    openStreamWindow(next).catch((e) => BGLogger.error('DL', `대기열 작업 열기 실패 ${e.message}`, { code: 'E-CHR-DL-1001' })) ;
-  }
-}
-
-chrome.windows.onRemoved.addListener((removedId) => {
-  if (removedId === streamWinId) {
-    streamWinId = null ;
-    streamBusy = false ;
-    chrome.action.setBadgeText({ text: '' }).catch(() => {}) ;
-    BGLogger.info('DL', '스트림 작업 창 닫힘 (다운로드 중단 가능)') ;
-    nextStreamJob() ; // 닫힘 = 이 항목 포기 → 남은 대기 작업 자동 시작
-  }
+chrome.windows.onRemoved.addListener(() => {
+  // 다운로더 창이 닫히면 배지 정리 — 병렬 진행 중인 다른 창이 있으면 STREAM_PROGRESS로 재갱신됨
+  chrome.action.setBadgeText({ text: '' }).catch(() => {}) ;
 }) ;
 
 chrome.notifications.onClicked.addListener(() => {
@@ -272,16 +240,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     case MSG.DOWNLOAD_STREAM: {
       // 스트림(m3u8) 다운로드 → 독립 작업 창에서 수행 (패널/팝업 어디서든 호출 가능)
+      // v0.7: 대기열 없음 — 요청마다 항상 새 창을 열어 병렬 다운로드
       const p = message.payload || {} ;
       if (!p.url?.startsWith('http')) {
         sendResponse(msgErr('E-CHR-DL-1001', '유효한 스트림 URL이 없습니다.')) ;
-        return false ;
-      }
-      if (streamBusy) {
-        // 이미 진행 중 → 대기열에 추가 (완료 후 자동 순차 진행)
-        streamQueue.push({ url: p.url, name: p.name, title: p.title, folder: p.folder, referer: p.referer }) ;
-        BGLogger.info('DL', `스트림 다운로드 대기열 추가 (${streamQueue.length}개 대기)`) ;
-        sendResponse(msgOk()) ;
         return false ;
       }
       openStreamWindow({ url: p.url, name: p.name, title: p.title, folder: p.folder, referer: p.referer })
@@ -303,14 +265,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const p = message.payload || {} ;
       streamDownloadId = p.downloadId ?? null ;
       chrome.action.setBadgeText({ text: '' }).catch(() => {}) ;
-      if (streamQueue.length) {
-        // 중간 완료 — 알림 없이 다음 항목 자동 시작 (창은 유지)
-        BGLogger.info('DL', `항목 완료 — 다음 대기 작업 진행 (${streamQueue.length}개 남음)`) ;
-        const next = streamQueue.shift() ;
-        openStreamWindow(next).catch((e) => BGLogger.error('DL', `대기열 작업 열기 실패 ${e.message}`, { code: 'E-CHR-DL-1001' })) ;
-        return false ;
-      }
-      // 마지막 작업 완료 — 시스템 알림 (창 자동 닫기는 다운로더가 10초 후 직접 수행:
+      // 완료 — 시스템 알림 (창 자동 닫기는 다운로더가 10초 후 직접 수행:
       // SW 타이머는 서비스 워커 수명과 함께 유실될 수 있으므로 창 측에서 보장)
       chrome.notifications.create({
         type: 'basic',
