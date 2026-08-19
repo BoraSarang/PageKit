@@ -1,5 +1,24 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.11 (2026-08-19) — 틱톡 미디어 캐치 수정 (blob 재생 성능 entries 폴백)
+
+### 수정 [chrome]
+- **T-99**: extractor.js의 blob 재생 성능 entries 폴백을 확장자 매칭(`.mp4|.m3u8|.mpd`)에서
+  **확장자 없는 서명 CDN(틱톡 v16-webapp-prime/v16-webapp/v19-webapp-prime 등)도 잡도록** 개선.
+  3가지 원인 수정:
+  1. 확장자 매칭만 → 미디어 호스트(`v\d+-webapp-?prime|v\d+-webapp|tiktokcdn|googlevideo|cdn-video`) + initiatorType(xhr/fetch/video/audio) + 비미디어 확장자 제외로 선별.
+  2. `transferSize > 0` 조건 제거 — SW/캐시 경유 미디어 요청은 transferSize가 0으로 보고되어 미디어 URL이 전부 버려졌음.
+  3. 호스트 정규식 `(^|\.)` → `\/(?:[^/]+\.)*` — `https://v16-...`의 슬래시 뒤 호스트 시작을 매칭하도록 수정 (기존엔 `(^|\.)`가 매칭 실패).
+
+### 실측 [chrome]
+- 사용자 리포트: 틱톡 foryou에서 동영상/스트림 0건 + "본문만" 체크박스 해제·비활성(= 분석 0건 증상, `article.found=false`가 체크박스를 비활성화하는 기존 설계).
+- CDP 실측: foryou 재생 중 analyze → v16/v19-webapp 미디어 URL 4~5건 캐치 → 다운로더 폴백 체인으로
+  **TikTokCapture.mp4 (6.4MB, ISO Media Base Media v1 검증) 저장 성공**.
+- **주의**: 확장 리로드 후 기존에 열려있던 탭의 extractor가 무효화되어 분석 시 "Receiving end does not exist" — **탭 새로고침 필수**.
+
+### 검증
+- `node --check` extractor 통과. CDP 실측: 필터 단위 테스트(250개 성능 항목 중 미디어 8건만 선별, API 오탐 없음) + analyze videos 4~5건 + 실제 다운로드 성공.
+
 ## v0.7.10 (2026-08-19) — 서명 CDN 브라우저 다운로더 폴백
 
 ### 수정 [chrome]

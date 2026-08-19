@@ -206,8 +206,16 @@
     try {
       // 3) blob: 재생 중일 때 실제 네트워크 미디어 요청 후보 (performance entries)
       // 시그니처 쿼리(토큰)는 다운로드 시 필수 — 제거하지 않고 전체 URL 보존
+      // 확장자 없는 서명 CDN(틱톡 v16-webapp-prime 등) 대응 — 실제 미디어 호스트 + xhr/fetch/미디어 리소스로 선별.
+      // transferSize는 SW/캐시 경유 시 0으로 보고되므로 사용하지 않음 (API json 등은 호스트 필터로 차단)
+      const MEDIA_HOST = /\/(?:[^/]+\.)*(v\d+-webapp-?prime|v\d+-webapp|tiktokcdn|googlevideo|cdn-video)\./i ;
+      const NON_MEDIA = /\.(js|css|png|jpe?g|svg|gif|webp|ico|json|woff2?|wasm|html?)(\?|$)/i ;
       for (const e of performance.getEntriesByType('resource')) {
-        if (/\.(mp4|m3u8|mpd)(\?|$)/i.test(e.name)) playerUrls.add(e.name) ;
+        const n = e.name ;
+        if (/\.(mp4|m3u8|mpd|ts|webm|mov)(\?|$)/i.test(n)) { playerUrls.add(n) ; continue ; }
+        if (!NON_MEDIA.test(n) && (e.initiatorType === 'xmlhttprequest' || e.initiatorType === 'fetch' || e.initiatorType === 'video' || e.initiatorType === 'audio') && MEDIA_HOST.test(n)) {
+          playerUrls.add(n) ;
+        }
       }
     } catch {}
     for (const u of playerUrls) push(null, u, 'player') ;

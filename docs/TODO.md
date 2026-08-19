@@ -162,6 +162,12 @@
 |---|------|------|------|
 | T-98 | 틱톡 등 서명 CDN 403 → 브라우저 다운로더 폴백 | ✅ | 사용자 13:22 틱톡 로그(v16-webapp-prime, 403) 분석: 페이지 fetch 403 시 즉시 E-CHR-DL-1005로 끝남 — 브라우저 다운로더 폴백은 네트워크 예외일 때만. 수정: downloader.js downloadDirect에서 페이지 fetch 401/403 시 googlevideo.com은 기존 재생 안내 유지(브라우저 다운로더도 403 — v0.7.7 실측), 그 외 서명 CDN은 `downloadViaDownloads()` 먼저 시도 → 실패 시에만 E-CHR-DL-1005. CDP 실측: 사용자 실패 URL(o0MdXg4MUCkKlvnWQezRJAQfIDeg8wcAAjIM1d)로 다운로더 창 직접 실행 → 32,306,664B mp4 저장 성공(ISO Media 검증). |
 
+## v0.7.11 (chrome) — 틱톡 미디어 캐치 수정
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-99 | blob 재생 사이트 성능 entries 미디어 폴백 개선 | ✅ | 사용자 리포트: foryou 동영상/스트림 0건 + "본문만" 체크박스 풀림(= 분석 0건 증상, article.found=false). 원인 ① extractor.js 성능 entries 폴백이 `\.mp4` 확장자 매칭만 — 틱톡 서명 URL(v16-webapp-prime)은 확장자 없음. ② transferSize>0 조건이 SW/캐시 경유 미디어(transferSize=0 보고)를 전부 배제. ③ 호스트 정규식 `(^|\.)`가 "https://v16-..."의 `/` 앞을 못 매칭. 수정: 확장자+호스트(v\d+-webapp-?prime|v\d+-webapp|tiktokcdn|googlevideo)+initiatorType(xhr/fetch/video/audio)+NON_MEDIA 확장자 제외로 선별, transferSize 조건 제거. CDP 실측: foryou 재생 중 analyze → v16/v19-webapp 미디어 URL 4~5건 캐치 → 다운로더 폴백 체인으로 TikTokCapture.mp4(6.4MB, ISO Media) 저장 성공. |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.
