@@ -1,5 +1,17 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.1 (2026-08-19) — ENDLIST VOD 세그먼트 수 가드 오판 수정
+
+### 수정 [chrome]
+- **T-80 ENDLIST VOD 오판**: `downloader.js` 세그먼트 수 가드(`segs.length > MAX_SEGMENTS(200)`)가 ENDLIST 유무를 확인하지 않아, **ENDLIST가 있는 정상 VOD(242개 세그먼트 ≈ 40분)도 LIVE로 오판해 E-CHR-DL-1003으로 차단**하던 문제 수정
+  - 변경: `if (!m.endlist && m.segs.length > MAX_SEGMENTS)` — ENDLIST 있는 VOD는 세그먼트 수 무관 저장
+  - LIVE 판단은 기존 로직(ENDLIST 부재 + 0.5초 후 재요청 세그먼트 증가 비교)이 담당
+- 실사용 로그 기반 수정: `t27.cdn2020.com/video/m3u8/.../index.m3u8` (매니페스트 직접 확인 — ENDLIST 있음, 242개)
+
+### 검증
+- 단위: `parseM3U8` 242개 + ENDLIST → 통과 (수정 전: 차단)
+- Chrome CDP 실측: 같은 스트림으로 다운로더 창 열림 → **"세그먼트 수신 중 5/242 · 2%"** 진행 확인 → 취소
+
 ## v0.7.0 (2026-08-19) — 스트림 병렬 다운로드 (독립 창)
 
 ### 변경 [chrome]

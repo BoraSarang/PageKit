@@ -93,10 +93,19 @@
 | T-72 | node --check + Chrome CDP 병렬 실측 (스트림 2건 → 창 2개) | ✅ | 독립 창 2개 동시 진행 (tears-of-steel 2/184 · bbunny 1/64) |
 | T-73 | CHANGELOG + TODO 진행 이력 + 세션 로그 | ✅ | manifest 0.5.0 → 0.7.0 |
 
+## v0.7.1 (chrome) — ENDLIST VOD 세그먼트 수 가드 오판 수정
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-80 | downloader.js 세그먼트 가드에 ENDLIST 조건 추가 + 실측 검증 | ✅ | 242개 VOD 정상 다운로드 (5/242) — PLAN_v0.7.1 |
+| T-81 | extension-yt (옛 복사본, git 미추적) 삭제 | ✅ | 2026-08-19 사용자 지시 |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.
 - 2026-08-19: **T-71/T-72 완료** — service-worker.js 대기열 로직 전체 제거(streamQueue/streamBusy/streamWinId), 항상 새 창 생성. Chrome CDP 실측: 스트림 2건 연속 요청 → 독립 팝업 창 2개 동시 다운로드 확인 (tears-of-steel 2/184 · Big Buck Bunny 1/64 세그먼트), 취소 후 정리. manifest 0.7.0.
+- 2026-08-19: **T-80 (v0.7.1)** — 실사용 로그로 E-CHR-DL-1003 오판 발견 (ENDLIST 있는 242개 VOD가 LIVE로 차단). `downloader.js:285`에 `!m.endlist &&` 조건 추가. 매니페스트 직접 확인 + 단위 검증 + Chrome CDP 실측 (5/242 진행 확인 후 취소). manifest 0.7.1.
+- 2026-08-19: **T-81** — extension-yt (manifest 0.1.0 옛 복사본, git 미추적, 미사용) 삭제 + 커밋/push 완료.
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
 - 2026-08-14: 확장 스캐폴드 + 배경/콘텐츠/UI 전 모듈 구현 완료 (T-03~T-33). JS 17개 node --check 통과.

@@ -282,7 +282,9 @@ async function resolveManifest(url, depth = 0) {
   }
   if (m.hasKey) throw streamError('E-CHR-DL-1003', '암호화(AES-128) 스트림은 저장할 수 없습니다.') ;
   if (!m.segs.length) throw streamError('E-CHR-DL-1003', '매니페스트에 세그먼트가 없습니다.') ;
-  if (m.segs.length > MAX_SEGMENTS) throw streamError('E-CHR-DL-1003', '세그먼트가 너무 많아 LIVE 스트림으로 판단됩니다.') ;
+  // ENDLIST가 있는 VOD는 세그먼트 수와 무관하게 저장 (긴 영상 200개+ 오판 방지) —
+  // LIVE 판단은 ENDLIST 부재 + 재요청 세그먼트 증가 비교로 수행
+  if (!m.endlist && m.segs.length > MAX_SEGMENTS) throw streamError('E-CHR-DL-1003', '세그먼트가 너무 많아 LIVE 스트림으로 판단됩니다.') ;
   if (!m.endlist && m.playlistType !== 'VOD') {
     // ENDLIST가 없는 VOD(CDN에 따라 누락)를 LIVE와 구분: 0.5초 후 재요청해 세그먼트 수 비교
     const m2 = parseM3U8(await fetchStreamText(url), url) ;
