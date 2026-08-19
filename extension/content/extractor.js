@@ -209,10 +209,12 @@
       // 확장자 없는 서명 CDN(틱톡 v16-webapp-prime 등) 대응 — 실제 미디어 호스트 + xhr/fetch/미디어 리소스로 선별.
       // transferSize는 SW/캐시 경유 시 0으로 보고되므로 사용하지 않음 (API json 등은 호스트 필터로 차단)
       const MEDIA_HOST = /\/(?:[^/]+\.)*(v\d+-webapp-?prime|v\d+-webapp|tiktokcdn|googlevideo|cdn-video)\./i ;
-      const NON_MEDIA = /\.(js|css|png|jpe?g|svg|gif|webp|ico|json|woff2?|wasm|html?)(\?|$)/i ;
+      const NON_MEDIA = /\.(js|css|png|jpe?g|svg|gif|webp|ico|json|woff2?|wasm|html?|vtt|srt|sbv|ttml|dfxp|ass|sub|xml)(\?|$)/i ;
+      const SUBTITLE_PATH = /\/(timedtext|subtitle|caption)[/?]/i ;
       for (const e of performance.getEntriesByType('resource')) {
         const n = e.name ;
         if (/\.(mp4|m3u8|mpd|ts|webm|mov)(\?|$)/i.test(n)) { playerUrls.add(n) ; continue ; }
+        if (SUBTITLE_PATH.test(n)) continue ;
         if (!NON_MEDIA.test(n) && (e.initiatorType === 'xmlhttprequest' || e.initiatorType === 'fetch' || e.initiatorType === 'video' || e.initiatorType === 'audio') && MEDIA_HOST.test(n)) {
           playerUrls.add(n) ;
         }
