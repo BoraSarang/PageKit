@@ -1,5 +1,26 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.10 (2026-08-19) — 서명 CDN 브라우저 다운로더 폴백
+
+### 수정 [chrome]
+- **T-98**: 다운로더 창 `downloadDirect`에서 페이지 fetch가 401/403을 반환할 때
+  googlevideo.com(유튜브)은 기존 재생 안내(E-CHR-DL-1005)를 유지하고,
+  **그 외 서명 CDN(틱톡 등)은 브라우저 다운로더(`downloadViaDownloads` — 쿠키/Referer/UA 완전)로
+  마지막 시도** 후 실패 시에만 E-CHR-DL-1005로 전환. 기존엔 페이지 fetch 403이 즉시 실패로 끝나
+  서명 URL이 확장 fetch에만 403을 주는 사이트(틱톡 v16-webapp-prime)에서 다운로드 불가였음.
+
+### 실측 [chrome]
+- 사용자가 403으로 실패한 틱톡 URL(`v16-webapp-prime.tiktok.com/video/tos/.../o0MdXg4MUCkKlvnWQezRJAQfIDeg8wcAAjIM1d`)
+  로 다운로더 창 직접 실행 → **32,306,664B mp4 저장 성공** (ISO Media Base Media v1 검증). 브라우저 다운로더 폴백이
+  서명 CDN 403을 해결함을 최초로 확정.
+- **SW 메시지 "port closed" 근본 원인 규명**: 확장 파일을 반복 수정/리로드하면 낡은 컨텍스트(확장 페이지·콘텐츠 스크립트)가
+  메시지 수신 시 경쟁 반응 또는 무응답을 일으켜 `The message port closed before a response was received`가 발생.
+  SW와 대상 탭을 함께 리로드해 신선한 컨텍스트로 만들면 정상 동작 — 확장 재설치 불필요.
+
+### 검증
+- `node --check` downloader 통과. CDP 실측: SW+탭 리로드 후 콘텐츠→SW `pk.analyze.page` 응답 `ok:true` (port closed 해소),
+  틱톡 URL 다운로더 폴백 체인(확장 fetch 403 → 페이지 fetch 403 → 브라우저 다운로더) 실저장.
+
 ## v0.7.9 (2026-08-19) — 403 재시도 로직 + 해상도별 펼침 목록 + 자동 주입
 
 ### 수정 [chrome]

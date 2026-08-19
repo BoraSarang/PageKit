@@ -156,6 +156,12 @@
 | T-96 | 패널 스트림 목록 해상도별 펼침 그룹 | ✅ | 사용자 요청 "해상도로 펼침 목록" — RES_GROUPS(4K/1440p/1080p/720p/480p/360p/240p/144p/오디오 전용/기타), 헤더 클릭 접기/펼치기, progressive "(영상+오디오)" 태그 유지 |
 | T-97 | extractor 자동 주입 (content_scripts) | ✅ | manifest 0.7.9 — debug.js + content/extractor.js를 content_scripts로 등록 (all_frames 아님). 수동 주입/ENSURE_INJECTED 없이 analyze/PING 동작 확인 (DebugLogger 미정의 크래시는 debug.js 선주입으로 해결) |
 
+## v0.7.10 (chrome) — 서명 CDN 브라우저 다운로더 폴백
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-98 | 틱톡 등 서명 CDN 403 → 브라우저 다운로더 폴백 | ✅ | 사용자 13:22 틱톡 로그(v16-webapp-prime, 403) 분석: 페이지 fetch 403 시 즉시 E-CHR-DL-1005로 끝남 — 브라우저 다운로더 폴백은 네트워크 예외일 때만. 수정: downloader.js downloadDirect에서 페이지 fetch 401/403 시 googlevideo.com은 기존 재생 안내 유지(브라우저 다운로더도 403 — v0.7.7 실측), 그 외 서명 CDN은 `downloadViaDownloads()` 먼저 시도 → 실패 시에만 E-CHR-DL-1005. CDP 실측: 사용자 실패 URL(o0MdXg4MUCkKlvnWQezRJAQfIDeg8wcAAjIM1d)로 다운로더 창 직접 실행 → 32,306,664B mp4 저장 성공(ISO Media 검증). |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.

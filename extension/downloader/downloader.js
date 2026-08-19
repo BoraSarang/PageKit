@@ -233,7 +233,18 @@ async function downloadDirect() {
           }
           const pr = await Promise.race([pageFetchChunk(JOB.url, `bytes=${received}-${received + CHUNK - 1}`), connectP, cancelP]) ;
           if (!pr?.ok) {
-            if (pr?.status === 401 || pr?.status === 403) throw streamError('E-CHR-DL-1005', expireMsg) ;
+            if (pr?.status === 401 || pr?.status === 403) {
+              // 유튜브(googlevideo)는 브라우저 다운로더도 403 (v0.7.7 실측) — 기존 재생 안내 유지
+              if (/googlevideo\.com/i.test(JOB.url)) throw streamError('E-CHR-DL-1005', expireMsg) ;
+              // 틱톡 등 서명 CDN: 브라우저 다운로더(쿠키/Referer/UA 완전)로 마지막 시도
+              DebugLogger.warn('DLWIN', `페이지 fetch ${pr.status} → 브라우저 다운로더 폴백 (서명 CDN 대응)`) ;
+              try {
+                return await downloadViaDownloads() ;
+              } catch (e) {
+                DebugLogger.warn('DLWIN', `브라우저 다운로더 폴백 실패 → 재생 안내 (${e.message.slice(0, 60)})`) ;
+                throw streamError('E-CHR-DL-1005', expireMsg) ;
+              }
+            }
             throw new Error(pr?.error || '페이지 fetch 실패') ;
           }
           resp = pageResponseFrom(pr) ;
