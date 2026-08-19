@@ -1,5 +1,16 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.2 (2026-08-19) — 패널 스트림 탭을 영상 옆 버튼으로
+
+### 변경 [chrome]
+- **T-82 패널 카테고리 UI**: 드롭다운에 숨어 있던 스트림 탭을 상단 버튼으로 노출 (사용자 결정 — 버튼 3개 + 드롭다운)
+  - 상단: 🖼 이미지 / 🎬 영상 / 📡 스트림 버튼 3개 (각각 카운트 배지)
+  - 드롭다운: [전체, 오디오, 링크]
+  - `panel.html` + `panel.js` (render/setCategory/이벤트)
+
+### 검증
+- `node --check` 통과 + Chrome CDP 실측: 버튼 3개 렌더링, 📡 클릭 → active 전환 + 셀렉트 'all' 초기화
+
 ## v0.7.1 (2026-08-19) — ENDLIST VOD 세그먼트 수 가드 오판 수정
 
 ### 수정 [chrome]

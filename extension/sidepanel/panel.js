@@ -198,15 +198,16 @@ function render() {
   if (!articleUsable && cb.checked) cb.checked = false ;
   cb.disabled = !articleUsable ;
   const s = analysis.stats ;
-  const isQuick = currentTab === 'images' || currentTab === 'videos' ;
+  const isQuick = currentTab === 'images' || currentTab === 'videos' || currentTab === 'streams' ;
   $('pk-cat-images').classList.toggle('is-active', currentTab === 'images') ;
   $('pk-cat-videos').classList.toggle('is-active', currentTab === 'videos') ;
+  $('pk-cat-streams').classList.toggle('is-active', currentTab === 'streams') ;
   $('pk-c-images').textContent = s.totalImages ;
   $('pk-c-videos').textContent = s.totalVideos ;
+  $('pk-c-streams').textContent = s.totalStreams ;
   const cat = [
     ['all', '전체', allItems().length],
     ['audios', '오디오', s.totalAudios],
-    ['streams', '스트림', s.totalStreams],
     ['links', '링크', s.totalLinks],
   ] ;
   $('pk-cat-select').innerHTML = cat.map(([v, label, n]) =>
@@ -362,9 +363,10 @@ function toast(msg) {
 
 function setCategory(tab) {
   currentTab = tab ;
-  const isQuick = tab === 'images' || tab === 'videos' ;
+  const isQuick = tab === 'images' || tab === 'videos' || tab === 'streams' ;
   $('pk-cat-images').classList.toggle('is-active', tab === 'images') ;
   $('pk-cat-videos').classList.toggle('is-active', tab === 'videos') ;
+  $('pk-cat-streams').classList.toggle('is-active', tab === 'streams') ;
   if (isQuick) $('pk-cat-select').value = 'all' ;
   $('pk-type-filter').hidden = !(tab === 'images' || tab === 'links') ;
   $('pk-size-filter').hidden = !(tab === 'images') ;
@@ -385,6 +387,7 @@ $('pk-size-filter').addEventListener('change', render) ;
 $('pk-hide-icons').addEventListener('change', render) ;
 $('pk-cat-images').addEventListener('click', () => setCategory('images')) ;
 $('pk-cat-videos').addEventListener('click', () => setCategory('videos')) ;
+$('pk-cat-streams').addEventListener('click', () => setCategory('streams')) ;
 $('pk-cat-select').addEventListener('change', (e) => setCategory(e.target.value)) ;
 $('pk-adblock-close').addEventListener('click', () => { $('pk-adblock-hint').hidden = true ; }) ;
 
