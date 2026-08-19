@@ -91,29 +91,6 @@ function renderDownloads(jobs) {
 }
 
 async function init() {
-  // 플로팅 버튼 토글
-  $('pk-float-toggle').addEventListener('click', async () => {
-    DebugLogger.feature('POPUP', '플로팅 버튼 표시 요청') ;
-    const tab = await getActiveTab() ;
-    if (!tab?.id) return ;
-    try {
-      // CSS는 항상 확보 (extractor 경로는 CSS를 주입하지 않으므로)
-      await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['content/float-button.css'] }).catch(() => {}) ;
-      // extractor/float-button 중 하나가 응답해야 성공 — 응답 없으면 (리스너가 메시지를 흡수한 경우 포함) 주입 경로로
-      let resp = null ;
-      try {
-        resp = await chrome.tabs.sendMessage(tab.id, { type: 'pk.ui.floatVisible', payload: { visible: true } }) ;
-      } catch { /* 리스너 없음 → 주입 경로 */ }
-      if (resp?.ok !== true) {
-        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['debug.js', 'content/float-button.js'] }) ;
-        await chrome.tabs.sendMessage(tab.id, { type: 'pk.ui.floatVisible', payload: { visible: true } }).catch(() => {}) ;
-      }
-      $('pk-float-toggle').textContent = '✅ 플로팅 버튼 표시됨' ;
-    } catch (e) {
-      DebugLogger.error('[POPUP] 플로팅 버튼 표시 실패', `${e.name}: ${e.message}`, { code: 'E-CHR-UI-1001' }) ;
-      $('pk-float-toggle').textContent = '❌ 표시 실패 — 재시도' ;
-    }
-  }) ;
 
   // 분석 실행
   $('pk-analyze').addEventListener('click', async () => {

@@ -8,15 +8,6 @@ import * as storage from './storage.js' ;
 import { initDownloader, ensureReferer } from './downloader.js' ;
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js' ;
 
-const RUN_SCRIPTS = [
-  'debug.js',
-  'node_modules/@mozilla/readability/Readability.js',
-  'content/unlock.js',
-  'content/extractor.js',
-  'content/highlight.js',
-  'content/float-button.js',
-] ;
-
 // 교차 오리진 iframe의 미디어(blob 재생 등)도 수집하기 위해 분석용 스크립트는 모든 프레임에 주입
 const FRAME_SCRIPTS = [
   'debug.js',
@@ -24,10 +15,9 @@ const FRAME_SCRIPTS = [
   'content/extractor.js',
 ] ;
 const MAIN_SCRIPTS = [
-  'debug.js', // float-button.js가 DebugLogger를 사용하므로 함께 주입
+  'debug.js',
   'content/unlock.js',
   'content/highlight.js',
-  'content/float-button.js',
 ] ;
 
 // 우클릭/복사 제한 해제 전용: 옵션(settings.unlockEnabled) ON이면 페이지 로드 시 자동 주입
@@ -63,17 +53,6 @@ async function ensureInjected(tabId, force = false) {
     files: MAIN_SCRIPTS,
   }) ;
   return true ;
-}
-
-async function injectFloatButton(tabId) {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['debug.js', 'content/float-button.js'],
-  }) ;
-  await chrome.scripting.insertCSS({
-    target: { tabId },
-    files: ['content/float-button.css'],
-  }) ;
 }
 
 // --- 디버그 창 관리 (AGENTS.md 19장, Shop WiseBar 참고) ---
@@ -136,7 +115,7 @@ chrome.notifications.onClicked.addListener(() => {
 }) ;
 
 // --- 설치/시작 시 초기화 ---
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'pk-analyze',
@@ -149,6 +128,11 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ['action'],
     }) ;
   }) ;
+  // 최초 설치 시 온보딩(사용 설명) 페이지 열기
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('onboarding/onboarding.html') }) ;
+    BGLogger.feature('BG', '온보딩 페이지 열림 (최초 설치)') ;
+  }
   BGLogger.feature('BG', '확장 설치/업데이트 초기화 완료 (컨텍스트 메뉴 등록)') ;
 }) ;
 
@@ -157,10 +141,15 @@ initStreamDetector() ;
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'pk-analyze') {
-    (async () => {
-      await ensureInjected(tab.id) ;
-      await openSidePanel('context', tab.windowId) ;
-    })() ;
+    // 주의: sidePanel.open()은 사용자 제스처가 유지되는 동안만 성공 — await로 제스처가
+    // 소멸하기 전에 openSidePanel을 동기 호출한다 (ensureInjected는 이후 fire-and-forget).
+    const targetTabId = tab?.id ;
+    if (targetTabId != null) {
+      // 패널이 분석할 대상 탭을 세션에 기록 (활성 탭이 아닌 우클릭한 탭 분석)
+      chrome.storage.session.set({ contextTarget: { tabId: targetTabId, url: tab.url || '', ts: Date.now() } }).catch(() => {}) ;
+      ensureInjected(targetTabId).catch(() => {}) ;
+    }
+    openSidePanel('context', tab?.windowId) ;
   } else if (info.menuItemId === 'pk-debug') {
     openDebugWindow() ;
   }
@@ -279,11 +268,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case MSG.STREAM_FAIL:
     case MSG.STREAM_CANCEL: {
       chrome.action.setBadgeText({ text: '' }).catch(() => {}) ;
-      return false ;
-    }
-    case MSG.FLOAT_BUTTON_READY: {
-      BGLogger.debug('FLOAT', `플로팅 버튼 준비됨 tab=${tabId}`) ;
-      sendResponse(msgOk()) ;
       return false ;
     }
     case MSG.SETTINGS_GET: {

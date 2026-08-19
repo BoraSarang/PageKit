@@ -722,36 +722,10 @@
     } catch { /* BG 미응답/오류 시 캡처 없음으로 처리 */ }
   }
 
-  // 플로팅 버튼 (float-button.js와 동일 DOM — 이중 주입 가드로 안전)
-  function ensureFloatButton() {
-    if (document.getElementById('pk-float-btn')) return document.getElementById('pk-float-btn') ;
-    const btn = document.createElement('button') ;
-    btn.id = 'pk-float-btn' ;
-    btn.className = 'pk-float-btn' ;
-    btn.title = 'PageKit 열기 (Shift+클릭 시 닫기)' ;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>
-    </svg>` ;
-    btn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'pk.ui.openPanel', source: 'float' }, () => {}) ;
-    }) ;
-    document.documentElement.appendChild(btn) ;
-    return btn ;
-  }
-
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'pk.ping') {
       // 스크립트 생존 확인 (주입 스킵 판단용) — 메인 프레임만 응답
       if (window !== window.top) return false ;
-      sendResponse({ ok: true }) ;
-      return false ;
-    }
-    if (message?.type === 'pk.ui.floatVisible') {
-      // extractor가 이미 주입된 페이지에서도 플로팅 버튼 생성/표시 가능
-      const btn = ensureFloatButton() ;
-      btn.classList.toggle('pk-float-btn-hidden', !message.payload?.visible) ;
       sendResponse({ ok: true }) ;
       return false ;
     }

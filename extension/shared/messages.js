@@ -19,12 +19,11 @@ export const MSG = {
   GET_CAPTURED_STREAMS: 'pk.stream.captured.get', // content → BG: 유튜브 webRequest 캡처 목록 조회
   THUMB_FETCH: 'pk.thumb.fetch',
   HIGHLIGHT_TOGGLE: 'pk.ui.highlight',
-  FLOAT_BUTTON_READY: 'pk.content.floatReady',
   SETTINGS_GET: 'pk.settings.get',
   SETTINGS_SET: 'pk.settings.set',
 } ;
 
-export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup', 'float'] ;
+export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup'] ;
 
 export const MSG_OK = { ok: true } ;
 export function msgOk(data) {

@@ -1,5 +1,44 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.5 (2026-08-19) — 컨텍스트 메뉴 수리 + 분석 오버레이 + URL 양끝 표시 + 플로팅 제거
+
+### 수정 [chrome]
+- **T-86 컨텍스트 메뉴 "PageKit으로 분석" 오류 수리**
+  - 원인: `onClicked`에서 `await ensureInjected()`가 user gesture를 소멸시켜 `sidePanel.open()` 실패
+    → fallback `tabs.create`(새 탭) + 패널이 **첫 번째 웹 탭**을 분석하는 이중 오류
+  - 수정: `onClicked`에서 동기 `openSidePanel('context', tab.windowId)` + `storage.session.set({contextTarget})`
+    + `ensureInjected` fire-and-forget. 패널 `analyze()`는 `contextTarget` 탭을 1회 분석(사용 후 제거),
+    `storage.onChanged` 리스너로 이미 열린 패널 즉시 재분석
+  - 검증: 활성 탭 google 상태에서 torrentsee 우클릭 분석 성공 (🖼98/링크221)
+- **T-87 분석 중 로딩 오버레이**: 패널에 `#pk-overlay`("분석 중…" 스피너, 반투명 + backdrop blur)
+  — `analyze()` 시작 시 표시, 성공/실패 모두 `finally`로 숨김. 탭/페이지 변경 자동 갱신 시에도 동작
+  - 검증: ⟳ 클릭 0.6초 시점 표시 → 완료 후 숨김 실측
+- **T-88 URL 표시 양끝**: `shortenUrl`을 파일명 중간 축약에서 "앞부분…파일명끝" 형태로 변경
+  (`.../final-ver2.jpg`처럼 끝부분 유지). 4케이스 단위 검증
+
+### 제거 [chrome]
+- **T-89 플로팅 버튼 완전 제거** (사용자 결정 — "안 먹히면 아예 빼자")
+  - 원인: content script 경유 클릭은 MV3에서 user gesture가 전달되지 않아 `sidePanel.open()` 항상 실패
+    (fallback 탭 활성화만 동작 — 실측 확인)
+  - 삭제: `content/float-button.js`·`float-button.css` 파일, extractor.js `ensureFloatButton`/`pk.ui.floatVisible`
+    핸들러, service-worker.js `injectFloatButton`/`FLOAT_BUTTON_READY`/`RUN_SCRIPTS`, popup.js 토글 버튼,
+    messages.js `FLOAT_BUTTON_READY`·`PANEL_SOURCES`의 'float'
+  - 검증: 페이지 리로드 + 새 코드 주입 상태에서 `#pk-float-btn` 미존재 실측
+- 에러코드 변경 없음 (E-CHR-NET-1001 등 기존 유지)
+
+## v0.7.4 (2026-08-19) — 설치 온보딩 페이지
+
+### 추가 [chrome]
+- **T-85 온보딩 페이지** (`onboarding/onboarding.html`): 확장 **최초 설치 시 자동으로 열리는** 사용 설명 페이지
+  - 0. 툴바에 고정 방법과 이점 (고정 유도 — 진행률 배지/원클릭 진입 강조)
+  - 1. 우클릭/복사 제한 해제 방법 (옵션 체크박스, 새로고침 불필요)
+  - 2. 이미지·스트림·동영상 다운로드 방법 (패널 자동 분석 → 탭별 다운로드/스트림 자동 캡처/CSV)
+  - 버튼: 설정 열기(`openOptionsPage`) · 닫기(`tabs.remove`) · 버전 동적 표시
+- `service-worker.js` `onInstalled`: `details.reason === 'install'`일 때만 온보딩 탭 생성 (업데이트 시 미표시)
+
+### 검증
+- Chrome CDP 실측: 카드 3개·스텝 10개 렌더링, 리로드 후 v0.7.4 표시, 닫기 버튼 탭 닫힘
+
 ## v0.7.3 (2026-08-19) — 아이콘 숨김 이름 패턴 + options 버전 하드코딩 수정
 
 ### 수정 [chrome]

@@ -113,6 +113,21 @@
 | T-83 | isIcon에 파일명/URL 아이콘 패턴 추가 | ✅ | jiantou2.png 등 크기 미확인 장식 이미지 숨김 |
 | T-84 | options.html footer 버전 하드코딩(v0.1.0) → getManifest 동적 | ✅ | 실측 v0.7.3 표시 |
 
+## v0.7.4 (chrome) — 설치 온보딩 페이지
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-85 | 온보딩 페이지 3카드(툴바 고정/우클릭 해제/다운로드) + 설치 시 자동 오픈 | ✅ | PLAN_v0.7.4 |
+
+## v0.7.5 (chrome) — 컨텍스트 메뉴 수리 + 분석 오버레이 + URL 표시 + 플로팅 제거
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-86 | 컨텍스트 메뉴 "PageKit으로 분석" 탭 오류 수정 (onClicked 제스처 소멸 → 첫 웹 탭 분석/새 탭 폴백) | ✅ | 동기 sidePanel.open + storage.session contextTarget 경로 — PLAN_v0.7.5 |
+| T-87 | 분석 중 로딩 오버레이 (panel) | ✅ | ⟳ 실측: 표시 → 완료 후 숨김 |
+| T-88 | URL 표시 양끝으로 (shortenUrl "앞부분…파일명끝") | ✅ | 4케이스 단위 검증 |
+| T-89 | 플로팅 버튼 제거 (content script 경유 sidePanel.open 제스처 불가 — 사용자 결정) | ✅ | extractor/float-button.js/css/popup 토글/service-worker 전부 제거 + 실측 |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.
@@ -121,6 +136,8 @@
 - 2026-08-19: **T-81** — extension-yt (manifest 0.1.0 옛 복사본, git 미추적, 미사용) 삭제 + 커밋/push 완료.
 - 2026-08-19: **T-82 (v0.7.2)** — "스트림도 영상 옆에" 요청 → 사용자 결정(버튼 3개 + 드롭다운). 패널 상단에 📡 스트림 버튼 추가 (🖼🎬📡 + 드롭다운[전체/오디오/링크]). Chrome CDP 실측: 버튼 3개 렌더 + 클릭 active 전환 + 셀렉트 초기화 확인. manifest 0.7.2.
 - 2026-08-19: **T-83/T-84 (v0.7.3)** — 사용자 리포트: ① torrentsee 장식 이미지(1.jpg~5.jpg, jiantou2.png)가 아이콘 숨김에 안 걸림 — isIcon에 파일명/URL 패턴 판정 추가(구분자 `/` 포함 8케이스 단위 테스트). ② options.html footer에 `v0.1.0` 하드코딩 발견 → `pk-version-foot` 동적 표시로 교체. 확장 리로드 후 CDP 실측: 헤더/푸터 모두 v0.7.3. manifest 0.7.3.
+- 2026-08-19: **T-85 (v0.7.4)** — 설치 온보딩 페이지 신규 (툴바 고정 유도/우클릭 해제/다운로드 방법 3카드, 10스텝). onInstalled reason='install' 시 자동 오픈. CDP 실측: 렌더링 + 닫기 동작 + 버전 v0.7.4. manifest 0.7.4.
+- 2026-08-19: **T-86~T-89 (v0.7.5)** — 사용자 리포트 4건: ① 분석 중 로딩 오버레이 추가(panel, ⟳ 실측: 표시→완료 숨김) ② URL 표시 양끝(shortenUrl "앞부분…파일명끝", 4케이스 단위 검증) ③ 컨텍스트 메뉴가 첫 웹 탭 분석+새 탭 폴백하는 문제 — onClicked에서 await ensureInjected로 제스처 소멸이 원인, 동기 openSidePanel + storage.session contextTarget(1회용) + storage.onChanged 재분석으로 수리, 활성 탭 google에서 torrentsee 분석 성공 실측 ④ 플로팅 버튼 — content script 경유 MV3 제스처 불가라 사이드 패널로 못 열림(fallback 탭만 동작), 사용자 결정에 따라 전체 제거(extractor/float-button.js/css/popup 토글/서비스워커/메시지 상수). manifest 0.7.5.
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
 - 2026-08-14: 확장 스캐폴드 + 배경/콘텐츠/UI 전 모듈 구현 완료 (T-03~T-33). JS 17개 node --check 통과.

@@ -13,7 +13,7 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
-// 앞 줄임 주소 표시: 파일명(쿼리 제외)은 보존하되 길면 중간 축약, 앞부분만 줄임
+// 앞 줄임 주소 표시: 파일명(쿼리 제외) 끝부분만 보존 — "앞부분…파일명끝" 양끝 표시
 function shortenUrl(s, max = 38) {
   s = String(s || '') ;
   if (s.length <= max) return s ;
@@ -23,8 +23,7 @@ function shortenUrl(s, max = 38) {
   const dot = name.lastIndexOf('.') ;
   const ext = dot > 0 ? name.slice(dot) : '' ;
   const base = dot > 0 ? name.slice(0, dot) : name ;
-  const shortName = base.length > 14 ? base.slice(0, 9) + '…' + base.slice(-4) : base ;
-  const tail = shortName + ext ;
+  const tail = (base.length > 10 ? base.slice(-10) : base) + ext ;
   const headLen = Math.max(0, max - tail.length - 1) ;
   return (headLen > 0 ? s.slice(0, headLen) : '') + '…' + tail ;
 }
@@ -38,12 +37,22 @@ let analysisSource = { tabId: null, url: '' } ;
 // ---------- 분석 실행 ----------
 async function analyze(force = false) {
   let tab ;
-  const [active] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
-  // 패널(확장 페이지)이 활성 탭이면 같은 창의 웹 탭으로 폴백
-  if (active?.url && /^https?:/.test(active.url)) tab = active ;
-  else {
-    const tabs = await chrome.tabs.query({ currentWindow: true }) ;
-    tab = tabs.find((t) => t.url && /^https?:/.test(t.url)) || null ;
+  // 컨텍스트 메뉴("PageKit으로 분석")로 열렸으면 우클릭한 탭을 분석 (1회용 — 사용 후 제거)
+  const ctx = await chrome.storage.session.get('contextTarget') ;
+  const ct = ctx.contextTarget ;
+  if (ct?.tabId != null) {
+    await chrome.storage.session.remove('contextTarget') ;
+    const t = await chrome.tabs.get(ct.tabId).catch(() => null) ;
+    if (t?.url && /^https?:/.test(t.url)) tab = t ;
+  }
+  if (!tab) {
+    const [active] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
+    // 패널(확장 페이지)이 활성 탭이면 같은 창의 웹 탭으로 폴백
+    if (active?.url && /^https?:/.test(active.url)) tab = active ;
+    else {
+      const tabs = await chrome.tabs.query({ currentWindow: true }) ;
+      tab = tabs.find((t) => t.url && /^https?:/.test(t.url)) || null ;
+    }
   }
   // 빈 URL/특수 페이지(확장 페이지, 새 탭 등)는 분석 불가 — 주입 시도 자체를 생략
   if (!tab?.id || !tab.url || !/^https?:/.test(tab.url)) return ;
@@ -52,6 +61,7 @@ async function analyze(force = false) {
   DebugLogger.info('[PANEL] 분석 시작', { url: tab.url || '' }) ;
   // 시작 시점에 출처 선점 (분석 중 중복 이벤트 트리거 방지)
   analysisSource = { tabId: tab.id, url: tab.url || '' } ;
+  showAnalyzing() ;
   try {
     // 콘텐츠 스크립트 미주입 시 BG에 주입 요청 (패널 메시지엔 sender.tab이 없으므로 tabId 명시)
     const ensure = await chrome.runtime.sendMessage({ type: MSG.ENSURE_INJECTED, tabId: tab.id }) ;
@@ -83,7 +93,19 @@ async function analyze(force = false) {
     DebugLogger.error('[PANEL] 분석 실패', `${e.name}: ${e.message}`, { code: 'E-CHR-NET-1001' }) ;
     analysisSource = { tabId: null, url: '' } ; // 실패 → 다음 이벤트에서 재분석 가능
     toast('분석 실패: 페이지를 새로고침 후 시도하세요.') ;
+  } finally {
+    hideAnalyzing() ;
   }
+}
+
+// 분석 중 전체 오버레이 (탭/페이지 변경 자동 갱신 시 "분석 중…" 표시)
+function showAnalyzing() {
+  const ov = $('pk-overlay') ;
+  if (ov) ov.hidden = false ;
+}
+function hideAnalyzing() {
+  const ov = $('pk-overlay') ;
+  if (ov) ov.hidden = true ;
 }
 
 // ---------- 아이템 구성 ----------
@@ -379,6 +401,14 @@ function setCategory(tab) {
 }
 
 // ---------- 이벤트 ----------
+// 컨텍스트 메뉴("PageKit으로 분석")로 분석 대상이 지정되면 즉시 재분석 (패널이 이미 열려 있을 때)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'session' && changes.contextTarget?.newValue) {
+    DebugLogger.debug('[PANEL] 컨텍스트 대상 탭 감지 → 재분석') ;
+    analyze(true) ;
+  }
+}) ;
+
 $('pk-reload').addEventListener('click', () => {
   // 수동 새로고침 = 강제 재분석 (같은 탭·같은 URL이어도 재실행)
   analysisSource = { tabId: null, url: '' } ;
