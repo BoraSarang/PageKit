@@ -22,6 +22,8 @@ const ITAG_LABEL = {
 } ;
 // 오디오 포함(progressive) itag — 그 외 video-only (DASH 분리 스트림)
 const PROGRESSIVE_ITAGS = new Set([5, 6, 17, 18, 22, 34, 35, 36, 37, 38, 43, 44, 45, 46, 82, 83, 84, 85]) ;
+// 오디오 전용 itag (DASH audio-only)
+const AUDIO_ITAGS = new Set([139, 140, 141, 249, 250, 251, 256, 258, 599, 600]) ;
 
 function itagOf(url) {
   try { return Number(new URL(url).searchParams.get('itag')) || 0 ; }
@@ -76,7 +78,7 @@ const onGooglevideoResponse = (details) => {
       key,
       itag,
       label: ITAG_LABEL[itag] || (itag ? `itag ${itag}` : ''),
-      format: PROGRESSIVE_ITAGS.has(itag) ? 'progressive' : (itag ? 'video-only' : 'unknown'),
+      format: PROGRESSIVE_ITAGS.has(itag) ? 'progressive' : AUDIO_ITAGS.has(itag) ? 'audio-only' : (itag ? 'video-only' : 'unknown'),
       capturedAt: Date.now(),
     } ;
     list.push(cap) ;

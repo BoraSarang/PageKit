@@ -662,9 +662,14 @@
         .sort((a, b) => (parseInt(b.bitrate || 0, 10) - parseInt(a.bitrate || 0, 10))) ;
       if (!all.length) return ;
       const seen = new Set(result.media.streams.map((s) => s.url)) ;
+      const seenItag = new Set() ; // 같은 itag(코덱 변형 제외) 중복 방지 — 서명 URL이라 같은 itag는 대표 1개만
       const title = (document.title || '').replace(/\s*-\s*YouTube\s*$/, '').trim() || videoId ;
       for (const f of all) {
         if (seen.has(f.url)) continue ;
+        if (f.itag) {
+          if (seenItag.has(f.itag)) continue ;
+          seenItag.add(f.itag) ;
+        }
         seen.add(f.url) ;
         const mime = f.mimeType?.split(';')[0] || '' ;
         const isVideo = mime.startsWith('video') ;
@@ -673,10 +678,12 @@
         const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'm4a' ;
         const size = f.contentLength ? ` · ${(Number(f.contentLength) / 1048576).toFixed(1)}MB` : '' ;
         const kind = !isVideo && !isAudio ? '' : isAudio ? ' (오디오 전용)' : ' (영상 전용)' ;
+        const cm = f.mimeType?.match(/codecs="([^"]+)"/) ;
+        const codec = cm ? (cm[1].split('.')[0] === 'avc1' ? 'H.264' : cm[1].split('.')[0] === 'av01' ? 'AV1' : cm[1].split('.')[0] === 'vp9' ? 'VP9' : cm[1].split('.')[0] === 'vp8' ? 'VP8' : cm[1].split('.')[0] === 'mp4a' ? 'AAC' : cm[1].split('.')[0] === 'opus' ? 'Opus' : cm[1].split('.')[0]) : '' ;
         result.media.streams.push({
           id: `s${result.media.streams.length}`,
           url: f.url,
-          name: `유튜브 ${res}${kind} · ${ext}${size}`,
+          name: `유튜브 ${res}${kind} · ${ext}${codec ? ` · ${codec}` : ''}${size}`,
           protocol: 'direct',
           format: isAudio ? 'audio-only' : isVideo ? 'video-only' : 'progressive',
           itag: f.itag,
@@ -704,10 +711,11 @@
       for (const c of caps) {
         if (seen.has(c.url)) continue ;
         seen.add(c.url) ;
-        result.media.streams.push({
+        const kind = c.format === 'audio-only' ? ' (오디오 전용)' : c.format === 'progressive' ? ' (영상+오디오)' : c.format === 'video-only' ? ' (영상 전용)' : '' ;
+        const item = {
           id: `s${result.media.streams.length}`,
           url: c.url,
-          name: `유튜브 ${c.label || '동영상'}${c.format === 'video-only' ? ' (영상 전용)' : ''}`,
+          name: `유튜브 ${c.label || '동영상'}${kind}`,
           protocol: 'direct',
           format: c.format || 'progressive',
           itag: c.itag,
@@ -716,7 +724,23 @@
           downloadable: true,
           source: 'youtube-capture',
           capturedAt: c.capturedAt,
-        }) ;
+        } ;
+        // 같은 itag의 player 포맷 항목이 있으면 URL만 신선한 캡처 URL로 갱신 (재생 세션 — 다운로드 성공 보장)
+        if (c.itag) {
+          const pIdx = result.media.streams.findIndex((s) => s.itag === c.itag && s.source === 'youtube-player') ;
+          if (pIdx >= 0) {
+            result.media.streams[pIdx].url = c.url ;
+            result.media.streams[pIdx].capturedAt = c.capturedAt ;
+            continue ;
+          }
+          // 같은 itag의 이전 캡처가 있으면 URL/이름만 갱신 (분석 반복 시 캡처 중복 누적 방지)
+          const prev = result.media.streams.findIndex((s) => s.source === 'youtube-capture' && s.itag === c.itag) ;
+          if (prev >= 0) {
+            result.media.streams[prev] = item ;
+            continue ;
+          }
+        }
+        result.media.streams.push(item) ;
       }
       DebugLogger.feature('EXTRACT', `유튜브 캡처 병합 (${caps.length}건)`) ;
     } catch { /* BG 미응답/오류 시 캡처 없음으로 처리 */ }

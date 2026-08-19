@@ -163,7 +163,7 @@ async function downloadDirect() {
   const prevCancel = globalThis.__dlCancelCurrent ;
   globalThis.__dlCancelCurrent = () => cancelReject?.(tErr('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.')) ;
   const cleanup = () => { globalThis.__dlCancelCurrent = prevCancel ; } ;
-  const connectP = new Promise((_, rej) => setTimeout(() => rej(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다. 유튜브의 새 스트리밍 방식(UMP/SABR) 영상은 저장할 수 없습니다.')), 25000)) ; // UMP 등 무응답 서버 대비 25초 제한
+  const connectP = new Promise((_, rej) => setTimeout(() => rej(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다.\n유튜브 스트림 주소는 재생 중일 때만 유효합니다 — 영상을 다시 재생한 뒤 ⟳ 버튼으로 재분석하고 즉시 다운로드하세요.')), 25000)) ; // 서명 URL 무응답 대비 25초 제한
   const parts = [] ;
   let totalBytes = 0 ; // 총 크기 — Content-Range(청크) 또는 Content-Length에서 확보
   let received = 0 ;   // 지금까지 수신한 바이트 (다음 Range offset 기준)
@@ -174,7 +174,7 @@ async function downloadDirect() {
   let lastT = performance.now() ;
   const makeIdleP = () => {
     let timer = null ;
-    const p = new Promise((_, r) => { timer = setTimeout(() => r(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다. 유튜브의 새 스트리밍 방식(UMP/SABR) 영상은 저장할 수 없습니다.')), 15000) ; }) ;
+    const p = new Promise((_, r) => { timer = setTimeout(() => r(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다.\n유튜브 스트림 주소는 재생 중일 때만 유효합니다 — 영상을 다시 재생한 뒤 ⟳ 버튼으로 재분석하고 즉시 다운로드하세요.')), 15000) ; }) ;
     return { p, timer } ;
   } ;
 
@@ -183,8 +183,12 @@ async function downloadDirect() {
   const pageFetchChunk = (url, range) => new Promise((resolve) => {
     chrome.tabs.sendMessage(JOB.tabId, { type: 'pk.fetch.stream', payload: { url, range } }, (res) => {
       if (chrome.runtime.lastError || !res?.ok) {
+        DebugLogger.warn('DLWIN', `페이지 fetch 실패 ${res?.status ?? '-'} (${chrome.runtime.lastError?.message || '페이지 응답 없음'}) ${range}`) ;
         resolve({ ok: false, status: res?.status ?? null, error: chrome.runtime.lastError?.message || '페이지 응답 없음 (스크립트 미주입)' }) ;
-      } else resolve(res) ;
+      } else {
+        DebugLogger.debug('DLWIN', `페이지 fetch 성공 status=${res.status} size=${res.size} ${range}`) ;
+        resolve(res) ;
+      }
     }) ;
   }) ;
   // 페이지 fetch 응답 → fetch Response 호환 (기존 수신 로직 재사용)
@@ -223,7 +227,10 @@ async function downloadDirect() {
       let resp = null ;
       try {
         if (viaPage) {
-          if (!JOB.tabId) return downloadViaDownloads() ; // 폴백 탭 없음 → 브라우저 다운로더
+          if (!JOB.tabId) {
+            DebugLogger.warn('DLWIN', '폴백 탭(tid) 없음 → 브라우저 다운로더 폴백') ;
+            return downloadViaDownloads() ; // 폴백 탭 없음 → 브라우저 다운로더
+          }
           const pr = await Promise.race([pageFetchChunk(JOB.url, `bytes=${received}-${received + CHUNK - 1}`), connectP, cancelP]) ;
           if (!pr?.ok) {
             if (pr?.status === 401 || pr?.status === 403) throw streamError('E-CHR-DL-1005', expireMsg) ;
@@ -236,14 +243,26 @@ async function downloadDirect() {
       } catch (e) {
         cleanup() ;
         if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006') throw streamError(e.code, e.message) ;
-        if (!viaPage) { viaPage = true ; continue ; } // 확장 fetch 불가 → 페이지 컨텍스트 시도
+        if (!viaPage) {
+          DebugLogger.info('DLWIN', `확장 fetch 예외(${e.message.slice(0, 60)}) → 페이지 폴백 전환`) ;
+          viaPage = true ;
+          continue ; // 확장 fetch 불가 → 페이지 컨텍스트 시도
+        }
+        DebugLogger.warn('DLWIN', `페이지 fetch 예외(${e.message.slice(0, 60)}) → 브라우저 다운로더 폴백`) ;
         return downloadViaDownloads() ; // 페이지 경유도 불가 → 브라우저 다운로더
       }
       if (!resp.ok) {
         cleanup() ;
         // googlevideo 등 서명 URL은 확장 fetch(쿠키 없음)를 403으로 거부 → 페이지 오리진 fetch 폴백
-        if (!viaPage && (resp.status === 401 || resp.status === 403)) { viaPage = true ; continue ; }
-        if (viaPage) throw streamError('E-CHR-DL-1005', expireMsg) ;
+        if (!viaPage && (resp.status === 401 || resp.status === 403)) {
+          DebugLogger.info('DLWIN', `확장 fetch ${resp.status} → 페이지 폴백 전환 ${JOB.url.slice(0, 70)}`) ;
+          viaPage = true ;
+          continue ;
+        }
+        if (viaPage) {
+          DebugLogger.warn('DLWIN', `페이지 fetch 응답 ${resp.status} → 브라우저 다운로더 폴백`) ;
+          return downloadViaDownloads() ;
+        }
         throw streamError('E-CHR-DL-1005', `캡처된 주소가 만료되었거나 유효하지 않습니다. (HTTP ${resp.status})\n동영상을 다시 재생한 뒤 분석해 주세요.`) ;
       }
       if (first) {
