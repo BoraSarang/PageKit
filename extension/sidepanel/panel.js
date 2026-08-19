@@ -153,8 +153,12 @@ function tabItems() {
   }) ;
 }
 
-// 아이콘 판정: svg 또는 가로·세로 중 큰 값이 48px 이하인 작은 이미지 (크기 미확인 시 아이콘 아님)
+// 아이콘 판정: 파일명 패턴(아이콘류) 또는 svg 또는 크기 확인된 48px 이하 이미지
+// (크기 미확인 이미지는 이름/URL 패턴으로만 판정)
+const ICON_NAME_RE = /(^|[/\-_. ])(icon|ico|logo|arrow|jiantou|btn|button|chevron|menu|close|spinner|sprite|prev|next|back-to-top|sort|gear|cog|heart|star|like|share|play|pause|check|dot|point|nav|pager|slide|setting)([-_.\d]|$)/i ;
 function isIcon(it) {
+  const hay = `${it.name || ''} ${it.text || ''} ${it.url || ''}`.toLowerCase() ;
+  if (ICON_NAME_RE.test(hay)) return true ;
   if (!it.w && !it.h) return false ;
   return it.type === 'svg' || Math.max(it.w || 0, it.h || 0) <= 48 ;
 }

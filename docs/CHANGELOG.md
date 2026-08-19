@@ -1,5 +1,20 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.3 (2026-08-19) — 아이콘 숨김 이름 패턴 + options 버전 하드코딩 수정
+
+### 수정 [chrome]
+- **T-83 아이콘 숨김 개선**: `isIcon`에 파일명/URL 패턴 판정 추가
+  (`icon/logo/arrow/jiantou/btn/chevron/menu/close/spinner/sprite/prev/next/sort/gear/heart/star/like/share/play/pause/check/dot/point/nav/pager/slide/setting` 등)
+  — CSS 배경·og:image처럼 크기 미확인(w:0,h:0) 이미지도 이름으로 판정 (기존: svg·48px 이하 크기 기준만)
+  - 사용자 예시 `torrentsee349.com/images/jiantou2.png`(화살표) 등 장식 이미지 숨김 가능
+- **T-84 options 버전 하드코딩 제거**: footer `PageKit v0.1.0` → `pk-version-foot` +
+  `getManifest().version` 동적 표시 (panel/options 헤더와 동일 방식)
+
+### 검증
+- 패턴 단위 테스트 8케이스 통과 + `node --check`
+- Chrome CDP 실측: 확장 리로드 후 options 헤더/푸터 **v0.7.3** 표시 확인
+  (참고: 이전 로드본은 수동 로드 시점 0.5.0이었음 — 리로드 후 manifest 반영 확인)
+
 ## v0.7.2 (2026-08-19) — 패널 스트림 탭을 영상 옆 버튼으로
 
 ### 변경 [chrome]

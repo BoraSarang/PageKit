@@ -148,3 +148,5 @@ loadSettings() ;
 loadDebug() ;
 const pkVersionEl = document.getElementById('pk-version') ;
 if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().version}` ;
+const pkVersionFoot = document.getElementById('pk-version-foot') ;
+if (pkVersionFoot) pkVersionFoot.textContent = `v${chrome.runtime.getManifest().version}` ;
