@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="onboarding.css" />
+  <title>PageKit 시작하기</title>
+</head>
+<body>
+  <main class="pk-wrap">
+    <header class="pk-hero">
+      <img src="../icons/icon128.png" alt="PageKit" />
+      <div>
+        <h1>PageKit 설치 완료! <span class="pk-version" id="pk-version"></span></h1>
+        <p>웹페이지 군더더기는 빼고, 알짜배기 미디어만 쏙! 이미지·동영상·스트림을 정리하고 다운로드하세요.</p>
+      </div>
+    </header>
+
+    <section class="pk-card">
+      <div class="pk-card-head">
+        <span class="pk-num">0</span>
+        <h2>툴바에 고정하고 시작하세요</h2>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">🧩</span>
+        <div>
+          <b>1. 확장 아이콘 찾기</b>
+          <p>주소창 오른쪽 <code>🧩 퍼즐 아이콘</code>을 클릭하면 설치된 확장 목록이 나옵니다.</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">📌</span>
+        <div>
+          <b>2. PageKit 고정</b>
+          <p>PageKit 옆의 <code>📌 고정</code> 버튼을 클릭하면 툴바에 항상 표시됩니다. (Chrome 메뉴에서 확장 아이콘 우클릭 → "툴바에 고정"도 가능)</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">⚡</span>
+        <div>
+          <b>3. 바로가기 확인</b>
+          <p>툴바 아이콘 클릭 → 사이드 패널이 열립니다. 단축키 <kbd>⌘/Ctrl + Shift + K</kbd>로도 열 수 있어요.</p>
+        </div>
+      </div>
+      <div class="pk-benefit">
+        💡 <b>툴바 고정의 이점</b> — 아이콘 1번 클릭으로 패널 진입 · 스트림 다운로드 <b>진행률(%) 배지</b>를 툴바에서 바로 확인 · 우클릭으로 <b>디버그 창</b>까지 즉시 접근. 고정하면 확장을 매번 퍼즐 메뉴에서 찾지 않아도 됩니다!
+      </div>
+    </section>
+
+    <section class="pk-card">
+      <div class="pk-card-head">
+        <span class="pk-num">1</span>
+        <h2>우클릭/복사 제한 해제</h2>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">🔓</span>
+        <div>
+          <b>1. 설정 열기</b>
+          <p>툴바 PageKit 아이콘 우클릭 → <code>옵션</code>을 선택합니다. (주소창에 <code>chrome://extensions</code> → PageKit → 세부정보 → 확장 옵션도 가능)</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">✅</span>
+        <div>
+          <b>2. "우클릭/복사 제한 해제" 켜기</b>
+          <p>설정 첫 번째 카드의 체크박스를 <b>ON</b>으로 켜면 즉시 적용됩니다. <b>새로고침 없이</b> 현재 탭부터 동작해요.</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">⚠️</span>
+        <div>
+          <b>3. 참고</b>
+          <p>사이트가 강한 차단 스크립트를 쓰면 일부 복사가 안 될 수 있습니다. 이때는 페이지 새로고침 후 다시 시도해 보세요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="pk-card">
+      <div class="pk-card-head">
+        <span class="pk-num">2</span>
+        <h2>이미지 · 동영상 · 스트림 다운로드</h2>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">📊</span>
+        <div>
+          <b>1. 패널 열기 & 자동 분석</b>
+          <p>툴바 아이콘 클릭(또는 <kbd>⌘/Ctrl + Shift + K</kbd>) → 페이지가 <b>자동 분석</b>됩니다. 탭을 바꾸거나 페이지를 이동하면 패널도 자동으로 다시 분석해요.</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">🖼</span>
+        <div>
+          <b>2. 이미지 저장</b>
+          <p><code>이미지</code> 탭에서 원하는 이미지를 선택 → 하단 <code>다운로드</code> 클릭. <code>ZIP</code> 체크 시 선택분을 한 번에 묶어 저장하고, 형식·크기 필터와 <code>본문만</code> 표시로 골라 담을 수 있습니다.</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">📡</span>
+        <div>
+          <b>3. 스트림 저장 (실시간 감지)</b>
+          <p><code>스트림</code> 탭 — 페이지에서 동영상을 <b>재생</b>하면 m3u8/DASH 스트림이 <b>자동 캡처</b>됩니다. 항목 옆 다운로드를 누르면 독립 창에서 병렬로 받아져요. (설정 › 스트림 감지 ON 필요)</p>
+        </div>
+      </div>
+      <div class="pk-step">
+        <span class="pk-ico">🎬</span>
+        <div>
+          <b>4. 그 외 저장 & 정리</b>
+          <p><code>영상</code>(mp4 등 직접 파일) · <code>오디오</code> · <code>링크</code> 탭도 동일한 방식입니다. 링크는 <code>CSV</code>로 내보낼 수 있어요.</p>
+        </div>
+      </div>
+      <div class="pk-benefit">
+        💡 <b>어디서든 시작</b> — 페이지에서 마우스 우클릭 → <code>PageKit으로 분석</code>을 선택해도 패널이 바로 열립니다.
+      </div>
+    </section>
+
+    <div class="pk-actions">
+      <button class="pk-btn pk-btn-primary" id="pk-open-options">설정 열기</button>
+      <button class="pk-btn pk-btn-ghost" id="pk-close">닫기</button>
+    </div>
+  </main>
+  <script src="../debug.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>
