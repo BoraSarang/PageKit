@@ -168,6 +168,12 @@
 |---|------|------|------|
 | T-99 | blob 재생 사이트 성능 entries 미디어 폴백 개선 | ✅ | 사용자 리포트: foryou 동영상/스트림 0건 + "본문만" 체크박스 풀림(= 분석 0건 증상, article.found=false). 원인 ① extractor.js 성능 entries 폴백이 `\.mp4` 확장자 매칭만 — 틱톡 서명 URL(v16-webapp-prime)은 확장자 없음. ② transferSize>0 조건이 SW/캐시 경유 미디어(transferSize=0 보고)를 전부 배제. ③ 호스트 정규식 `(^|\.)`가 "https://v16-..."의 `/` 앞을 못 매칭. 수정: 확장자+호스트(v\d+-webapp-?prime|v\d+-webapp|tiktokcdn|googlevideo)+initiatorType(xhr/fetch/video/audio)+NON_MEDIA 확장자 제외로 선별, transferSize 조건 제거. CDP 실측: foryou 재생 중 analyze → v16/v19-webapp 미디어 URL 4~5건 캐치 → 다운로더 폴백 체인으로 TikTokCapture.mp4(6.4MB, ISO Media) 저장 성공. |
 
+## v0.7.12 (chrome) — 일반 동영상도 작업 창 다운로드
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-100 | 패널: 일반 동영상/오디오도 독립 작업 창에서 다운로드 | ✅ | 사용자 요청 "새창에서 다운로드 안 되나? 스트림처럼". 기존엔 m3u8/mpd/유튜브 캡처만 작업 창, 일반 mp4(틱톡 등)는 background 배치(창 없음) — 이 경로엔 브라우저 다운로더 폴백이 없어 폴백 체인이 느림. 수정: panel.js 다운로드 핸들러에서 cat 'videos'/'audios' 항목을 `MSG.DOWNLOAD_STREAM`(작업 창)으로 전송, 이미지/링크/기타만 background 유지. ZIP 모드면 기존대로 전부 background ZIP(video 포함). CDP 실측: DOWNLOAD_STREAM 호출 → 창 열림 → 진행 표시(36%) → tiktok-test/videos/TikTok.mp4(2MB, ISO Media) 저장 성공. |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.

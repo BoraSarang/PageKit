@@ -607,10 +607,44 @@ $('pk-download').addEventListener('click', async () => {
     return ;
   }
   const zipMode = $('pk-zip-pack')?.checked === true ;
-  const resp = await chrome.runtime.sendMessage({ type: MSG.DOWNLOAD_START, payload: { tabId: analysisSource.tabId, items: normalItems, zip: zipMode } }) ;
+  // 일반 동영상/오디오도 스트림처럼 독립 작업 창에서 (v0.7.10 브라우저 다운로더 폴백 + 진행 표시)
+  const isVideoLike = (it) => (it.cat === 'videos' || it.cat === 'audios') && !streamItems.includes(it) && it.downloadable !== false ;
+  const videoItems = normalItems.filter(isVideoLike) ;
+  const otherItems = zipMode ? normalItems : normalItems.filter((it) => !isVideoLike(it)) ;
+  if (!zipMode && videoItems.length) {
+    for (const it of videoItems) {
+      try {
+        const resp = await chrome.runtime.sendMessage({
+          type: MSG.DOWNLOAD_STREAM,
+          payload: {
+            url: it.url,
+            name: it.name || '',
+            title: analysis?.title || document.title || '',
+            folder: it.folder || new URL(it.url).hostname.replace(/^www\./, ''),
+            referer: it.referer || location.href,
+            tabId: analysisSource.tabId, // 페이지 컨텍스트 fetch 폴백용
+          },
+        }) ;
+        if (resp?.ok) {
+          DebugLogger.feature('PANEL', `동영상 다운로드 작업 창 열림 (${(it.name || it.url).slice(0, 50)})`) ;
+        } else {
+          DebugLogger.error('[PANEL] 동영상 다운로드 거부', resp?.error?.message, resp?.error) ;
+          toast(resp?.error?.message || '다운로드를 시작할 수 없습니다.') ;
+        }
+      } catch (e) {
+        DebugLogger.error('[PANEL] 동영상 다운로드 요청 실패', e.message, { code: 'E-CHR-DL-1004' }) ;
+        toast('다운로드 요청에 실패했습니다.') ;
+      }
+    }
+    if (!otherItems.length) {
+      if (streamItems.length) toast('다운로드 창을 엽니다.') ;
+      return ;
+    }
+  }
+  const resp = await chrome.runtime.sendMessage({ type: MSG.DOWNLOAD_START, payload: { tabId: analysisSource.tabId, items: otherItems, zip: zipMode } }) ;
   if (resp?.ok) {
-    DebugLogger.feature('PANEL', `다운로드 시작됨 (${normalItems.length}건${zipMode ? ' · ZIP 패키징' : ''})`) ;
-    toast(zipMode ? `ZIP 패키징 시작 (${normalItems.length}건)` : `다운로드 시작 (${normalItems.length}건)`) ;
+    DebugLogger.feature('PANEL', `다운로드 시작됨 (${otherItems.length}건${zipMode ? ' · ZIP 패키징' : ''})`) ;
+    toast(zipMode ? `ZIP 패키징 시작 (${otherItems.length}건)` : `다운로드 시작 (${otherItems.length}건)`) ;
   } else {
     DebugLogger.error('[PANEL] 다운로드 시작 실패', resp?.error?.message, resp?.error, { code: 'E-CHR-DL-1001' }) ;
     toast(resp?.error?.message || '다운로드 실패') ;

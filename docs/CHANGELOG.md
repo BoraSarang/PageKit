@@ -1,5 +1,25 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.12 (2026-08-19) — 일반 동영상도 독립 작업 창에서 다운로드
+
+### 수정 [chrome]
+- **T-100**: 패널 다운로드 핸들러에서 일반 동영상/오디오(`cat` videos/audios) 항목을
+  `MSG.DOWNLOAD_STREAM`(독립 작업 창)으로 전송 — 스트림(m3u8/mpd/유튜브)과 동일하게
+  진행 표시 + 브라우저 다운로더 폴백(0.7.10)을 받도록 변경. 이미지/링크/기타는 기존대로
+  background 배치(창 없음) 유지, ZIP 모드면 기존대로 전부 ZIP으로 패키징(동영상 포함).
+
+### 배경
+- 기존엔 일반 mp4(틱톡 등)가 background 배치 경로(background/downloader.js)로 처리됐는데
+  이 경로에는 브라우저 다운로더 폴백이 없어 403 시 페이지 폴백으로 느리게 완료됨.
+  작업 창 경로는 v0.7.10에서 서명 CDN 403을 브라우저 다운로더로 해결한 상태라 더 빠르고 확실.
+
+### 실측 [chrome]
+- CDP 실측: `pk.stream.open` 호출 → 작업 창 열림 → 진행 표시(0.7MB·36%) →
+  `tiktok-test/videos/TikTok.mp4` (2MB, ISO Media Base Media v1) 저장 성공.
+
+### 검증
+- `node --check` panel 통과. manifest 0.7.12.
+
 ## v0.7.11 (2026-08-19) — 틱톡 미디어 캐치 수정 (blob 재생 성능 entries 폴백)
 
 ### 수정 [chrome]
