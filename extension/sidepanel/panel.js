@@ -207,6 +207,7 @@ function thumbFor(it) {
 
 function render() {
   if (!analysis) {
+    $('pk-empty').innerHTML = '분석 결과가 없습니다.<br />상단 ⟳ 버튼으로 페이지를 분석하세요.' ;
     $('pk-empty').hidden = false ;
     $('pk-list').innerHTML = '' ;
     return ;
@@ -254,6 +255,15 @@ function render() {
     info.hidden = false ;
   } else {
     info.hidden = true ;
+  }
+
+  // 빈 결과 안내: 필터/검색으로 0건이면 "검색된 데이터가 없습니다" (유튜브 스트림 안내가 우선이면 생략)
+  const youtubeHint = currentTab === 'streams' && items.length === 0 && /^https?:\/\/(www\.|m\.)?youtube\.com\//i.test(analysis.url || '') ;
+  if (items.length === 0 && !youtubeHint) {
+    $('pk-empty').innerHTML = '검색된 데이터가 없습니다.<br />검색어·필터를 해제하거나 다른 카테고리를 확인해 보세요.' ;
+    $('pk-empty').hidden = false ;
+  } else {
+    $('pk-empty').hidden = true ;
   }
 
   $('pk-list').innerHTML = items.slice(0, 500).map((it) => `
