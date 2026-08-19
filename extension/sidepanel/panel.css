@@ -138,6 +138,23 @@ body {
 
 .pk-list { flex: 1; overflow-y: auto; padding: 4px 10px 10px; }
 
+.pk-group { margin-bottom: 8px; }
+.pk-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pk-primary);
+  border-bottom: 1px solid var(--pk-border);
+  cursor: pointer;
+  user-select: none;
+}
+.pk-group-title .pk-arrow { font-size: 10px; }
+.pk-group-count { font-size: 10px; font-weight: 600; color: var(--pk-muted); background: var(--pk-border); border-radius: 8px; padding: 0 6px; }
+.pk-group.is-collapsed .pk-group-body { display: none; }
+
 .pk-item {
   display: flex;
   align-items: center;

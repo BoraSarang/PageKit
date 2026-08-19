@@ -148,6 +148,14 @@
 |---|------|------|------|
 | T-94 | 스트림 표시 정리 + 다운로드 창 3개 병렬 확인 | ✅ | 사용자 문의 3건 실측: ① 영상/오디오 전용 의미 + 오디오가 "영상 전용"으로 잘못 표시되던 버그 수정 (AUDIO_ITAGS) ② itag 중복 제거 + 코덱 표시 + 캡처 URL 갱신 → 36~40개 → 27개 ③ 3개 체크 시 창 3개 병렬 + 신선한 URL로 실제 저장 성공 (144p H.264 mp4 ffprobe 검증) |
 
+## v0.7.9 (chrome) — 403 재시도 로직 + 해상도별 펼침 목록 + 자동 주입
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-95 | 유튜브 403 재시도 로직 + UMP 전환 실측 | ✅ | extractor pk.fetch.stream에 403/401 시 performance entries 실제 요청 URL로 자동 재시도 (같은 itag 우선→최신). 실측: 유튜브가 2026-08 전 영상 UMP(Unified Media Pipeline)로 전환 — videoplayback URL이 미디어 대신 sabr.malformed_config 제어 메시지(31B)만 반환, 플레이어의 POST+protobuf 재현도 실패 → 현재 구조로는 UMP 영상 다운로드 불가 (역분석은 별도 계획으로 보류) |
+| T-96 | 패널 스트림 목록 해상도별 펼침 그룹 | ✅ | 사용자 요청 "해상도로 펼침 목록" — RES_GROUPS(4K/1440p/1080p/720p/480p/360p/240p/144p/오디오 전용/기타), 헤더 클릭 접기/펼치기, progressive "(영상+오디오)" 태그 유지 |
+| T-97 | extractor 자동 주입 (content_scripts) | ✅ | manifest 0.7.9 — debug.js + content/extractor.js를 content_scripts로 등록 (all_frames 아님). 수동 주입/ENSURE_INJECTED 없이 analyze/PING 동작 확인 (DebugLogger 미정의 크래시는 debug.js 선주입으로 해결) |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.
@@ -160,6 +168,7 @@
 - 2026-08-19: **T-86~T-89 (v0.7.5)** — 사용자 리포트 4건: ① 분석 중 로딩 오버레이 추가(panel, ⟳ 실측: 표시→완료 숨김) ② URL 표시 양끝(shortenUrl "앞부분…파일명끝", 4케이스 단위 검증) ③ 컨텍스트 메뉴가 첫 웹 탭 분석+새 탭 폴백하는 문제 — onClicked에서 await ensureInjected로 제스처 소멸이 원인, 동기 openSidePanel + storage.session contextTarget(1회용) + storage.onChanged 재분석으로 수리, 활성 탭 google에서 torrentsee 분석 성공 실측 ④ 플로팅 버튼 — content script 경유 MV3 제스처 불가라 사이드 패널로 못 열림(fallback 탭만 동작), 사용자 결정에 따라 전체 제거(extractor/float-button.js/css/popup 토글/서비스워커/메시지 상수). manifest 0.7.5.
 - 2026-08-19: **T-90~T-92 (v0.7.6)** — ① 사용자 문의: 팝업 "전체 보기" 아래 빈 공간 = 플로팅 토글 제거 잔재 빈 section 제거 ② 아이콘 숨김 기본 체크 + 본문만 옆(본문만·아이콘 숨김·드롭메뉴 순서) ③ 리스트 0건 시 "검색된 데이터가 없습니다" 안내(검색어·필터 해제 안내 포함) — CDP 실측: 검색 0건 메시지 ↔ 해제 후 90건 복귀. manifest 0.7.6.
 - 2026-08-19: **T-93 (v0.7.7)** — 사용자 로그: 유튜브(itag=599) 스트림 다운로드 실패 E-CHR-DL-1002. 분석: 확장 fetch(쿠키 없음)·브라우저 다운로더(열린 Range)·페이지 fetch(Range 없음) 모두 googlevideo 403 — 서명 URL이 재생 세션에 묶여 다운로드 시점엔 무효(같은 IP·만료 전인데도 실측 403). 수정: ① extractor에 `pk.fetch.stream` 핸들러(페이지 오리진 fetch — 유튜브 탭에서 googlevideo는 CORS 허용) ② 다운로더 창 downloadDirect에 viaPage 폴백(확장 fetch 401/403 → 페이지 경유 한정 Range 청크 → 실패 시 브라우저 다운로더) ③ tabId 전달(패널→SW→창) ④ 실패 메시지 개선(영상 재생→⟳ 재분석→즉시 다운로드 안내). 403 URL 실측 확인, 200 케이스는 유튜브 재생 중 검증 필요(사용자 재시도). manifest 0.7.7.
+- 2026-08-19: **T-95~T-97 (v0.7.9)** — ① 사용자 12:36/12:37 실패 로그(itag 600/598/599, expire=1787132137) 실측: player API "발급만 된" URL은 재생 세션과 무관 → 페이지 fetch도 403. extractor pk.fetch.stream에 403/401 재시도 로직 추가(performance entries 실제 요청 URL — 같은 itag 우선, 없으면 최신). **UMP 전면 전환 실측**: BXekKYGl23A(12:30엔 일반 방식 성공) 포함 테스트 전 영상이 UMP로 재생 — videoplayback URL은 미디어 대신 sabr.malformed_config(31B)만 반환, 로그인/비로그인(Incognito) 무관, 2005년 영상 포함 전부. 플레이어 실제 POST+protobuf 본문을 캡처해 재현해도 미디어 수신 실패 → 현재 구조로 UMP 다운로드 불가 (역분석 별도 계획, 사용자 결정으로 보류). ② 사용자 요청 "해상도로 펼침 목록" — panel 그룹 아코디언 구현 (RES_GROUPS 10그룹, 헤더 클릭 토글, progressive 태그 유지). ③ content_scripts 자동 주입(debug.js+extractor.js) — 수동 주입 없이 PING/analyze 동작. SW 메시지 "port closed" 문제는 Chrome 재시작/리로드로도 잔존(확장 재설치로 별도 정리 필요, UMP 보류와 함께 후속). manifest 0.7.9.
 - 2026-08-19: **T-94 (v0.7.8)** — 사용자 문의 3건에 실측으로 대응: ① "영상 전용/오디오 전용" = DASH 분리 스트림, 둘 다 있는 파일 = progressive — 오디오 itag(139~141/249~251/256/258/599/600)가 'video-only'로 잘못 분류되던 버그 수정(AUDIO_ITAGS), progressive에 '(영상+오디오)' 표시 추가. ② 유튜브 리스트 정리: 같은 itag 중복 제거(서명 URL 재분석 누적 방지) + 캡처 URL이 같은 itag player 항목 URL을 신선한 세션 URL로 갱신 + 이름에 코덱 표시(H.264/AV1/VP9/AAC/Opus) → 36~40개 → 27개로 정리(같은 화질 3개 = 코덱 차이임을 표시로 해소). ③ 3개 체크 → 작업 창 3개 병렬 실측 + 신선한 캡처 URL로 실제 저장 성공(144p H.264 57.9초 mp4, ffprobe 검증) — 유튜브 스트림 다운로드가 재생 중에는 동작함을 최초로 확정. 다운로더 viaPage 전환/실패 디버그 로그 추가. manifest 0.7.8.
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.

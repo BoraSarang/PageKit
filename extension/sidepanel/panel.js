@@ -205,6 +205,44 @@ function thumbFor(it) {
   return `<div class="pk-thumb">${emoji}</div>` ;
 }
 
+// ---------- 스트림 그룹 (해상도별 펼침 목록) ----------
+const RES_GROUPS = [
+  ['4K', 2160], ['1440p', 1440], ['1080p', 1080], ['720p', 720], ['480p', 480],
+  ['360p', 360], ['240p', 240], ['144p', 144], ['오디오 전용', 0], ['기타', -1],
+] ;
+function streamGroupKey(it) {
+  if (it.format === 'audio-only') return '오디오 전용' ;
+  if (!it.w || !it.h) return '기타' ;
+  for (const [label, min] of RES_GROUPS) if (it.h >= min) return label ;
+  return '기타' ;
+}
+function groupStreams(items) {
+  const byKey = new Map() ;
+  for (const it of items) {
+    const k = streamGroupKey(it) ;
+    if (!byKey.has(k)) byKey.set(k, []) ;
+    byKey.get(k).push(it) ;
+  }
+  return RES_GROUPS.filter(([label]) => byKey.has(label)).map(([label]) => ({ label, list: byKey.get(label) })) ;
+}
+
+function itemHtml(it) {
+  const kind = it.format === 'progressive' ? '<span class="pk-tag">영상+오디오</span>' : '' ;
+  return `
+    <label class="pk-item ${it.inArticle ? '' : 'is-out'}" data-id="${it.id}">
+      ${thumbFor(it)}
+      <div class="pk-info">
+        <div class="pk-name" title="${esc(it.url || it.text)}">${esc(shortenUrl(it.name || it.text || it.url))}</div>
+        <div class="pk-meta">${formatDim(it)}</div>
+      </div>
+      <span class="pk-tag">${it.inArticle ? '본문' : '외부'}</span>
+      ${kind}
+      ${it.mergedCount ? `<span class="pk-tag" title="같은 영상의 화질 변형 ${it.mergedCount}건을 하나로 통합했습니다">화질 ${it.mergedCount}개 통합</span>` : ''}
+      ${it.downloadable === false ? '<span class="pk-tag pk-tag-no" title="실제 파일이 아니거나 매니페스트라 저장할 수 없습니다">저장 불가</span>' : ''}
+      <input type="checkbox" data-id="${it.id}" ${selection.has(it.id) ? 'checked' : ''} ${it.downloadable === false ? 'disabled' : ''} />
+    </label>` ;
+}
+
 function render() {
   if (!analysis) {
     $('pk-empty').innerHTML = '분석 결과가 없습니다.<br />상단 ⟳ 버튼으로 페이지를 분석하세요.' ;
@@ -266,18 +304,21 @@ function render() {
     $('pk-empty').hidden = true ;
   }
 
-  $('pk-list').innerHTML = items.slice(0, 500).map((it) => `
-    <label class="pk-item ${it.inArticle ? '' : 'is-out'}" data-id="${it.id}">
-      ${thumbFor(it)}
-      <div class="pk-info">
-        <div class="pk-name" title="${esc(it.url || it.text)}">${esc(shortenUrl(it.name || it.text || it.url))}</div>
-        <div class="pk-meta">${formatDim(it)}</div>
-      </div>
-      <span class="pk-tag">${it.inArticle ? '본문' : '외부'}</span>
-      ${it.mergedCount ? `<span class="pk-tag" title="같은 영상의 화질 변형 ${it.mergedCount}건을 하나로 통합했습니다">화질 ${it.mergedCount}개 통합</span>` : ''}
-      ${it.downloadable === false ? '<span class="pk-tag pk-tag-no" title="실제 파일이 아니거나 매니페스트라 저장할 수 없습니다">저장 불가</span>' : ''}
-      <input type="checkbox" data-id="${it.id}" ${selection.has(it.id) ? 'checked' : ''} ${it.downloadable === false ? 'disabled' : ''} />
-    </label>`).join('') + (items.length > 500 ? '<div class="pk-empty">500개까지만 표시됩니다.</div>' : '')
+  const maxItems = 500 ;
+  let inner ;
+  if (currentTab === 'streams') {
+    inner = groupStreams(items.slice(0, maxItems)).map((g) => `
+      <div class="pk-group">
+        <div class="pk-group-title" role="button" title="클릭하여 펼치기/접기">
+          <span class="pk-arrow">▾</span> ${g.label}
+          <span class="pk-group-count">${g.list.length}</span>
+        </div>
+        <div class="pk-group-body">${g.list.map(itemHtml).join('')}</div>
+      </div>`).join('') + (items.length > maxItems ? '<div class="pk-empty">500개까지만 표시됩니다.</div>' : '') ;
+  } else {
+    inner = items.slice(0, maxItems).map(itemHtml).join('') + (items.length > maxItems ? '<div class="pk-empty">500개까지만 표시됩니다.</div>' : '') ;
+  }
+  $('pk-list').innerHTML = inner
     // 유튜브 캡처 안내: 스트림 탭이 비었고 유튜브 페이지면 재생 안내
     // (webRequest 캡처는 media 요청이 발생하는 재생 시에만 수집 — shorts는 스크롤 시 자동 재생으로 자연 캡처)
     + (currentTab === 'streams' && items.length === 0 && /^https?:\/\/(www\.|m\.)?youtube\.com\//i.test(analysis.url || '')
@@ -436,6 +477,13 @@ $('pk-cat-select').addEventListener('change', (e) => setCategory(e.target.value)
 $('pk-adblock-close').addEventListener('click', () => { $('pk-adblock-hint').hidden = true ; }) ;
 
 $('pk-list').addEventListener('click', (e) => {
+  const gh = e.target.closest('.pk-group-title') ;
+  if (gh) {
+    const g = gh.closest('.pk-group') ;
+    g.classList.toggle('is-collapsed') ;
+    gh.querySelector('.pk-arrow').textContent = g.classList.contains('is-collapsed') ? '▸' : '▾' ;
+    return ;
+  }
   const box = e.target.closest('input[type="checkbox"]') ;
   if (!box) return ;
   const id = box.dataset.id ;

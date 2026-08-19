@@ -1,5 +1,31 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.9 (2026-08-19) — 403 재시도 로직 + 해상도별 펼침 목록 + 자동 주입
+
+### 수정 [chrome]
+- **T-95 403 재시도 로직**: extractor `pk.fetch.stream`에서 403/401 시 `performance.getEntriesByType('resource')`의
+  googlevideo 실제 요청 URL로 자동 재시도 (같은 itag 우선 → 최신). 발급만 된 player API URL이 무효여도
+  재생 중 실제 요청 URL이 있으면 다운로드 성공.
+- **T-96 해상도별 펼침 목록**: 스트림 목록을 해상도 그룹(4K/1440p/1080p/720p/480p/360p/240p/144p/오디오 전용/기타)으로
+  묶고 헤더 클릭으로 접기/펼치기 — 사용자 요청 "해상도로 펼침 목록" 반영.
+- **T-97 content_scripts 자동 주입**: manifest에 `debug.js` + `content/extractor.js` 등록 — 수동 주입
+  (`pk.ensure.injected`) 없이도 탭에서 PING/analyze 동작. (DebugLogger 미정의 크래시는 debug.js 선주입으로 해결)
+
+### 실측 발견 [chrome]
+- **유튜브 UMP(Unified Media Pipeline) 전면 전환**: 2026-08-19 실측 기준 테스트한 전 영상
+  (BXekKYGl23A — 12:30엔 일반 방식 성공, 아스팔트 블랙박스, Me at the zoo, Rick Astley)이 UMP로만 재생.
+  로그인/비로그인(Incognito) 무관. UMP의 videoplayback URL은 미디어 대신 `sabr.malformed_config`
+  제어 메시지(31B protobuf)만 반환하며, 플레이어의 실제 POST+protobuf 요청을 재현해도 미디어 수신 실패.
+  → **현재 구조(URL 캡처→fetch)로는 UMP 영상 다운로드 불가** — UMP 역분석은 별도 버전으로 계획 (보류).
+- 403 원인 정리: 사용자 12:36/12:37 실패(itag 600/598/599, expire=1787132137)는 player API "발급만 된" URL이
+  재생 세션과 무관해 무효인 것 — 페이지 fetch로도 403 재현. 12:30 성공(캡처=실제 요청 URL, 206)이
+  일반 방식의 마지막 성공 사례.
+
+### 검증
+- `node --check` extractor/panel 통과, CDP 실측: content_scripts 주입 후 PING/analyze 응답 확인 (28개 스트림),
+  UMP URL 응답 유형 분류(전부 제어 메시지), 일반 방식 403 재현. SW 메시지 "port closed" 잔존
+  (Chrome 재시작/리로드로 미해결 — 확장 재설치 정리 후속 예정).
+
 ## v0.7.8 (2026-08-19) — 유튜브 스트림 리스트 정리 + 다운로드 성공 실측
 
 ### 사용자 문의 기반 개선 [chrome]

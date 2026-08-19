@@ -758,21 +758,35 @@
       // → 한정 Range로 청크 수신 → base64 반환 (다운로더 창이 병합)
       if (window !== window.top) return false ;
       const u = message.payload?.url, rng = message.payload?.range ?? null ;
+      const fetchOne = async (url) => {
+        const r = await fetch(url, { credentials: 'include', headers: rng ? { Range: rng } : {} }) ;
+        if (!r.ok) return { ok: false, status: r.status } ;
+        const buf = new Uint8Array(await r.arrayBuffer()) ;
+        let bin = '' ;
+        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)) ;
+        const cr = r.headers.get('content-range') || '' ;
+        const m = cr.match(/\/(\d+)\s*$/) ;
+        return {
+          ok: true, status: r.status,
+          mime: r.headers.get('content-type') || '',
+          b64: btoa(bin), size: buf.length,
+          total: m ? Number(m[1]) : 0,
+        } ;
+      } ;
       ;(async () => {
         try {
-          const r = await fetch(u, { credentials: 'include', headers: rng ? { Range: rng } : {} }) ;
-          if (!r.ok) { sendResponse({ ok: false, status: r.status }) ; return ; }
-          const buf = new Uint8Array(await r.arrayBuffer()) ;
-          let bin = '' ;
-          for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)) ;
-          const cr = r.headers.get('content-range') || '' ;
-          const m = cr.match(/\/(\d+)\s*$/) ;
-          sendResponse({
-            ok: true, status: r.status,
-            mime: r.headers.get('content-type') || '',
-            b64: btoa(bin), size: buf.length,
-            total: m ? Number(m[1]) : 0,
-          }) ;
+          let res = await fetchOne(u) ;
+          // 유튜브: 분석 시점에 발급된 서명 URL은 재생 세션과 무관하면 401/403 — 재생 중 실제로 요청된 googlevideo URL로 재시도
+          if (!res.ok && (res.status === 401 || res.status === 403)) {
+            const itag = (new URL(u).searchParams.get('itag') || '').toString() ;
+            const live = performance.getEntriesByType('resource')
+              .map((e) => e.name)
+              .filter((n) => /googlevideo\.com\/videoplayback/.test(n)) ;
+            const same = live.filter((n) => new URL(n).searchParams.get('itag')?.toString() === itag) ;
+            const alt = (same.length ? same : live).pop() ;
+            if (alt && alt !== u) res = await fetchOne(alt) ;
+          }
+          sendResponse(res) ;
         } catch (e) {
           sendResponse({ ok: false, error: String(e) }) ;
         }
