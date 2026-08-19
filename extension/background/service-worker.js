@@ -85,6 +85,7 @@ function streamWinUrl(job) {
   const q = new URLSearchParams({ u: job.url, n: job.name || '', f: job.folder || 'page' }) ;
   if (job.title) q.set('t', job.title) ;
   if (job.referer) q.set('r', job.referer) ;
+  if (job.tabId != null) q.set('tid', String(job.tabId)) ; // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
   return chrome.runtime.getURL(`downloader/downloader.html?${q.toString()}`) ;
 }
 
@@ -235,7 +236,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse(msgErr('E-CHR-DL-1001', '유효한 스트림 URL이 없습니다.')) ;
         return false ;
       }
-      openStreamWindow({ url: p.url, name: p.name, title: p.title, folder: p.folder, referer: p.referer })
+      openStreamWindow({ url: p.url, name: p.name, title: p.title, folder: p.folder, referer: p.referer, tabId: p.tabId ?? null })
         .catch((e) => BGLogger.error('DL', `스트림 작업 창 열기 실패 ${e.message}`, { code: 'E-CHR-DL-1001' })) ;
       sendResponse(msgOk()) ;
       return false ;

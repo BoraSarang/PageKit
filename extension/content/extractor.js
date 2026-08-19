@@ -729,6 +729,32 @@
       sendResponse({ ok: true }) ;
       return false ;
     }
+    if (message?.type === 'pk.fetch.stream') {
+      // 유튜브 googlevideo 등 서명 URL 폴백: 페이지 오리진 fetch (쿠키/Referer/Origin이 재생과 동일)
+      // → 한정 Range로 청크 수신 → base64 반환 (다운로더 창이 병합)
+      if (window !== window.top) return false ;
+      const u = message.payload?.url, rng = message.payload?.range ?? null ;
+      ;(async () => {
+        try {
+          const r = await fetch(u, { credentials: 'include', headers: rng ? { Range: rng } : {} }) ;
+          if (!r.ok) { sendResponse({ ok: false, status: r.status }) ; return ; }
+          const buf = new Uint8Array(await r.arrayBuffer()) ;
+          let bin = '' ;
+          for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)) ;
+          const cr = r.headers.get('content-range') || '' ;
+          const m = cr.match(/\/(\d+)\s*$/) ;
+          sendResponse({
+            ok: true, status: r.status,
+            mime: r.headers.get('content-type') || '',
+            b64: btoa(bin), size: buf.length,
+            total: m ? Number(m[1]) : 0,
+          }) ;
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e) }) ;
+        }
+      })() ;
+      return true ;
+    }
     if (message?.type === 'pk.analyze.page') {
       // iframe 컨텍스트는 협업 요청(postMessage)으로만 분석 응답 — 직접 메시지에는 응답하지 않음
       if (window !== window.top) return false ;

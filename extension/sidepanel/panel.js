@@ -540,6 +540,7 @@ $('pk-download').addEventListener('click', async () => {
           title: analysis?.title || document.title || '',
           folder: (it.folder || new URL(it.url).hostname.replace(/^www\./, '')),
           referer: it.referer || location.href,
+          tabId: analysisSource.tabId, // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
         },
       }) ;
       if (!resp?.ok) {

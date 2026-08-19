@@ -1,5 +1,29 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.7 (2026-08-19) — 유튜브 googlevideo 403 대응 (페이지 컨텍스트 fetch 폴백)
+
+### 원인 분석 [chrome]
+- 사용자 로그: 유튜브(itag=599) 스트림 다운로드 실패 `E-CHR-DL-1002` (SERVER_FORBIDDEN)
+- 확장 fetch(쿠키 없음) → 403, 브라우저 다운로더(열린 Range `bytes=0-`) → 403, 페이지 fetch(Range 없음) → 403
+- 같은 IP·만료 전인데도 403 실측 — **googlevideo 서명 URL은 발급된 재생 세션에 묶여 재생 외 시점엔 무효**
+  (webRequest로 캡처한 URL도 다운로드 시점에 403 가능)
+
+### 수정 [chrome]
+- **T-93 페이지 컨텍스트 fetch 폴백**:
+  - `extractor.js`에 `pk.fetch.stream` 핸들러 — 유튜브 탭(MAIN world)에서 재생과 동일한
+    쿠키/Referer/Origin 조건으로 한정 Range fetch → base64 청크 반환 (유튜브 페이지→googlevideo는 CORS 허용)
+  - 다운로더 창 `downloadDirect` — 확장 fetch 401/403/실패 시 페이지 경유 한정 Range 청크 수신으로 전환,
+    그것도 실패하면 브라우저 다운로더로 폴백 (기존 경로 유지)
+  - `tabId` 전달 체인: 패널 → `DOWNLOAD_STREAM` payload → `streamWinUrl(tid)` → 다운로더 창 `JOB.tabId`
+  - 실패 메시지 개선: "유튜브 스트림 주소는 재생 중일 때만 유효합니다 — 영상을 다시 재생한 뒤 ⟳ 버튼으로
+    재분석하고 즉시 다운로드하세요"
+
+### 검증
+- 403 URL 실측: 확장 fetch/브라우저 다운로더/페이지 fetch(Range 포함) 전부 403 — URL 무효 확인 (수정 후에도 이 URL은 실패 — 재생 중 새 URL 필요)
+- `pk.fetch.stream` 핸들러 응답 동작 확인 (403 → ok:false status 전달, CORS 미허용 CDN → fetch 실패 전달)
+- 200 성공 경로는 유튜브 재생 중 새 캡처로 사용자 재시도 필요
+- `node --check` 4파일 통과
+
 ## v0.7.6 (2026-08-19) — 팝업 정리 + 아이콘 숨김 기본 체크 + 빈 결과 안내
 
 ### 수정 [chrome]

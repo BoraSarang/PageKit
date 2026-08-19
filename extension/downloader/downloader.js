@@ -18,6 +18,7 @@ const JOB = {
   name: params.get('n') || '',
   title: params.get('t') || '',
   folder: params.get('f') || 'page',
+  tabId: Number(params.get('tid')) || null, // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
 } ;
 
 // 기본 파일명: 페이지 제목 우선 → URL 경로 이름 → stream (특수문자/길이 가드)
@@ -176,20 +177,73 @@ async function downloadDirect() {
     const p = new Promise((_, r) => { timer = setTimeout(() => r(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다. 유튜브의 새 스트리밍 방식(UMP/SABR) 영상은 저장할 수 없습니다.')), 15000) ; }) ;
     return { p, timer } ;
   } ;
+
+  // 페이지 컨텍스트 fetch 폴백 — googlevideo 등 서명 URL은 확장 오리진 fetch/브라우저 다운로더를 403으로 거부.
+  // 유튜브 탭(MAIN world)에서 재생과 동일한 쿠키/Referer/Origin 조건으로 한정 Range 수신
+  const pageFetchChunk = (url, range) => new Promise((resolve) => {
+    chrome.tabs.sendMessage(JOB.tabId, { type: 'pk.fetch.stream', payload: { url, range } }, (res) => {
+      if (chrome.runtime.lastError || !res?.ok) {
+        resolve({ ok: false, status: res?.status ?? null, error: chrome.runtime.lastError?.message || '페이지 응답 없음 (스크립트 미주입)' }) ;
+      } else resolve(res) ;
+    }) ;
+  }) ;
+  // 페이지 fetch 응답 → fetch Response 호환 (기존 수신 로직 재사용)
+  const pageResponseFrom = (pr) => {
+    const bin = atob(pr.b64) ;
+    const bytes = new Uint8Array(bin.length) ;
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) ;
+    let emitted = false ;
+    return {
+      ok: true, status: 200,
+      headers: {
+        get: (n) => {
+          const k = n.toLowerCase() ;
+          if (k === 'content-range' && pr.total > 0) return `bytes 0-${pr.size - 1}/${pr.total}` ;
+          if (k === 'content-type') return pr.mime || null ;
+          if (k === 'content-length') return String(pr.size) ;
+          return null ;
+        },
+      },
+      body: {
+        getReader: () => ({
+          read: async () => {
+            if (emitted) return { done: true } ;
+            emitted = true ;
+            return { done: false, value: bytes.buffer } ;
+          },
+        }),
+      },
+    } ;
+  } ;
+  const expireMsg = '캡처된 주소가 만료되었거나 유효하지 않습니다.\n유튜브 스트림 주소는 재생 중일 때만 유효합니다 — 영상을 다시 재생한 뒤 ⟳ 버튼으로 재분석하고 즉시 다운로드하세요.' ;
+
+  let viaPage = false ; // 확장 fetch 401/403/실패 → 페이지 오리진 fetch로 전환
   try {
     for (;;) {
       let resp = null ;
       try {
-        resp = await Promise.race([fetch(JOB.url, { headers: { Range: `bytes=${received}-${received + CHUNK - 1}` } }), connectP, cancelP]) ;
+        if (viaPage) {
+          if (!JOB.tabId) return downloadViaDownloads() ; // 폴백 탭 없음 → 브라우저 다운로더
+          const pr = await Promise.race([pageFetchChunk(JOB.url, `bytes=${received}-${received + CHUNK - 1}`), connectP, cancelP]) ;
+          if (!pr?.ok) {
+            if (pr?.status === 401 || pr?.status === 403) throw streamError('E-CHR-DL-1005', expireMsg) ;
+            throw new Error(pr?.error || '페이지 fetch 실패') ;
+          }
+          resp = pageResponseFrom(pr) ;
+        } else {
+          resp = await Promise.race([fetch(JOB.url, { headers: { Range: `bytes=${received}-${received + CHUNK - 1}` } }), connectP, cancelP]) ;
+        }
       } catch (e) {
         cleanup() ;
         if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006') throw streamError(e.code, e.message) ;
-        return downloadViaDownloads() ; // CORS 등 fetch 불가 → 브라우저 다운로더
+        if (!viaPage) { viaPage = true ; continue ; } // 확장 fetch 불가 → 페이지 컨텍스트 시도
+        return downloadViaDownloads() ; // 페이지 경유도 불가 → 브라우저 다운로더
       }
       if (!resp.ok) {
         cleanup() ;
-        // googlevideo 등 서명 URL은 확장 fetch(쿠키 없음)를 403으로 거부 → 브라우저 다운로더(세션 쿠키)로 폴백
-        if (resp.status === 401 || resp.status === 403) return downloadViaDownloads() ;
+        // googlevideo 등 서명 URL은 확장 fetch(쿠키 없음)를 403으로 거부 → 페이지 오리진 fetch 폴백
+        if (!viaPage && (resp.status === 401 || resp.status === 403)) { viaPage = true ; continue ; }
+        if (viaPage) throw streamError('E-CHR-DL-1005', expireMsg) ;
         throw streamError('E-CHR-DL-1005', `캡처된 주소가 만료되었거나 유효하지 않습니다. (HTTP ${resp.status})\n동영상을 다시 재생한 뒤 분석해 주세요.`) ;
       }
       if (first) {

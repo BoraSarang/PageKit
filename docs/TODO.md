@@ -136,6 +136,12 @@
 | T-91 | 아이콘 숨김 기본 체크 + 본문만 옆으로 이동 (본문만 · 아이콘 숨김 · 드롭메뉴 순서) | ✅ | panel.html — 기본 checked + 위치 변경 |
 | T-92 | 검색/필터 결과 0건 시 "검색된 데이터가 없습니다" 안내 | ✅ | CDP 실측: 검색 0건 메시지 ↔ 목록 90건 복귀 |
 
+## v0.7.7 (chrome) — 유튜브 googlevideo 403 폴백 (페이지 오리진 fetch)
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-93 | 유튜브 스트림 403 (SERVER_FORBIDDEN) 수신 경로 분석 + 페이지 컨텍스트 fetch 폴백 | ✅ | 사용자 로그 실측: 확장 fetch·브라우저 다운로더 모두 googlevideo 403 (서명 URL은 재생 중일 때만 유효) — extractor에 pk.fetch.stream 핸들러, 창 downloadDirect에 viaPage 폴백, 실패 시 재생→재분석 안내 메시지 |
+
 ## 진행 이력
 
 - 2026-08-19: **v0.7 시작** — 스트림 다운로드 중 두 번째 요청이 대기열에 쌓여 창이 안 열리는 문제 확인 (SW 생존 시 streamBusy=true → 대기열 추가, SW 재시작 후에는 새 창 병렬로 동작이 달라짐). 사용자 확정: 항상 독립 새 창 병렬. PLAN/TODO 등록.
@@ -147,6 +153,7 @@
 - 2026-08-19: **T-85 (v0.7.4)** — 설치 온보딩 페이지 신규 (툴바 고정 유도/우클릭 해제/다운로드 방법 3카드, 10스텝). onInstalled reason='install' 시 자동 오픈. CDP 실측: 렌더링 + 닫기 동작 + 버전 v0.7.4. manifest 0.7.4.
 - 2026-08-19: **T-86~T-89 (v0.7.5)** — 사용자 리포트 4건: ① 분석 중 로딩 오버레이 추가(panel, ⟳ 실측: 표시→완료 숨김) ② URL 표시 양끝(shortenUrl "앞부분…파일명끝", 4케이스 단위 검증) ③ 컨텍스트 메뉴가 첫 웹 탭 분석+새 탭 폴백하는 문제 — onClicked에서 await ensureInjected로 제스처 소멸이 원인, 동기 openSidePanel + storage.session contextTarget(1회용) + storage.onChanged 재분석으로 수리, 활성 탭 google에서 torrentsee 분석 성공 실측 ④ 플로팅 버튼 — content script 경유 MV3 제스처 불가라 사이드 패널로 못 열림(fallback 탭만 동작), 사용자 결정에 따라 전체 제거(extractor/float-button.js/css/popup 토글/서비스워커/메시지 상수). manifest 0.7.5.
 - 2026-08-19: **T-90~T-92 (v0.7.6)** — ① 사용자 문의: 팝업 "전체 보기" 아래 빈 공간 = 플로팅 토글 제거 잔재 빈 section 제거 ② 아이콘 숨김 기본 체크 + 본문만 옆(본문만·아이콘 숨김·드롭메뉴 순서) ③ 리스트 0건 시 "검색된 데이터가 없습니다" 안내(검색어·필터 해제 안내 포함) — CDP 실측: 검색 0건 메시지 ↔ 해제 후 90건 복귀. manifest 0.7.6.
+- 2026-08-19: **T-93 (v0.7.7)** — 사용자 로그: 유튜브(itag=599) 스트림 다운로드 실패 E-CHR-DL-1002. 분석: 확장 fetch(쿠키 없음)·브라우저 다운로더(열린 Range)·페이지 fetch(Range 없음) 모두 googlevideo 403 — 서명 URL이 재생 세션에 묶여 다운로드 시점엔 무효(같은 IP·만료 전인데도 실측 403). 수정: ① extractor에 `pk.fetch.stream` 핸들러(페이지 오리진 fetch — 유튜브 탭에서 googlevideo는 CORS 허용) ② 다운로더 창 downloadDirect에 viaPage 폴백(확장 fetch 401/403 → 페이지 경유 한정 Range 청크 → 실패 시 브라우저 다운로더) ③ tabId 전달(패널→SW→창) ④ 실패 메시지 개선(영상 재생→⟳ 재분석→즉시 다운로드 안내). 403 URL 실측 확인, 200 케이스는 유튜브 재생 중 검증 필요(사용자 재시도). manifest 0.7.7.
 
 - 2026-08-14: 세션 시작. 신규 프로젝트 초기화. T-01, T-02 완료.
 - 2026-08-14: 확장 스캐폴드 + 배경/콘텐츠/UI 전 모듈 구현 완료 (T-03~T-33). JS 17개 node --check 통과.
