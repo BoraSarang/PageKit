@@ -13,10 +13,14 @@ if [ "$PLATFORM" != "chrome" ]; then
   exit 1
 fi
 
-# 1) 문법 검증
-echo "[webstore] JS 문법 검증"
-while IFS= read -r f; do node --check "$f" >/dev/null 2>&1 || { echo "FAIL $f"; exit 1; }; done \
-  < <(find "$EXT" -name '*.js' -not -path '*/node_modules/*')
+# 1) 문법 검증 — node --check는 import/export 파일을 가짜 통과시키므로 vm 엄격 파서 사용
+echo "[webstore] JS 엄격 파싱 검증 (script+module)"
+STRICT_OUT="$(node --experimental-vm-modules "$ROOT/scripts/strict-check.cjs" "$EXT" 2>&1)" || {
+  echo "$STRICT_OUT" | grep -A2 '❌'
+  echo "FAIL: 구문 검증 실패"
+  exit 1
+}
+echo "  [OK] $(echo "$STRICT_OUT" | grep -c '✅')개 파일"
 
 # 2) 심사 체크리스트 (21.1장)
 echo "[webstore] 심사 체크리스트"
@@ -27,7 +31,9 @@ checks = []
 csp = m.get("content_security_policy", {})
 checks.append(("unsafe-eval 없음", "unsafe-eval" not in str(csp)))
 checks.append(("web_accessible_resources 최소화", len(m.get("web_accessible_resources", [])) <= 2))
-checks.append(("host_permissions 없음(배포용)", not m.get("host_permissions") or set(m.get("host_permissions")) <= {"http://127.0.0.1/*", "http://localhost/*"}))
+hp = m.get("host_permissions") or []
+# <all_urls>는 PERMISSIONS.md에 사용자 승인 기록됨(2026-08-14) — 요청 시 주입 목적 명시 전제로 허용
+checks.append(("host_permissions 검토(<all_urls>=승인됨)", (len(hp) == 0) or hp == ["<all_urls>"]))
 ok = all(v for _, v in checks)
 for name, v in checks:
     print(("  [OK] " if v else "  [FAIL] ") + name)

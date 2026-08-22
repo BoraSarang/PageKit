@@ -222,4 +222,4 @@
 | T | 작업 | 상태 | 비고 |
 |---|------|------|------|
 | T-110 | E2E 자동화 스캔폴드 (Whale 격리 임시프로필 + playwright-core, 브라우저 다운로드 없음) | ✅ | `./scripts/e2e-chrome.sh` — 11개 스모크 통과(팝업/품질패널/옵션). Chrome 137+ 제약으로 실행 브라우저는 Whale(AGENTS 규칙 6 참조) |
-| T-111 | 스토어 배포 준비 (PERMISSIONS.md 갱신: axe 내장·host_permissions 재검토 + webstore-publish dry-run) | ⬜ | 배포 직전 수행 |
+| T-111 | 스토어 배포 준비 | 🔶 | ✅자동 부분: PERMISSIONS.md v0.7.29 현행화, webstore-publish에 vm엄격파서 적용, dry-run 통과(ZIP 268KB 생성). ⬜사용자 작업: 개발자 계정 등록, privacy_policy URL, 스크린샷 1~5장, 스토어 설명 문구 |
