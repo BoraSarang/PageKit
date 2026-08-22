@@ -69,6 +69,45 @@
     </section>
 
     <section class="pk-card">
+      <h2>🔍 페이지 품질 진단</h2>
+      <p class="pk-desc">현재 페이지의 SEO·성능·접근성·콘텐츠 품질을 종합 진단합니다. (사이드패널 '품질 진단' 탭)</p>
+      <div class="pk-row">
+        <label>품질 진단 기능 사용</label>
+        <input id="pk-quality-enabled" type="checkbox" checked />
+      </div>
+      <div class="pk-row">
+        <label>페이지 로드 시 자동 분석</label>
+        <input id="pk-quality-auto-run" type="checkbox" />
+      </div>
+      <fieldset class="pk-fieldset">
+        <legend>분석 모듈 (선택한 것만 실행)</legend>
+        <div class="pk-checklist">
+          <label><input type="checkbox" name="quality-module" value="seoMeta" checked /> 메타 태그 (title, description, canonical, og:, twitter:)</label>
+          <label><input type="checkbox" name="quality-module" value="headings" checked /> 헤딩 계층 (H1~H6 순서/중복/누락)</label>
+          <label><input type="checkbox" name="quality-module" value="structuredData" checked /> 구조화 데이터 (JSON-LD / Schema.org)</label>
+          <label><input type="checkbox" name="quality-module" value="imageSEO" checked /> 이미지 SEO (alt/포맷/lazy-loading/srcset)</label>
+          <label><input type="checkbox" name="quality-module" value="linkSEO" checked /> 링크 분석 (내부/외부/nofollow/리다이렉트)</label>
+          <label><input type="checkbox" name="quality-module" value="contentQuality" checked /> 콘텐츠 품질 (단어수/가독성/키워드밀도)</label>
+          <label><input type="checkbox" name="quality-module" value="coreWebVitals" checked /> Core Web Vitals (LCP/INP/CLS)</label>
+          <label><input type="checkbox" name="quality-module" value="resourceTiming" checked /> 리소스 타이밍/캐시/압축</label>
+          <label><input type="checkbox" name="quality-module" value="a11yScan" checked /> 접근성 (axe-core 내장)</label>
+        </div>
+      </fieldset>
+      <fieldset class="pk-fieldset">
+        <legend>임계값 (점수/성능 기준)</legend>
+        <div class="pk-row"><label>LCP (ms)</label><input id="pk-threshold-lcp" type="number" min="100" value="2500" /></div>
+        <div class="pk-row"><label>INP (ms)</label><input id="pk-threshold-inp" type="number" min="50" value="200" /></div>
+        <div class="pk-row"><label>CLS</label><input id="pk-threshold-cls" type="number" min="0" max="1" step="0.01" value="0.1" /></div>
+        <div class="pk-row"><label>접근성 최소 점수</label><input id="pk-threshold-a11y" type="number" min="0" max="100" value="90" /></div>
+        <div class="pk-row"><label>SEO 최소 점수</label><input id="pk-threshold-seo" type="number" min="0" max="100" value="80" /></div>
+      </fieldset>
+      <div class="pk-row">
+        <label>axe-core 내장 사용</label>
+        <input id="pk-axe-enabled" type="checkbox" checked />
+      </div>
+    </section>
+
+    <section class="pk-card">
       <h2>🐞 디버그</h2>
       <p class="pk-desc">디버그 로그 수집 여부. 끄면 디버그 창(Cmd+Shift+D)이 비어 보입니다.</p>
       <div class="pk-row">

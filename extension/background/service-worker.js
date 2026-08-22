@@ -7,12 +7,62 @@ import { MSG, msgOk, msgErr } from '../shared/messages.js' ;
 import * as storage from './storage.js' ;
 import { initDownloader, ensureReferer } from './downloader.js' ;
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js' ;
+import { initQualityRunner } from './quality-runner.js' ;
+
+// HTML 리포트 생성 (내보내기용)
+function generateHtmlReport(data) {
+  const { scores, coreWebVitals, modules, analyzedAt, url } = data ;
+  return `<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem;line-height:1.6;color:#1f2937}
+h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;margin:1rem 0}
+.score-excellent{color:#059669}.score-good{color:#0d9488}.score-fair{color:#d97706}.score-poor{color:#dc2626}
+.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:1.5rem;margin:1rem 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin:1rem 0}
+.metric{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;text-align:center}
+.metric .val{font-size:2rem;font-weight:700}.metric .lbl{color:#6b7280;font-size:.875rem}
+.issue{padding:.75rem 1rem;margin:.5rem 0;border-radius:6px;border-left:4px solid}
+.issue-critical{border-color:#dc2626;background:#fef2f2}.issue-major{border-color:#d97706;background:#fffbeb}
+.issue-minor{border-color:#0d9488;background:#f0fdfa}.issue-info{border-color:#3b82f6;background:#eff6ff}
+.issue .sev{font-weight:600;text-transform:uppercase;font-size:.75rem;margin-right:.5rem}
+.issue .loc{font-family:monospace;font-size:.875rem;color:#6b7280}
+.meta{color:#6b7280;font-size:.875rem;margin-top:1rem}
+</style></head><body>
+<h1>PageKit 품질 진단 리포트</h1>
+<p class="meta">URL: ${url} | 분석 시각: ${new Date(analyzedAt).toLocaleString('ko-KR')}</p>
+
+<div class="score score-${scores.overall>=90?'excellent':scores.overall>=70?'good':scores.overall>=50?'fair':'poor'}">${scores.overall}/100</div>
+
+<div class="grid">
+  <div class="metric"><div class="val">${scores.seo??'-'}</div><div class="lbl">SEO</div></div>
+  <div class="metric"><div class="val">${scores.performance??'-'}</div><div class="lbl">성능</div></div>
+  <div class="metric"><div class="val">${scores.a11y??'-'}</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${scores.bestPractices??'-'}</div><div class="lbl">모범 사례</div></div>
+</div>
+
+<h2>Core Web Vitals</h2>
+<div class="grid">
+  <div class="metric"><div class="val">${coreWebVitals.lcp??'-'}ms</div><div class="lbl">LCP</div></div>
+  <div class="metric"><div class="val">${coreWebVitals.inp??'-'}ms</div><div class="lbl">INP</div></div>
+  <div class="metric"><div class="val">${coreWebVitals.cls??'-'}</div><div class="lbl">CLS</div></div>
+  <div class="metric"><div class="val">${coreWebVitals.fcp??'-'}ms</div><div class="lbl">FCP</div></div>
+  <div class="metric"><div class="val">${coreWebVitals.ttfb??'-'}ms</div><div class="lbl">TTFB</div></div>
+</div>
+
+${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`).join('')}
+
+</body></html>` ;
+}
 
 // 교차 오리진 iframe의 미디어(blob 재생 등)도 수집하기 위해 분석용 스크립트는 모든 프레임에 주입
 const FRAME_SCRIPTS = [
   'debug.js',
   'node_modules/@mozilla/readability/Readability.js',
   'content/extractor.js',
+  'content/quality-analyzer.js',
+  'content/web-vitals.js',
+  'content/a11y-scan.js',
 ] ;
 const MAIN_SCRIPTS = [
   'debug.js',
@@ -278,7 +328,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case MSG.SETTINGS_SET: {
       storage.setSettings(message.payload || {}).then((s) => {
         BGLogger.info('SETTINGS', '설정 저장됨', s) ;
-        // 우클릭 해제 ON → 현재 활성 탭에 즉시 주입 (새로고침 없이 바로 동작)
         if (s.unlockEnabled && message.payload?.unlockEnabled) {
           chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
             const tab = tabs[0] ;
@@ -287,6 +336,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         sendResponse(msgOk(s)) ;
       }) ;
+      return true ;
+    }
+    case MSG.QUALITY_GET_CONFIG: {
+      const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis') ;
+      const DEFAULT = {
+        enabled: true, autoRun: false,
+        modules: { seoMeta: true, headings: true, structuredData: true, imageSEO: true, linkSEO: true, contentQuality: true, coreWebVitals: true, resourceTiming: true, a11yScan: true },
+        thresholds: { lcp: 2500, inp: 200, cls: 0.1, a11yScore: 90, seoScore: 80 },
+        axeCore: { enabled: true }, exportFormat: 'json',
+      } ;
+      sendResponse({ ok: true, data: { ...DEFAULT, ...(qualityAnalysis || {}) } }) ;
+      return true ;
+    }
+    case MSG.QUALITY_ANALYZE: {
+      const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
+      if (!tabId) return sendResponse({ ok: false, error: '탭 없음' }) ;
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
+        if (!response?.ok) {
+          await chrome.scripting.executeScript({
+            target: { tabId }, files: ['debug.js', 'content/quality-analyzer.js', 'content/web-vitals.js', 'content/a11y-scan.js'],
+          }) ;
+          const retry = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
+          return sendResponse(retry || { ok: false, error: '분석 실행 실패' }) ;
+        }
+        sendResponse(response) ;
+      } catch (e) {
+        sendResponse({ ok: false, error: e.message }) ;
+      }
+      return true ;
+    }
+    case MSG.QUALITY_EXPORT: {
+      try {
+        const format = message.payload?.format || 'json' ;
+        const ext = message.payload?.format === 'html' ? 'html' : 'json' ;
+        const name = message.payload?.filename || `quality-report-${new Date().toISOString().slice(0,10)}.${ext}` ;
+        const content = message.payload?.format === 'html' ? generateHtmlReport(message.payload.data) : JSON.stringify(message.payload.data, null, 2) ;
+        const url = `data:${message.payload.format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}` ;
+        const downloadId = await chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false }) ;
+        sendResponse({ ok: true, downloadId }) ;
+      } catch (e) { sendResponse({ ok: false, error: e.message }) ; }
       return true ;
     }
     default:

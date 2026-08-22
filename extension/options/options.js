@@ -141,11 +141,61 @@ $('pk-debug-enabled').addEventListener('change', () => {
   DebugLogger.feature('OPTIONS', `디버그 로그 수집 ${$('pk-debug-enabled').checked ? '켬' : '끔'}`) ;
 }) ;
 
+// ---------- 품질 진단 설정 ----------
+async function loadQuality() {
+  const q = await get('qualityAnalysis', {}) ;
+  $('pk-quality-enabled').checked = q.enabled !== false ;
+  $('pk-quality-auto-run').checked = q.autoRun === true ;
+  const mods = q.modules || {} ;
+  document.querySelectorAll('input[name="quality-module"]').forEach((el) => {
+    el.checked = mods[el.value] !== false ;
+  }) ;
+  const th = q.thresholds || {} ;
+  $('pk-threshold-lcp').value = th.lcp ?? 2500 ;
+  $('pk-threshold-inp').value = th.inp ?? 200 ;
+  $('pk-threshold-cls').value = th.cls ?? 0.1 ;
+  $('pk-threshold-a11y').value = th.a11yScore ?? 90 ;
+  $('pk-threshold-seo').value = th.seoScore ?? 80 ;
+  $('pk-axe-enabled').checked = q.axeCore?.enabled !== false ;
+}
+async function saveQuality() {
+  const mods = {} ;
+  document.querySelectorAll('input[name="quality-module"]').forEach((el) => {
+    mods[el.value] = el.checked ;
+  }) ;
+  const payload = {
+    enabled: $('pk-quality-enabled').checked,
+    autoRun: $('pk-quality-auto-run').checked,
+    modules: mods,
+    thresholds: {
+      lcp: parseInt($('pk-threshold-lcp').value, 10),
+      inp: parseInt($('pk-threshold-inp').value, 10),
+      cls: parseFloat($('pk-threshold-cls').value),
+      a11yScore: parseInt($('pk-threshold-a11y').value, 10),
+      seoScore: parseInt($('pk-threshold-seo').value, 10),
+    },
+    axeCore: { enabled: $('pk-axe-enabled').checked },
+  } ;
+  await set('qualityAnalysis', payload) ;
+  DebugLogger.feature('OPTIONS', '품질 진단 설정 저장', payload) ;
+}
+$('pk-quality-enabled').addEventListener('change', saveQuality) ;
+$('pk-quality-auto-run').addEventListener('change', saveQuality) ;
+document.querySelectorAll('input[name="quality-module"]').forEach((el) => {
+  el.addEventListener('change', saveQuality) ;
+}) ;
+['pk-threshold-lcp','pk-threshold-inp','pk-threshold-cls','pk-threshold-a11y','pk-threshold-seo'].forEach((id) => {
+  $(id).addEventListener('change', saveQuality) ;
+}) ;
+$('pk-axe-enabled').addEventListener('change', saveQuality) ;
+
 DebugLogger.feature('OPTIONS', '옵션 페이지 로드 완료') ;
 renderRules() ;
 renderPresets() ;
 loadSettings() ;
+loadQuality() ;
 loadDebug() ;
+
 const pkVersionEl = document.getElementById('pk-version') ;
 if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().version}` ;
 const pkVersionFoot = document.getElementById('pk-version-foot') ;

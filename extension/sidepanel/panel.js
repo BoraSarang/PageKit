@@ -7,11 +7,13 @@ const $ = (id) => document.getElementById(id) ;
 
 function esc(s) {
   return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """);
 }
+
+let qualityIframe = null;
 
 // 앞 줄임 주소 표시: 파일명(쿼리 제외) 끝부분만 보존 — "앞부분…파일명끝" 양끝 표시
 function shortenUrl(s, max = 38) {
@@ -144,6 +146,72 @@ async function mergeStreamVariants() {
   }
 }
 
+function setCategory(tab) {
+  currentTab = tab ;
+  const isQuick = tab === 'images' || tab === 'videos' || tab === 'streams' || tab === 'quality' ;
+  $('pk-cat-images').classList.toggle('is-active', tab === 'images') ;
+  $('pk-cat-videos').classList.toggle('is-active', tab === 'videos') ;
+  $('pk-cat-streams').classList.toggle('is-active', tab === 'streams') ;
+  $('pk-cat-quality').classList.toggle('is-active', tab === 'quality') ;
+  if (isQuick) $('pk-cat-select').value = 'all' ;
+  if (tab === 'quality') {
+    $('pk-type-filter').hidden = true ;
+    $('pk-size-filter').hidden = true ;
+    $('pk-hide-icons-wrap').hidden = true ;
+    $('pk-export-csv').hidden = true ;
+    loadQualityTab() ;
+  } else {
+    $('pk-type-filter').hidden = !(tab === 'images' || tab === 'links') ;
+    $('pk-size-filter').hidden = !(tab === 'images') ;
+    $('pk-hide-icons-wrap').hidden = !(tab === 'images') ;
+    $('pk-export-csv').hidden = tab !== 'links' ;
+    if (qualityIframe) {
+      qualityIframe.remove() ;
+      qualityIframe = null ;
+    }
+  }
+  DebugLogger.debug('[PANEL] 카테고리 변경', { tab: currentTab }) ;
+  if (tab !== 'quality') render() ;
+}
+
+async function loadQualityTab() {
+  const list = $('pk-list') ;
+  list.innerHTML = '<div class="pk-overlay"><div class="pk-overlay-box"><div class="pk-spinner"></div>분석 중…</div></div>' ;
+  $('pk-empty').hidden = true ;
+  $('pk-page-title').textContent = '품질 진단' ;
+
+  try {
+    const resp = await chrome.runtime.sendMessage({ type: 'pk.quality.analyze' }) ;
+    if (!resp?.ok) throw new Error(resp?.error || '분석 실패') ;
+
+    // 품질 진단 결과를 분석 객체에 병합하여 카운트 배지 업데이트
+    if (resp.data) {
+      analysis.quality = resp.data ;
+      if (analysis.stats) {
+        analysis.stats.totalIssues = resp.data.totalIssues || 0 ;
+      }
+      // 품질 탭 카운트 배지 즉시 업데이트
+      const qBadge = $('pk-c-quality') ;
+      if (qBadge) qBadge.textContent = resp.data.totalIssues || 0 ;
+    }
+
+    // 품질 진단 탭 HTML을 iframe으로 로드 (별도 페이지)
+    if (!qualityIframe) {
+      qualityIframe = document.createElement('iframe') ;
+      qualityIframe.src = chrome.runtime.getURL('sidepanel/quality-tab.html') ;
+      qualityIframe.style.cssText = 'width:100%;height:100%;border:none;display:block;' ;
+      qualityIframe.onload = () => {
+        qualityIframe.contentWindow.postMessage({ type: 'pk.quality.setData', payload: resp.data }, '*') ;
+      } ;
+      $('pk-list').innerHTML = '' ;
+      $('pk-list').appendChild(qualityIframe) ;
+    }
+  } catch (e) {
+    DebugLogger.error('[PANEL] 품질 진단 로드 실패', e.message) ;
+    $('pk-list').innerHTML = `<div class="pk-empty">품질 진단 로드 실패: ${e.message}</div>` ;
+  }
+}
+
 function allItems() {
   if (!analysis) return [] ;
   return [
@@ -263,13 +331,15 @@ function render() {
   if (!articleUsable && cb.checked) cb.checked = false ;
   cb.disabled = !articleUsable ;
   const s = analysis.stats ;
-  const isQuick = currentTab === 'images' || currentTab === 'videos' || currentTab === 'streams' ;
+  const isQuick = currentTab === 'images' || currentTab === 'videos' || currentTab === 'streams' || currentTab === 'quality' ;
   $('pk-cat-images').classList.toggle('is-active', currentTab === 'images') ;
   $('pk-cat-videos').classList.toggle('is-active', currentTab === 'videos') ;
   $('pk-cat-streams').classList.toggle('is-active', currentTab === 'streams') ;
+  $('pk-cat-quality').classList.toggle('is-active', currentTab === 'quality') ;
   $('pk-c-images').textContent = s.totalImages ;
   $('pk-c-videos').textContent = s.totalVideos ;
   $('pk-c-streams').textContent = s.totalStreams ;
+  $('pk-c-quality').textContent = s.totalIssues ?? 0 ;
   const cat = [
     ['all', '전체', allItems().length],
     ['audios', '오디오', s.totalAudios],
@@ -440,15 +510,30 @@ function toast(msg) {
 
 function setCategory(tab) {
   currentTab = tab ;
-  const isQuick = tab === 'images' || tab === 'videos' || tab === 'streams' ;
+  const isQuick = tab === 'images' || tab === 'videos' || tab === 'streams' || tab === 'quality' ;
   $('pk-cat-images').classList.toggle('is-active', tab === 'images') ;
   $('pk-cat-videos').classList.toggle('is-active', tab === 'videos') ;
   $('pk-cat-streams').classList.toggle('is-active', tab === 'streams') ;
+  $('pk-cat-quality').classList.toggle('is-active', tab === 'quality') ;
   if (isQuick) $('pk-cat-select').value = 'all' ;
-  $('pk-type-filter').hidden = !(tab === 'images' || tab === 'links') ;
-  $('pk-size-filter').hidden = !(tab === 'images') ;
+  if (tab === 'quality') {
+    $('pk-type-filter').hidden = true ;
+    $('pk-size-filter').hidden = true ;
+    $('pk-hide-icons-wrap').hidden = true ;
+    $('pk-export-csv').hidden = true ;
+    loadQualityTab() ;
+  } else {
+    $('pk-type-filter').hidden = !(tab === 'images' || tab === 'links') ;
+    $('pk-size-filter').hidden = !(tab === 'images') ;
+    $('pk-hide-icons-wrap').hidden = !(tab === 'images') ;
+    $('pk-export-csv').hidden = tab !== 'links' ;
+    if (qualityIframe) {
+      qualityIframe.remove() ;
+      qualityIframe = null ;
+    }
+  }
   DebugLogger.debug('[PANEL] 카테고리 변경', { tab: currentTab }) ;
-  render() ;
+  if (tab !== 'quality') render() ;
 }
 
 // ---------- 이벤트 ----------
@@ -473,6 +558,7 @@ $('pk-hide-icons').addEventListener('change', render) ;
 $('pk-cat-images').addEventListener('click', () => setCategory('images')) ;
 $('pk-cat-videos').addEventListener('click', () => setCategory('videos')) ;
 $('pk-cat-streams').addEventListener('click', () => setCategory('streams')) ;
+$('pk-cat-quality').addEventListener('click', () => setCategory('quality')) ;
 $('pk-cat-select').addEventListener('change', (e) => setCategory(e.target.value)) ;
 $('pk-adblock-close').addEventListener('click', () => { $('pk-adblock-hint').hidden = true ; }) ;
 
