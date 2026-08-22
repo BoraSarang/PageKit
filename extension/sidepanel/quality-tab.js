@@ -28,7 +28,7 @@ function init() {
   bindEvents();
   loadSavedModules();
   // 옵션 autoRun(기본 켬)에 따라 즉시 분석 + 탭 추적 자동 재분석 활성화
-  sendMessage({ type: 'pk.quality.getConfig' })
+  sendMessage({ type: MSG.QUALITY_GET_CONFIG })
     .then((resp) => {
       const auto = resp?.data?.autoRun !== false;
       DebugLogger.feature('QUALITY', `품질 진단 단독 패널 모드 진입 (autoRun=${auto})`);
@@ -155,7 +155,7 @@ async function runAnalysis({ manual = false } = {}) {
 
   try {
     const response = await sendMessage({
-      type: 'pk.quality.analyze',
+      type: MSG.QUALITY_ANALYZE,
       payload: { modules: enabledModules },
     });
     if (!response?.ok) throw new Error(response?.error || '분석 실패');
