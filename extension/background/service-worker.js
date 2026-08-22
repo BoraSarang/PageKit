@@ -60,6 +60,7 @@ const FRAME_SCRIPTS = [
   'debug.js',
   'node_modules/@mozilla/readability/Readability.js',
   'content/extractor.js',
+  'shared/quality-rules.js',
   'content/quality-analyzer.js',
   'content/web-vitals.js',
   'content/a11y-scan.js',

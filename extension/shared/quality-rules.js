@@ -167,3 +167,17 @@ ${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span s
 
 </body></html>`;
 }
+
+// 전역으로 노출 (content scripts가 import 없이 사용 가능하도록)
+globalThis.pkQualityRules = {
+  DEFAULT_QUALITY_CONFIG,
+  MODULE_META,
+  SEVERITY,
+  createIssue,
+  calculateOverallScore,
+  calculateCategoryScores,
+  checkThresholds,
+  serializeResult,
+  generateHtmlReport,
+  MODULE_WEIGHTS,
+};

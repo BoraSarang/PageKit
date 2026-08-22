@@ -4,7 +4,8 @@
   if (globalThis.__pkQualityLoaded) return;
   globalThis.__pkQualityLoaded = true;
 
-  import { DEFAULT_QUALITY_CONFIG, MODULE_META, SEVERITY, createIssue, calculateOverallScore, calculateCategoryScores, checkThresholds, serializeResult, generateHtmlReport } from '../shared/quality-rules.js';
+  // quality-rules.js는 FRAME_SCRIPTS로 선행 주입되어 전역에서 사용 가능
+  const { DEFAULT_QUALITY_CONFIG, MODULE_META, SEVERITY, createIssue, calculateOverallScore, calculateCategoryScores, checkThresholds, serializeResult, generateHtmlReport } = globalThis.pkQualityRules || {};
 
   // ---------- 설정 로드 ----------
   async function getConfig() {
