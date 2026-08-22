@@ -35,6 +35,8 @@ function init() {
       if (auto) {
         runAnalysis({ manual: true });
         bindTabTracking();
+      } else {
+        setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
       }
     }).catch(() => {
       // 설정 조회 실패 시 기본 동작(자동) 유지
@@ -140,6 +142,7 @@ async function runAnalysis({ manual = false } = {}) {
   } catch (e) {
     // 자동 경로(탭 추적·autoRun)는 조용히 건너뛰고, 수동 클릭에만 알림
     DebugLogger.warn('QUALITY', `분석 실패 (${manual ? '수동' : '자동'})`, e.message);
+    setTargetBar('분석 실패', e.message || '');
     if (manual) alert('분석 실패: ' + e.message);
   } finally {
     analyzing = false;
@@ -156,6 +159,9 @@ function sendMessage(msg) {
 function renderResult(result) {
   currentResult = result;
   const { scores, coreWebVitals, modules, issues, analyzedAt } = result;
+
+  // 무엇을 분석했는지 표시
+  setTargetBar(result.title || '제목 없음', result.url || '');
 
   // 점수 표시
   show('score-card');
@@ -258,9 +264,19 @@ function updateUIState(isAnalyzing) {
   const btn = $('btn-analyze');
   btn.disabled = isAnalyzing;
   btn.textContent = isAnalyzing ? '분석 중...' : '분석 시작';
+  if (isAnalyzing && !currentResult) setTargetBar('분석 중…', '');
   if (!isAnalyzing) {
     show('export-bar');
   }
+}
+
+// 분석 대상 표시줄 — 제목/URL 노출로 자동 수집 여부를 명확히
+function setTargetBar(title, url) {
+  const bar = $('analysis-target');
+  if (!bar) return;
+  $('target-title').textContent = title || '';
+  $('target-url').textContent = url || '';
+  bar.hidden = !(title || url);
 }
 
 function exportResult(format) {

@@ -34,6 +34,11 @@
     main { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
     main > section, main > .export-bar { flex: none; }
 
+    /* 분석 대상 표시줄 — 무엇을 분석했는지(제목·URL) 항상 노출 */
+    .target-bar { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 6px 10px; min-width: 0; }
+    .target-title { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .target-url { font-family: monospace; font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     /* 점수 카드 — 좁음: 세로 스택 / 넓음(min-width 430px): 좌우 배치 */
     .score-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
     .score-main { text-align: center; }
@@ -115,6 +120,10 @@
     <button id="btn-analyze" class="btn btn-primary">분석 시작</button>
   </header>
   <main>
+    <div class="target-bar" id="analysis-target" hidden>
+      <div class="target-title" id="target-title"></div>
+      <div class="target-url" id="target-url"></div>
+    </div>
     <section class="score-card" id="score-card" style="display:none;">
       <div class="score-main">
         <div id="overall-score" class="score-value score-poor">--</div>
