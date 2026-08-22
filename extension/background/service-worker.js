@@ -37,8 +37,8 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <div class="grid">
   <div class="metric"><div class="val">${scores.seo??'-'}</div><div class="lbl">SEO</div></div>
   <div class="metric"><div class="val">${scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${scores.accessibility??'-'</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${scores.content??'-'</div><div class="lbl">콘텐츠</div></div>
+  <div class="metric"><div class="val">${scores.accessibility??'-'}</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${scores.content??'-'}</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>
