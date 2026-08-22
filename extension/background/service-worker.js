@@ -49,7 +49,10 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
   <div class="metric"><div class="val">${coreWebVitals.ttfb??'-'}ms</div><div class="lbl">TTFB</div></div>
 </div>
 
-${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
+${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${v.label||k} <span style="font-weight:400;color:#6b7280">(${v.error?'분석 오류':(v.score??'-')+'/100'})</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
+
+<h2>전체 이슈 목록 (심각도순)</h2>
+<div class="card">${(data.issues||[]).map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span><span style="color:#6b7280;font-size:.75rem;margin-right:.5rem">${i.module||''}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix||''}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>
 
 <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:.75rem;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(analyzedAt||Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
 </body></html>` ;
@@ -370,8 +373,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     case MSG.QUALITY_ANALYZE: {
       (async () => {
-        const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
-        if (!tabId) { sendResponse({ ok: false, error: '탭 없음' }) ; return ; }
+        // 대상 탭 결정: 명시 지정 > 활성 탭(http/s) > 최근 접근한 웹페이지.
+        // 패널이 폴백 탭으로 열려 확장 페이지 자체가 '활성 탭'인 경우 자기 분석 시도를 방지함.
+        let tabId = message.payload?.tabId ;
+        if (!tabId) {
+          const [active] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
+          if (active && /^https?:/i.test(active.url || '')) {
+            tabId = active.id ;
+          } else {
+            const webTabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }) ;
+            const recent = webTabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] ;
+            if (recent) tabId = recent.id ;
+          }
+        }
+        if (!tabId) { sendResponse({ ok: false, error: '분석할 일반 웹페이지를 찾을 수 없습니다.', code: 'E-CHR-PERM-1002' }) ; return ; }
         try {
           // 브라우저 내부 페이지·타 확장 페이지는 분석 대상이 아님 — 주입 전에 차단해 한국어 안내만 반환
           const tab = await chrome.tabs.get(tabId).catch(() => null) ;

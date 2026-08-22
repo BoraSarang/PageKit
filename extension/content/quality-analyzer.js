@@ -447,10 +447,13 @@
       }
     }
 
-    // CWV 임계값 체크
+    // CWV 임계값 체크 — 모듈 이슈에 편입해 리포트 카드 노출 + 점수 페널티 반영
     if (activeModules.coreWebVitals && results.modules.coreWebVitals?.cwv) {
       const threshIssues = checkThresholds(results.modules.coreWebVitals.cwv, DEFAULT_QUALITY_CONFIG.thresholds);
-      results.issues.push(...threshIssues);
+      if (threshIssues.length) {
+        const cwvMod = results.modules.coreWebVitals;
+        cwvMod.issues = [ ...(cwvMod.issues || []), ...threshIssues ];
+      }
     }
 
     // 점수 계산
@@ -458,6 +461,12 @@
     for (const [mod, data] of Object.entries(results.modules)) {
       if (!activeModules[mod]) continue;
       moduleScores[mod] = calculateModuleScore(mod, data);
+    }
+
+    // 리포트·UI가 바로 읽을 수 있도록 각 모듈에 한글 라벨·점수 주입
+    for (const mod of Object.keys(results.modules)) {
+      results.modules[mod].label = MODULE_META[mod]?.label || mod;
+      results.modules[mod].score = moduleScores[mod] ?? 0;
     }
 
     const overall = calculateOverallScore(moduleScores, activeModules);
@@ -527,6 +536,24 @@
     });
   }
 
+  // ---------- 플랫 이슈 단일 원천화 ----------
+  // 이슈 목록을 모듈 데이터에서 재구성(중복 제거 + 심각도 정렬)해
+  // 패널 리스트와 리포트 '전체 이슈 목록'이 동일한 배열을 공유하게 함
+  function rebuildFlatIssues(result) {
+    const order = { critical: 0, major: 1, minor: 2, info: 3 };
+    const seen = new Set();
+    result.issues = Object.values(result.modules || {})
+      .flatMap((d) => d?.issues || [])
+      .filter((i) => {
+        const key = `${i.module || ''}|${i.message || ''}|${i.location || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => ((order[a?.severity] ?? 99) - (order[b?.severity] ?? 99)));
+    result.totalIssues = result.issues.length;
+  }
+
   // ---------- iframe 협업 ----------
   // 메인 프레임에서 iframe에 품질 분석 요청
   async function collectFrameQuality(mainResult) {
@@ -567,6 +594,11 @@
         }
         if (q.issues) mainResult.issues.push(...q.issues);
       }
+      // 병합된 모듈 점수·라벨 갱신 (프레임 이슈 페널티 반영)
+      for (const [k, v] of Object.entries(mainResult.modules)) {
+        v.score = calculateModuleScore(k, v);
+        v.label = MODULE_META[k]?.label || k;
+      }
       // 점수 재계산
       mainResult.scores.overall = calculateOverallScore(
         Object.fromEntries(Object.entries(mainResult.modules).map(([k,v])=>[k,calculateModuleScore(k,v)])),
@@ -591,6 +623,7 @@
       const enabledModules = message.payload?.modules || {};
       runQualityAnalysis(message.payload?.modules).then(async (result) => {
         await collectFrameQuality(result);
+        rebuildFlatIssues(result);
         sendResponse({ ok: true, data: result });
       });
       return true;

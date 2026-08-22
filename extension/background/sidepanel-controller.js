@@ -36,8 +36,10 @@ export async function openSidePanel(source, windowId, view = 'media') {
       return { ok: true } ;
     }
     lastOpenAt = now ;
-    // 뷰 경로 전환 후 오픈 (열려 있는 패널도 경로가 교체됨)
-    await chrome.sidePanel.setOptions({ path: panelPath }) ;
+    // 제스처 보존: setOptions를 대기 없이 병행 실행. await가 open 앞에 끼면
+    // 컨텍스트 메뉴·단축키의 사용자 제스처가 소멸해 open 실패 → 새탭 폴백이 발생함.
+    chrome.sidePanel.setOptions({ path: panelPath }).catch((e2) =>
+      BGLogger.warn('PANEL', `패널 경로 전환 실패 (${e2.message})`)) ;
     await chrome.sidePanel.open({ windowId: wId }) ;
     BGLogger.feature('PANEL', `사이드 패널 열림 source=${source} view=${view}`) ;
     return { ok: true } ;
