@@ -8,8 +8,6 @@ import '../shared/dom-utils.js';
 
 const { $, escapeHtml } = globalThis.pkDom;
 
-const STANDALONE = new URLSearchParams(location.search).has('auto');
-
 const MODULES = [
   { key: 'seoMeta', label: '메타 태그', cat: 'SEO' },
   { key: 'headings', label: '헤딩 계층', cat: 'SEO' },
@@ -29,27 +27,23 @@ function init() {
   renderModuleChecks();
   bindEvents();
   loadSavedModules();
-  if (STANDALONE) {
-    // 옵션 autoRun(기본 켬)에 따라 즉시 분석 + 탭 추적 자동 재분석 활성화
-    sendMessage({ type: 'pk.quality.getConfig' })
-      .then((resp) => {
-        const auto = resp?.data?.autoRun !== false;
-        DebugLogger.feature('QUALITY', `품질 진단 단독 패널 모드 진입 (autoRun=${auto})`);
-        if (auto) {
-          runAnalysis({ manual: true });
-          bindTabTracking();
-        } else {
-          setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
-        }
-      })
-      .catch(() => {
-        // 설정 조회 실패 시 기본 동작(자동) 유지
+  // 옵션 autoRun(기본 켬)에 따라 즉시 분석 + 탭 추적 자동 재분석 활성화
+  sendMessage({ type: 'pk.quality.getConfig' })
+    .then((resp) => {
+      const auto = resp?.data?.autoRun !== false;
+      DebugLogger.feature('QUALITY', `품질 진단 단독 패널 모드 진입 (autoRun=${auto})`);
+      if (auto) {
         runAnalysis({ manual: true });
         bindTabTracking();
-      });
-  } else {
-    checkAutoRun();
-  }
+      } else {
+        setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
+      }
+    })
+    .catch(() => {
+      // 설정 조회 실패 시 기본 동작(자동) 유지
+      runAnalysis({ manual: true });
+      bindTabTracking();
+    });
 }
 
 // 단독 패널 모드: 탭 전환/페이지 이동 시 자동 재분석 (옵션 autoRun에 실시간 연동)
@@ -82,7 +76,7 @@ function unbindTabTracking() {
 
 // 옵션 페이지에서 자동 분석을 토글하면 열려 있는 패널에 즉시 반영
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !STANDALONE || !changes.qualityAnalysis) return;
+  if (area !== 'local' || !changes.qualityAnalysis) return;
   const auto = changes.qualityAnalysis.newValue?.autoRun !== false;
   DebugLogger.feature('QUALITY', `옵션 변경 감지 — 자동 분석 ${auto ? '켬' : '끔'}`);
   if (auto) {
@@ -149,14 +143,6 @@ function loadSavedModules() {
   });
 }
 
-function checkAutoRun() {
-  chrome.storage.local.get('qualityAnalysis', (v) => {
-    if (v.qualityAnalysis?.autoRun && !analyzing) {
-      runAnalysis();
-    }
-  });
-}
-
 async function runAnalysis({ manual = false } = {}) {
   if (analyzing) return;
   analyzing = true;
@@ -179,7 +165,6 @@ async function runAnalysis({ manual = false } = {}) {
     // 자동 경로(탭 추적·autoRun)는 조용히 건너뛰고, 수동 클릭에만 알림
     DebugLogger.warn('QUALITY', `분석 실패 (${manual ? '수동' : '자동'})`, e.message);
     setTargetBar('분석 실패', e.message || '');
-    if (manual) alert('분석 실패: ' + e.message);
   } finally {
     analyzing = false;
     updateUIState(false);
@@ -324,7 +309,10 @@ function setTargetBar(title, url) {
 }
 
 function exportResult(format) {
-  if (!currentResult) return alert('분석 결과가 없습니다.');
+  if (!currentResult) {
+    setTargetBar('내보낼 결과 없음', "먼저 '분석 시작'을 실행하세요");
+    return;
+  }
   const data = currentResult;
   const ext = format === 'html' ? 'html' : 'json';
   const name = `quality-report-${new Date().toISOString().slice(0, 10)}.${ext}`;
@@ -335,7 +323,6 @@ function exportResult(format) {
   const url = `data:${format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}`;
   chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false });
 }
-
 
 function scoreClass(score) {
   if (score == null) return 'score-poor';
