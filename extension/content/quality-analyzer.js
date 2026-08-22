@@ -409,9 +409,33 @@
   }
 
   // ---------- 메인 분석 실행 ----------
+  // 안정화 대기: 문서 로드 완료 + 네트워크(리소스 엔트리) 정지 후 측정해
+  // '로딩 직후 자동실행'과 '이후 수동 재실행'의 결과 격차를 줄인다
+  async function waitForSettle() {
+    // 1) 로딩 완료 대기 (최대 5초)
+    if (document.readyState !== 'complete') {
+      await new Promise((resolve) => {
+        const t = setTimeout(resolve, 5000);
+        window.addEventListener('load', () => { clearTimeout(t); resolve(); }, { once: true });
+      });
+    }
+    // 2) 네트워크 정지 감지 — 리소스 엔트리 수가 800ms간 불변이면 진행 (최대 4초)
+    let last = performance.getEntriesByType('resource').length;
+    let stableSince = Date.now();
+    const deadline = Date.now() + 4000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 200));
+      const now = performance.getEntriesByType('resource').length;
+      if (now !== last) { last = now; stableSince = Date.now(); }
+      else if (Date.now() - stableSince >= 800) break;
+    }
+  }
+
   async function runQualityAnalysis(enabledModules = {}) {
     const config = await getConfig();
     const activeModules = { ...DEFAULT_QUALITY_CONFIG.modules, ...enabledModules };
+
+    await waitForSettle();
 
     const results = { modules: {}, issues: [] };
     const startTime = performance.now();
@@ -513,10 +537,11 @@
     return new Promise((resolve) => {
       const tick = () => {
         const cwv = window.__pkCWV;
-        if (cwv && cwv.lcp != null) { resolve(cwv); return; }
+        // live 객체 참조 대신 복사본 반환 — 분석 도중 지표 변화가 결과를 오염시키지 않도록
+        if (cwv && cwv.lcp != null) { resolve({ ...cwv }); return; }
         if (Date.now() - start >= 1000) {
           if (!cwv) DebugLogger.warn('QUALITY', '__pkCWV 미노출 — web-vitals 주입 확인 필요');
-          resolve(cwv || {});
+          resolve(cwv ? { ...cwv } : {});
           return;
         }
         setTimeout(tick, 100);

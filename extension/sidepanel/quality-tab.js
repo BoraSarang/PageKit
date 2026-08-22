@@ -187,8 +187,9 @@ function renderResult(result) {
   currentResult = result;
   const { scores, coreWebVitals, modules, issues, analyzedAt } = result;
 
-  // 무엇을 분석했는지 표시
-  setTargetBar(result.title || '제목 없음', result.url || '');
+  // 무엇을 분석했는지 + 측정 소요 (스냅샷 시점 명시)
+  const dur = result.duration ? ` · ${(result.duration / 1000).toFixed(1)}s 소요` : '';
+  setTargetBar(result.title || '제목 없음', `${result.url || ''}${dur}`);
 
   // 점수 표시
   show('score-card');
@@ -317,7 +318,7 @@ function exportResult(format) {
 }
 
 function generateHtmlReport(data) {
-  const { scores, coreWebVitals, modules, issues, analyzedAt, url } = data;
+  const { scores, coreWebVitals, modules, issues, analyzedAt, url, duration } = data;
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
 <style>
@@ -336,7 +337,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 .meta{color:#6b7280;font-size:.875rem;margin-top:1rem}
 </style></head><body>
 <h1>PageKit 품질 진단 리포트</h1>
-<p class="meta">URL: ${data.url} | 분석 시각: ${new Date(data.analyzedAt).toLocaleString('ko-KR')}</p>
+<p class="meta">URL: ${data.url} | 분석 시각: ${new Date(data.analyzedAt).toLocaleString('ko-KR')} | 소요 ${duration ? `${(duration / 1000).toFixed(1)}s` : '-'}</p>
 
 <div class="score score-${data.scores.overall>=90?'excellent':data.scores.overall>=70?'good':data.scores.overall>=50?'fair':'poor'}">${data.scores.overall}/100</div>
 

@@ -126,7 +126,7 @@ function serializeResult(result) {
 
 // HTML 리포트 생성
 function generateHtmlReport(result) {
-  const { scores, coreWebVitals, modules, analyzedAt, url } = result;
+  const { scores, coreWebVitals, modules, analyzedAt, url, duration } = result;
   const catScores = result.categoryScores || {};
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
@@ -147,6 +147,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 </style></head><body>
 <h1>PageKit 품질 진단 리포트</h1>
 <p class="meta">URL: ${url} | 분석 시각: ${new Date(analyzedAt).toLocaleString('ko-KR')} | PageKit v${typeof chrome!=='undefined'?chrome.runtime.getManifest().version:'0.7'}</p>
+<p class="meta">소요 시간: ${duration ? `${(duration / 1000).toFixed(1)}s` : '-'} (측정 시점의 페이지 상태 스냅샷)</p>
 
 <div class="score score-${scores.overall>=90?'excellent':scores.overall>=70?'good':scores.overall>=50?'fair':'poor'}">${scores.overall}/100</div>
 

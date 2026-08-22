@@ -10,7 +10,7 @@ import { initStreamDetector, getCapturedStreams } from './stream-detector.js' ;
 
 // HTML 리포트 생성 (내보내기용)
 function generateHtmlReport(data) {
-  const { scores, coreWebVitals, modules, analyzedAt, url } = data ;
+  const { scores, coreWebVitals, modules, analyzedAt, url, duration } = data ;
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
 <style>
@@ -29,7 +29,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 .meta{color:#6b7280;font-size:.875rem;margin-top:1rem}
 </style></head><body>
 <h1>PageKit 품질 진단 리포트</h1>
-<p class="meta">URL: ${url} | 분석 시각: ${new Date(analyzedAt).toLocaleString('ko-KR')}</p>
+<p class="meta">URL: ${url} | 분석 시각: ${new Date(analyzedAt).toLocaleString('ko-KR')} | 소요 ${duration ? `${(duration / 1000).toFixed(1)}s` : '-'}</p>
 
 <div class="score score-${scores.overall>=90?'excellent':scores.overall>=70?'good':scores.overall>=50?'fair':'poor'}">${scores.overall}/100</div>
 
