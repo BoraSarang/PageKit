@@ -8,9 +8,6 @@ import * as storage from './storage.js';
 import { initDownloader, ensureReferer } from './downloader.js';
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js';
 
-// HTML 리포트 생성 — shared/quality-rules.js 단일 구현 위임
-const generateHtmlReport = (data) => globalThis.pkQualityRules.generateHtmlReport(data);
-
 // 교차 오리진 iframe의 미디어(blob 재생 등)도 수집하기 위해 분석용 스크립트는 모든 프레임에 주입
 const FRAME_SCRIPTS = [
   'debug.js',
@@ -40,19 +37,6 @@ async function maybeInjectUnlock(tabId, tabUrl) {
 }
 
 // 주입 여부는 ping으로 실시간 검증 (세션 키는 페이지 리로드 후 스크립트가 사라져도 남아 있어 부정확)
-// 크롬 원문 영어 오류 → 사용자용 한국어 메시지 (내부 페이지·권한 계열)
-function friendlyScriptError(e) {
-  const m = String(e?.message || e || '');
-  if (
-    /chrome-extension|different extension|Cannot access contents|cannot be scripted|permission|host/i.test(
-      m
-    )
-  ) {
-    return '이 페이지는 분석할 수 없습니다. 일반 웹페이지(http/https)에서 실행해 주세요.';
-  }
-  return m || '알 수 없는 오류로 분석에 실패했습니다.';
-}
-
 async function ensureInjected(tabId, force = false) {
   if (!force) {
     try {
@@ -206,6 +190,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 // --- 메시지 라우팅 ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message.type !== 'string') return false;
+  if (handleQualityMessage(message, sender, sendResponse)) return true;
   const tabId = sender.tab?.id;
   const tabUrl = sender.tab?.url;
 
@@ -340,130 +325,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         sendResponse(msgOk(s));
       });
-      return true;
-    }
-    case MSG.QUALITY_GET_CONFIG: {
-      (async () => {
-        const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis');
-        const DEFAULT = {
-          enabled: true,
-          autoRun: true,
-          modules: {
-            seoMeta: true,
-            headings: true,
-            structuredData: true,
-            imageSEO: true,
-            linkSEO: true,
-            contentQuality: true,
-            coreWebVitals: true,
-            resourceTiming: true,
-            a11yScan: true,
-          },
-          thresholds: { lcp: 2500, inp: 200, cls: 0.1, a11yScore: 90, seoScore: 80 },
-          axeCore: { enabled: true },
-          exportFormat: 'json',
-        };
-        sendResponse({ ok: true, data: { ...DEFAULT, ...(qualityAnalysis || {}) } });
-      })();
-      return true;
-    }
-    case MSG.QUALITY_ANALYZE: {
-      (async () => {
-        // 옵션에서 품질 진단 기능이 꺼져 있으면 즉시 안내 (enabled 기본값 = 켬)
-        const { qualityAnalysis } = await chrome.storage.local
-          .get('qualityAnalysis')
-          .catch(() => ({}));
-        if (qualityAnalysis?.enabled === false) {
-          sendResponse({
-            ok: false,
-            error: '품질 진단 기능이 꺼져 있습니다. PageKit 설정에서 켜주세요.',
-            code: 'E-CHR-CFG-1001',
-          });
-          return;
-        }
-        // 대상 탭 결정: 명시 지정 > 활성 탭(http/s) > 최근 접근한 웹페이지.
-        // 패널이 폴백 탭으로 열려 확장 페이지 자체가 '활성 탭'인 경우 자기 분석 시도를 방지함.
-        let tabId = message.payload?.tabId;
-        if (!tabId) {
-          const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (active && /^https?:/i.test(active.url || '')) {
-            tabId = active.id;
-          } else {
-            const webTabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
-            const recent = webTabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-            if (recent) tabId = recent.id;
-          }
-        }
-        if (!tabId) {
-          sendResponse({
-            ok: false,
-            error: '분석할 일반 웹페이지를 찾을 수 없습니다.',
-            code: 'E-CHR-PERM-1002',
-          });
-          return;
-        }
-        try {
-          // 브라우저 내부 페이지·타 확장 페이지는 분석 대상이 아님 — 주입 전에 차단해 한국어 안내만 반환
-          const tab = await chrome.tabs.get(tabId).catch(() => null);
-          if (!tab?.url || !/^https?:/i.test(tab.url)) {
-            sendResponse({
-              ok: false,
-              error: '이 페이지는 분석할 수 없습니다. 일반 웹페이지(http/https)에서 실행해 주세요.',
-              code: 'E-CHR-PERM-1002',
-            });
-            return;
-          }
-          // 품질 분석용 스크립트 + axe-core를 격리 월드에 주입 (멱등 — 스크립트별 가드 플래그 존재)
-          await chrome.scripting.executeScript({
-            target: { tabId },
-            files: [
-              'debug.js',
-              'shared/quality-rules.js',
-              'content/quality-analyzer.js',
-              'content/web-vitals.js',
-              'content/axe.min.js',
-              'content/a11y-scan.js',
-            ],
-          });
-          const response = await chrome.tabs.sendMessage(
-            tabId,
-            { type: 'pk.quality.analyze', payload: message.payload },
-            { frameId: 0 }
-          );
-          if (!response?.ok) throw new Error(response?.error || '분석 실행 실패');
-          sendResponse(response);
-        } catch (e) {
-          BGLogger.warn('QUALITY', `분석 실패 tab=${tabId}: ${e.message}`, {
-            code: 'E-CHR-PERM-1002',
-          });
-          sendResponse({ ok: false, error: friendlyScriptError(e), code: 'E-CHR-PERM-1002' });
-        }
-      })();
-      return true;
-    }
-    case MSG.QUALITY_EXPORT: {
-      (async () => {
-        try {
-          const format = message.payload?.format || 'json';
-          const ext = message.payload?.format === 'html' ? 'html' : 'json';
-          const name =
-            message.payload?.filename ||
-            `quality-report-${new Date().toISOString().slice(0, 10)}.${ext}`;
-          const content =
-            message.payload?.format === 'html'
-              ? generateHtmlReport(message.payload.data)
-              : JSON.stringify(message.payload.data, null, 2);
-          const url = `data:${message.payload.format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}`;
-          const downloadId = await chrome.downloads.download({
-            url,
-            filename: `PageKit/quality-reports/${name}`,
-            saveAs: false,
-          });
-          sendResponse({ ok: true, downloadId });
-        } catch (e) {
-          sendResponse({ ok: false, error: e.message });
-        }
-      })();
       return true;
     }
     default:
