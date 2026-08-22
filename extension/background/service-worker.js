@@ -50,7 +50,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
   <div class="metric"><div class="val">${coreWebVitals.ttfb??'-'}ms</div><div class="lbl">TTFB</div></div>
 </div>
 
-${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`).join('')}
+${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
 
 </body></html>` ;
 }
@@ -340,44 +340,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true ;
     }
     case MSG.QUALITY_GET_CONFIG: {
-      const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis') ;
-      const DEFAULT = {
-        enabled: true, autoRun: false,
-        modules: { seoMeta: true, headings: true, structuredData: true, imageSEO: true, linkSEO: true, contentQuality: true, coreWebVitals: true, resourceTiming: true, a11yScan: true },
-        thresholds: { lcp: 2500, inp: 200, cls: 0.1, a11yScore: 90, seoScore: 80 },
-        axeCore: { enabled: true }, exportFormat: 'json',
-      } ;
-      sendResponse({ ok: true, data: { ...DEFAULT, ...(qualityAnalysis || {}) } }) ;
+      (async () => {
+        const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis') ;
+        const DEFAULT = {
+          enabled: true, autoRun: false,
+          modules: { seoMeta: true, headings: true, structuredData: true, imageSEO: true, linkSEO: true, contentQuality: true, coreWebVitals: true, resourceTiming: true, a11yScan: true },
+          thresholds: { lcp: 2500, inp: 200, cls: 0.1, a11yScore: 90, seoScore: 80 },
+          axeCore: { enabled: true }, exportFormat: 'json',
+        } ;
+        sendResponse({ ok: true, data: { ...DEFAULT, ...(qualityAnalysis || {}) } }) ;
+      })() ;
       return true ;
     }
     case MSG.QUALITY_ANALYZE: {
-      const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
-      if (!tabId) return sendResponse({ ok: false, error: '탭 없음' }) ;
-      try {
-        const response = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
-        if (!response?.ok) {
-          await chrome.scripting.executeScript({
-            target: { tabId }, files: ['debug.js', 'content/quality-analyzer.js', 'content/web-vitals.js', 'content/a11y-scan.js'],
-          }) ;
-          const retry = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
-          return sendResponse(retry || { ok: false, error: '분석 실행 실패' }) ;
+      (async () => {
+        const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
+        if (!tabId) { sendResponse({ ok: false, error: '탭 없음' }) ; return ; }
+        try {
+          const response = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
+          if (!response?.ok) {
+            await chrome.scripting.executeScript({
+              target: { tabId }, files: ['debug.js', 'content/quality-analyzer.js', 'content/web-vitals.js', 'content/a11y-scan.js'],
+            }) ;
+            const retry = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
+            sendResponse(retry || { ok: false, error: '분석 실행 실패' }) ;
+            return ;
+          }
+          sendResponse(response) ;
+        } catch (e) {
+          sendResponse({ ok: false, error: e.message }) ;
         }
-        sendResponse(response) ;
-      } catch (e) {
-        sendResponse({ ok: false, error: e.message }) ;
-      }
+      })() ;
       return true ;
     }
     case MSG.QUALITY_EXPORT: {
-      try {
-        const format = message.payload?.format || 'json' ;
-        const ext = message.payload?.format === 'html' ? 'html' : 'json' ;
-        const name = message.payload?.filename || `quality-report-${new Date().toISOString().slice(0,10)}.${ext}` ;
-        const content = message.payload?.format === 'html' ? generateHtmlReport(message.payload.data) : JSON.stringify(message.payload.data, null, 2) ;
-        const url = `data:${message.payload.format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}` ;
-        const downloadId = await chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false }) ;
-        sendResponse({ ok: true, downloadId }) ;
-      } catch (e) { sendResponse({ ok: false, error: e.message }) ; }
+      (async () => {
+        try {
+          const format = message.payload?.format || 'json' ;
+          const ext = message.payload?.format === 'html' ? 'html' : 'json' ;
+          const name = message.payload?.filename || `quality-report-${new Date().toISOString().slice(0,10)}.${ext}` ;
+          const content = message.payload?.format === 'html' ? generateHtmlReport(message.payload.data) : JSON.stringify(message.payload.data, null, 2) ;
+          const url = `data:${message.payload.format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}` ;
+          const downloadId = await chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false }) ;
+          sendResponse({ ok: true, downloadId }) ;
+        } catch (e) { sendResponse({ ok: false, error: e.message }) ; }
+      })() ;
       return true ;
     }
     default:

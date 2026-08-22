@@ -1,7 +1,7 @@
 // shared/quality-rules.js — 품질 진단 룰 엔진 (JSON 기반, 설정 연동)
 
 // 모듈별 기본 설정 (옵션 페이지에서 덮어씀)
-export const DEFAULT_QUALITY_CONFIG = {
+const DEFAULT_QUALITY_CONFIG = {
   enabled: true,
   autoRun: false,
   modules: {
@@ -27,7 +27,7 @@ export const DEFAULT_QUALITY_CONFIG = {
 };
 
 // 모듈 메타데이터 (UI용)
-export const MODULE_META = {
+const MODULE_META = {
   seoMeta: { label: '메타 태그', category: 'SEO', order: 1 },
   headings: { label: '헤딩 계층', category: 'SEO', order: 2 },
   structuredData: { label: '구조화 데이터', category: 'SEO', order: 3 },
@@ -40,7 +40,7 @@ export const MODULE_META = {
 };
 
 // 심각도
-export const SEVERITY = {
+const SEVERITY = {
   CRITICAL: 'critical',   // 🔴 즉시 수정 필요 (색인/접근 차단)
   MAJOR: 'major',         // 🟠 중요 (순위/사용성 영향)
   MINOR: 'minor',         // 🟡 개선 권장
@@ -48,12 +48,12 @@ export const SEVERITY = {
 };
 
 // 이슈 생성 헬퍼
-export function createIssue(module, severity, location, message, fix, meta = {}) {
+function createIssue(module, severity, location, message, fix, meta = {}) {
   return { module, severity, location, message, fix, meta, timestamp: Date.now() };
 }
 
 // 점수 계산 (모듈별 가중치)
-export const MODULE_WEIGHTS = {
+const MODULE_WEIGHTS = {
   seoMeta: 0.15,
   headings: 0.10,
   structuredData: 0.10,
@@ -66,7 +66,7 @@ export const MODULE_WEIGHTS = {
 };
 
 // 전체 점수 계산 (100점 만점)
-export function calculateOverallScore(moduleScores, enabledModules) {
+function calculateOverallScore(moduleScores, enabledModules) {
   let totalWeight = 0;
   let weightedSum = 0;
   for (const [mod, score] of Object.entries(moduleScores)) {
@@ -79,7 +79,7 @@ export function calculateOverallScore(moduleScores, enabledModules) {
 }
 
 // 카테고리별 점수
-export function calculateCategoryScores(moduleScores, enabledModules) {
+function calculateCategoryScores(moduleScores, enabledModules) {
   const cats = { SEO: [], Performance: [], Accessibility: [], Content: [] };
   for (const [mod, score] of Object.entries(moduleScores)) {
     if (!enabledModules[mod]) continue;
@@ -96,7 +96,7 @@ export function calculateCategoryScores(moduleScores, enabledModules) {
 }
 
 // 임계값 체크
-export function checkThresholds(metrics, thresholds) {
+function checkThresholds(metrics, thresholds) {
   const issues = [];
   if (metrics.lcp != null && metrics.lcp > thresholds.lcp) {
     issues.push(createIssue('coreWebVitals', 'MAJOR', 'LCP',
@@ -117,12 +117,12 @@ export function checkThresholds(metrics, thresholds) {
 }
 
 // 결과 시리얼라이즈 (내보내기용)
-export function serializeResult(result) {
+function serializeResult(result) {
   return JSON.stringify(result, null, 2);
 }
 
 // HTML 리포트 생성
-export function generateHtmlReport(result) {
+function generateHtmlReport(result) {
   const { scores, coreWebVitals, modules, analyzedAt, url } = result;
   const catScores = result.categoryScores || {};
   return `<!DOCTYPE html>
@@ -163,7 +163,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
   <div class="metric"><div class="val">${coreWebVitals.ttfb??'-'}ms</div><div class="lbl">TTFB</div></div>
 </div>
 
-${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`).join('')}
+${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
 
 </body></html>`;
 }

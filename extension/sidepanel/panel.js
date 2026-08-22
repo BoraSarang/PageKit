@@ -7,10 +7,10 @@ const $ = (id) => document.getElementById(id) ;
 
 function esc(s) {
   return String(s)
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, """);
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 let qualityIframe = null;
@@ -506,34 +506,6 @@ function toast(msg) {
   el.hidden = false ;
   clearTimeout(el._t) ;
   el._t = setTimeout(() => { el.hidden = true ; }, 2500) ;
-}
-
-function setCategory(tab) {
-  currentTab = tab ;
-  const isQuick = tab === 'images' || tab === 'videos' || tab === 'streams' || tab === 'quality' ;
-  $('pk-cat-images').classList.toggle('is-active', tab === 'images') ;
-  $('pk-cat-videos').classList.toggle('is-active', tab === 'videos') ;
-  $('pk-cat-streams').classList.toggle('is-active', tab === 'streams') ;
-  $('pk-cat-quality').classList.toggle('is-active', tab === 'quality') ;
-  if (isQuick) $('pk-cat-select').value = 'all' ;
-  if (tab === 'quality') {
-    $('pk-type-filter').hidden = true ;
-    $('pk-size-filter').hidden = true ;
-    $('pk-hide-icons-wrap').hidden = true ;
-    $('pk-export-csv').hidden = true ;
-    loadQualityTab() ;
-  } else {
-    $('pk-type-filter').hidden = !(tab === 'images' || tab === 'links') ;
-    $('pk-size-filter').hidden = !(tab === 'images') ;
-    $('pk-hide-icons-wrap').hidden = !(tab === 'images') ;
-    $('pk-export-csv').hidden = tab !== 'links' ;
-    if (qualityIframe) {
-      qualityIframe.remove() ;
-      qualityIframe = null ;
-    }
-  }
-  DebugLogger.debug('[PANEL] 카테고리 변경', { tab: currentTab }) ;
-  if (tab !== 'quality') render() ;
 }
 
 // ---------- 이벤트 ----------
