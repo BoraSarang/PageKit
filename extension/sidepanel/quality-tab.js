@@ -284,6 +284,14 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function scoreClass(score) {
+  if (score == null) return 'score-poor';
+  if (score >= 90) return 'score-excellent';
+  if (score >= 70) return 'score-good';
+  if (score >= 50) return 'score-fair';
+  return 'score-poor';
+}
+
 function show(id) {
   const el = $(id);
   if (el) el.style.display = '';

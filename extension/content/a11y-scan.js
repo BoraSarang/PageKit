@@ -1,6 +1,6 @@
-// content/a11y-scan.js — axe-core 50KB 내장 래퍼 (ESM 번들)
-// 실제 배포 시: esbuild로 axe-core를 단일 파일로 번들하여 a11y-scan.bundle.js로 저장
-// 여기서는 CDN 폴백 + 최소 검사 로직으로 동작
+// content/a11y-scan.js — axe-core 래퍼
+// axe-core(content/axe.min.js)는 service-worker가 격리 월드에 주입 → globalThis.axe 직접 사용
+// 미주입 시 최소 검사 로직으로 폴백
 
 (() => {
   if (globalThis.__pkA11yLoaded) return;
@@ -9,39 +9,17 @@
   let axeCore = null;
   let axeLoaded = false;
 
-  // axe-core 로드 (CDN → 로컬 번들 순서)
-  async function loadAxeCore() {
+  // axe-core는 service-worker가 content/axe.min.js를 격리 월드에 주입 → globalThis.axe 직접 사용
+  function loadAxeCore() {
     if (axeLoaded) return axeCore;
-
-    // 1) 로컬 번들 시도 (확장 배포에 포함된 파일)
-    try {
-      const resp = await fetch(chrome.runtime.getURL('content/a11y-scan.bundle.js'));
-      if (resp.ok) {
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        await import(url);
-        URL.revokeObjectURL(url);
-        axeCore = globalThis.axe;
-        axeLoaded = true;
-        DebugLogger.feature('A11Y', 'axe-core 로컬 번들 로드 완료');
-        return axeCore;
-      }
-    } catch (e) {
-      DebugLogger.debug('A11Y', `로컬 번들 로드 실패: ${e.message}`);
-    }
-
-    // 2) CDN 폴백 (unpkg)
-    try {
-      const module = await import('https://unpkg.com/axe-core@4.8.4/axe.min.js');
-      axeCore = module.default || module;
+    axeCore = globalThis.axe || null;
+    if (axeCore) {
       axeLoaded = true;
-      DebugLogger.feature('A11Y', 'axe-core CDN 로드 완료');
-      return axeCore;
-    } catch (e) {
-      DebugLogger.error('A11Y', `axe-core 로드 실패: ${e.message}`);
+      DebugLogger.feature('A11Y', 'axe-core 로드 완료');
+    } else {
+      DebugLogger.warn('A11Y', 'axe-core 미주입 - 최소 검사로 폴백');
     }
-
-    return null;
+    return axeCore;
   }
 
   // 최소 접근성 검사 (axe-core 로드 실패 시 폴백)

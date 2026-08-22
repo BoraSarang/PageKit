@@ -357,15 +357,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
         if (!tabId) { sendResponse({ ok: false, error: '탭 없음' }) ; return ; }
         try {
+          // 품질 분석용 스크립트 + axe-core를 격리 월드에 주입 (멱등 — 스크립트별 가드 플래그 존재)
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['debug.js', 'shared/quality-rules.js', 'content/quality-analyzer.js', 'content/web-vitals.js', 'content/axe.min.js', 'content/a11y-scan.js'],
+          }) ;
           const response = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
-          if (!response?.ok) {
-            await chrome.scripting.executeScript({
-              target: { tabId }, files: ['debug.js', 'content/quality-analyzer.js', 'content/web-vitals.js', 'content/a11y-scan.js'],
-            }) ;
-            const retry = await chrome.tabs.sendMessage(tabId, { type: 'pk.quality.analyze', payload: message.payload }, { frameId: 0 }) ;
-            sendResponse(retry || { ok: false, error: '분석 실행 실패' }) ;
-            return ;
-          }
+          if (!response?.ok) throw new Error(response?.error || '분석 실행 실패') ;
           sendResponse(response) ;
         } catch (e) {
           sendResponse({ ok: false, error: e.message }) ;
