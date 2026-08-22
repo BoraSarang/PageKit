@@ -471,9 +471,12 @@
       }
     }
 
+    // 저장된 임계값(옵션) 우선 — 미저장 항목은 기본값
+    const th = { ...DEFAULT_QUALITY_CONFIG.thresholds, ...(config?.thresholds || {}) };
+
     // CWV 임계값 체크 — 모듈 이슈에 편입해 리포트 카드 노출 + 점수 페널티 반영
     if (activeModules.coreWebVitals && results.modules.coreWebVitals?.cwv) {
-      const threshIssues = checkThresholds(results.modules.coreWebVitals.cwv, DEFAULT_QUALITY_CONFIG.thresholds);
+      const threshIssues = checkThresholds(results.modules.coreWebVitals.cwv, th);
       if (threshIssues.length) {
         const cwvMod = results.modules.coreWebVitals;
         cwvMod.issues = [ ...(cwvMod.issues || []), ...threshIssues ];
@@ -491,6 +494,20 @@
     for (const mod of Object.keys(results.modules)) {
       results.modules[mod].label = MODULE_META[mod]?.label || mod;
       results.modules[mod].score = moduleScores[mod] ?? 0;
+    }
+
+    // 최소 점수 기준(옵션 a11yScore·seoScore) 미달 안내 — 실측 점수는 유지하고 기준 대비 여부만 표시
+    const minChecks = [
+      ['accessibility', 'a11yScan', 'a11yScore', '접근성'],
+      ['seo', 'seoMeta', 'seoScore', 'SEO'],
+    ];
+    for (const [catKey, modKey, thKey, label] of minChecks) {
+      const v = categoryScores[catKey];
+      const min = Number(th[thKey] ?? 0);
+      if (!min || v == null || v >= min) continue;
+      const m = results.modules[modKey];
+      if (!m) continue;
+      m.issues = [...(m.issues || []), createIssue(modKey, SEVERITY.MINOR, '', `${label} 점수 ${v}점 — 설정한 최소 기준(${min}점) 미달`, '설정 > 페이지 품질 진단에서 기준을 조정하거나 관련 항목을 개선하세요.')];
     }
 
     const overall = calculateOverallScore(moduleScores, activeModules);

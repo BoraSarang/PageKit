@@ -373,6 +373,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     case MSG.QUALITY_ANALYZE: {
       (async () => {
+        // 옵션에서 품질 진단 기능이 꺼져 있으면 즉시 안내 (enabled 기본값 = 켬)
+        const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis').catch(() => ({})) ;
+        if (qualityAnalysis?.enabled === false) {
+          sendResponse({ ok: false, error: '품질 진단 기능이 꺼져 있습니다. PageKit 설정에서 켜주세요.', code: 'E-CHR-CFG-1001' }) ;
+          return ;
+        }
         // 대상 탭 결정: 명시 지정 > 활성 탭(http/s) > 최근 접근한 웹페이지.
         // 패널이 폴백 탭으로 열려 확장 페이지 자체가 '활성 탭'인 경우 자기 분석 시도를 방지함.
         let tabId = message.payload?.tabId ;
