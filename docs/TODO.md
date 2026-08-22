@@ -201,3 +201,25 @@
 - 2026-08-15: **T-42 (v0.4)** — 우클릭/복사 제한 해제를 전역 체크박스로 전환. 화이트리스트(unlockSites) 제거 → `settings.unlockEnabled` 1개 체크박스, onChanged 즉시 반영, 레거시 데이터 1회 승계 마이그레이션. Whale CDP 실측 4종 통과 (체크박스 렌더/ON 활성/OFF 원복/마이그레이션).
 - 2026-08-15: **T-52/T-53/T-54/T-55 (v0.5)** — ① T-52 유튜브 innertube player API(ANDROID_SDKLESS) 직접 호출로 m3u8 포맷 확보 — 웨일 실측 통과. ② T-53 DASH(mpd) 병합 — parseMPD에 SegmentBase(on-demand) 추가 + ISO8601 Y/M 파싱 버그 수정, Bitmovin art-of-motion 웨일 실측 통과. ③ T-54 ZIP 패키징 — SW URL.createObjectURL 불가 버그를 base64 data URL 저장으로 수정 (viaPage 경로 포함), Chrome CDP + 웨일 실측 통과. ④ T-55 링크 CSV 내보내기 — 링크 탭 [CSV] 버튼 (필터 적용 결과, BOM), Chrome CDP 실측 통과.
 - 2026-08-15: **T-51 완료 확정 + v0.5 마무리** — w3schools mp4 실저장 + DASH 병합으로 HTTP 미디어 저장 검증 확정(bd 38p CLOSED), bd 8gk/jz6/hq0 CLOSED, origin push 완료. 웨일 진입점 검증: 플로팅/컨텍스트 메뉴는 sidePanel gesture 제약으로 새 탭 폴백 동작(정상), 후속 WPageTools-ee8(P3) 등록.
+
+## v0.7.16~29 (chrome) — 페이지 품질 진단 안정화 (2026-08-22~23)
+
+> 상세: docs/CHANGELOG.md v0.7.13→29 섹션 + .agent/session-2026-08-22-chrome.md
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-101 | 품질진단 구문오류 5종 근본 수정(vm 엄격 파서 도입) | ✅ | 0.7.13~16 |
+| T-102 | 품질진단 단독 사이드패널 전환(setOptions 스위칭, 팝업 3버튼·컨텍스트 2원화) | ✅ | 0.7.17~19 |
+| T-103 | UI 반응형 재설계(패널 폭 연동) + 중복 ID 정리 | ✅ | 0.7.18~19 |
+| T-104 | 리포트 undefined 점수·한글 라벨 + 이슈 단일원천화(rebuildFlatIssues) | ✅ | 0.7.20, 0.7.26 |
+| T-105 | 오류 UX — 크롬 원문 영어 금지(한국어 가드) + 자동재분석 무음화 | ✅ | 0.7.21~22 |
+| T-106 | autoRun 옵션 실시간 반영(리스너 동적 바인딩/해제) + 분석대상 표시줄 | ✅ | 0.7.24~25 |
+| T-107 | 실행 편차 축소(waitForSettle 게이트 + CWV 스냅샷 복사) + 소요 표기 | ✅ | 0.7.27 |
+| T-108 | 미적용 설정 활성화(enabled 게이트 + 임계값/a11y·SEO 최소점수 실반영) | ✅ | 0.7.28 |
+| T-109 | 응답 누락 방어(리스너 catch 보장) — 'message channel closed' 차단 | ✅ | 0.7.29 |
+
+### 남은 과제
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-110 | E2E 자동화 스캐폴드 (Playwright-core + 시스템 Chrome 채널, 브라우저 다운로드 없음) | ⏳ | AGENTS.md 7.7 표준 — 핵심 시나리오: 팝업→패널 오픈, 컨텍스트→품질패널, 분석 실행→결과 렌더 |
+| T-111 | 스토어 배포 준비 (PERMISSIONS.md 갱신: axe 내장·host_permissions 재검토 + webstore-publish dry-run) | ⬜ | 배포 직전 수행 |

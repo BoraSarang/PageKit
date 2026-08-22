@@ -1,5 +1,41 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v0.7.13 → v0.7.29 (2026-08-22~23) — 페이지 품질 진단 안정화 시리즈
+
+### 배경 [chrome]
+- 신규 기능 "페이지 품질 진단"(SEO/성능/접근성/콘텐츠 종합 진단) 도입 과정에서
+  구문오류 → 로드 실패 → 데이터 바인딩·타이밍·설정 미적용까지 연쇄 발생.
+  본 시리즈에서 근본 원인을 전부 해소하고 단독 사이드패널 아키텍처로 확정.
+
+### 버전별 요약 [chrome]
+| 버전 | 커밋 | 핵심 |
+|------|------|------|
+| 0.7.13 | - | CSP `worker-src` 정리 + content_scripts module 타입 제거 |
+| 0.7.14 | f4a9c34 | SW 템플릿 리터럴 닫힘 정리(버전 bump로 캐시 무효화) |
+| 0.7.15 | 15d28f4 | 삼항연산자 거짓분기 누락 등 구문오류 5종 수정 + 엔티티 디코딩 손상 복구 + 중복선언 제거 |
+| 0.7.16 | e87bc15 | `scoreClass` 누락 함수 추가 + **axe-core 4.8.4 로컬 내장**(CSP 차단 해소, 분석 탭에만 격리월드 주입) |
+| 0.7.17 | ad548f8 | **품질진단 단독 사이드패널**(`setOptions` 경로 스위칭) + 팝업 3버튼/컨텍스트 메뉴 2원화 + 팝업 자동분석 제거 |
+| 0.7.18 | 4fcbce0 | 품질패널 반응형 재설계(패널 폭 연동) + 중복 버튼 ID 정리 |
+| 0.7.19 | 8b321c0 | 분석패널 품질탭 완전 제거(단독으로 이관) + 팝업 간소화·버전 표시 + 옵션 fieldset 스타일 복구 |
+| 0.7.20 | 8b5e0fc/c9e6c47 | 리포트 `(undefined/100)` 수정(모듈 score/label 주입), 폭포수 한 줄화, 다크모드 이슈배경, 리포트 버전 푸터 |
+| 0.7.21 | 368e572 | 이슈 리스트 긴 URL 가로 넘침 수정(`overflow-wrap:anywhere`) |
+| 0.7.22 | 1ade8af | 내부·타확장 페이지 분석 시 크롬 원문 영어 오류 → 한국어 안내 + 자동재분석 무음화 |
+| 0.7.23 | 4e7a871 | 프록시 이미지 포맷 오탐 제거 + quality-runner 데드코드 삭제 + autoRun 단독연동(기본 켬) |
+| 0.7.24 | dc8e64d | 분석대상 표시줄(제목·URL·상태) + 옵션 라벨 명확화 |
+| 0.7.25 | 1baab15 | autoRun 옵션 해제가 열린 패널에 즉시 반영(탭추적 동적 바인딩/해제) |
+| 0.7.26 | c7fc235 | 서브점수/CWV 키 불일치 수정(`seo/performance/accessibility/content`) + 이슈 단일원천화(rebuildFlatIssues) + 컨텍스트메뉴 제스처 보존(setOptions 비await) |
+| 0.7.27 | d2e4bfc | 실행 편차 축소 — 안정화 대기 게이트(waitForSettle) + CWV 스냅샷 복사 + 소요시간 표기 |
+| 0.7.28 | 7fa7f77 | **미적용 설정 활성화** — enabled 토글 게이트 + 옵션 임계값(LCP/INP/CLS/a11y/SEO 최소점수) 실반영 |
+| 0.7.29 | 433786c | **응답 누락 방어** — 콘텐츠 리스너 catch 보장('message channel closed' 원천 차단) + 대기/기준검사 비치명화 |
+
+### 아키텍처 결정 [chrome]
+- 품질진단 UI는 `quality-tab.html?auto=1`을 **단독 패널**로 사용하며,
+  `sidepanel-controller.js PANEL_VIEW_PATHS`가 미디어↔품질 경로를 스위칭한다.
+- `sidePanel.open()` 앞에 await를 두지 않는다(사용자 제스처 소멸 → 새탭 폴백 회귀 방지).
+- `result.issues`는 모듈 순회로 재구성하는 단일 원천 — 패널 리스트와 리포트 '전체 이슈 목록'이 항상 동일.
+- 점수 카테고리 키 정규화: `seo/performance/accessibility/content`(구 a11y/bestPractices 금지).
+- 검증 도구: `node --check`는 import/export 파일을 가짜 통과시키므로 vm 기반 엄격 파서 필수.
+
 ## v0.7.12 (2026-08-19) — 일반 동영상도 독립 작업 창에서 다운로드
 
 ### 수정 [chrome]

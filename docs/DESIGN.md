@@ -101,11 +101,48 @@ async function openSidePanel(source) {
 
 | 진입점 | 등록 위치 | 비고 |
 |--------|-----------|------|
-| ① 아이콘 | `action.default_popup` → 팝업 [패널 열기] | 팝업 유지 |
-| ② 컨텍스트 메뉴 | `chrome.contextMenus.create` | `onClicked` → openSidePanel('context') |
-| ③ 단축키 | `commands` (기본 `Cmd+Shift+K`) | `onCommand` → openSidePanel('shortcut') |
-| ④ 팝업 버튼 | 팝업 html | onClick → openSidePanel('popup') |
-| ⑤ 플로팅 버튼 | `scripting.executeScript` 주입 (요청 시) | 버튼 클릭 → 메시지 → BG openSidePanel('float') |
+| ① 아이콘(팝업) | `action.default_popup` | [사이드 패널에서 분석] / [사이드 패널에서 품질 진단] 버튼 (자동분석 없음, v0.7.17~19) |
+| ② 컨텍스트 메뉴 | `chrome.contextMenus.create` | "PageKit으로 분석" / "PageKit으로 품질 진단" 2원화 → openSidePanel(view 지정) |
+| ③ 단축키 | `commands` (기본 `Cmd+Shift+K`) | 항상 미디어 패널로 복귀(경로 리셋) |
+| ④ 플로팅 버튼 | `scripting.executeScript` 주입 (요청 시) | 버튼 클릭 → 메시지 → BG openSidePanel |
+
+### 6.5 품질 진단 단독 패널 (v0.7.16~29)
+
+품질 진단은 메인 패널의 탭이 아니라 **별도 사이드 패널**로 제공한다.
+
+**뷰 스위칭**: 확장당 사이드패널은 1개이므로 경로 교체로 뷰를 전환한다.
+```js
+// sidepanel-controller.js
+const PANEL_VIEW_PATHS = {
+  media:   'sidepanel/panel.html',
+  quality: 'sidepanel/quality-tab.html?auto=1', // 단독 모드 플래그
+};
+// 제스처 보존 규칙: setOptions를 open() 앞에서 await 금지!
+// await가 끼면 컨텍스트 메뉴·단축키 제스처가 소멸해 open 실패 → 새탭 폴백 발생(v0.7.26 회귀 교훈)
+chrome.sidePanel.setOptions({ path }); // fire-and-forget
+await chrome.sidePanel.open({ windowId });
+```
+
+**단독 모드(`?auto=1`)**: 열림 즉시 분석 + `tabs.onActivated/onUpdated(complete)` 자동 재분석
+(300ms 디바운스). 옵션 `autoRun`(기본 켬)과 `storage.onChanged` 실시간 연동 —
+옵션 해제 시 리스너 동적 해제, 켬 시 재바인딩+즉시 재진단.
+
+**분석 파이프라인** (`pk.quality.analyze`, SW 단일 진입):
+1. 게이트: 옵션 `enabled === false`면 한국어 안내 반환
+2. 대상 탭 결정: 명시 tabId > 활성 탭(http/s) > 최근 접근 웹페이지(확장 페이지 자기분석 방지)
+3. 격리월드 주입: debug/quality-rules/analyzer/web-vitals/**axe.min.js**(540KB, 분석 탭에만)/a11y-scan
+4. 콘텐츠 실행: `waitForSettle()`(로드완료+네트워크 정지, best-effort) → 모듈 순차 실행 →
+   프레임 병합 → `rebuildFlatIssues()` → **반드시 sendResponse**(catch 보장, 누락 시 'message channel closed')
+
+**데이터 규약**:
+- 점수 카테고리 키: `seo / performance / accessibility / content` (소문자 camelCase 고정)
+- 각 모듈 결과에 `score`·`label`(한글명) 주입 — 리포트/패널이 동일 필드 사용
+- `result.issues` = 모듈 순회 재구성(중복제거+심각도 정렬) **단일 원천** — 패널 리스트와
+  리포트 '전체 이슈 목록'이 항상 동일 배열
+- CWV는 스냅샷 복사본(`{...__pkCWV}`) 사용 — 분석 도중 지표 변화가 결과를 오염하지 않게 함
+
+**오류 UX 원칙**: 크롬 원문 영어 오류 노출 금지 — `friendlyScriptError()`로 한국어 변환,
+자동 실행 경로는 실패해도 무음(수동 클릭에만 alert).
 
 ## 7. 우클릭 해제 (F1)
 
