@@ -221,5 +221,5 @@
 ### 남은 과제
 | T | 작업 | 상태 | 비고 |
 |---|------|------|------|
-| T-110 | E2E 자동화 스캐폴드 (Playwright-core + 시스템 Chrome 채널, 브라우저 다운로드 없음) | ⏳ | AGENTS.md 7.7 표준 — 핵심 시나리오: 팝업→패널 오픈, 컨텍스트→품질패널, 분석 실행→결과 렌더 |
+| T-110 | E2E 자동화 스캔폴드 (Whale 격리 임시프로필 + playwright-core, 브라우저 다운로드 없음) | ✅ | `./scripts/e2e-chrome.sh` — 11개 스모크 통과(팝업/품질패널/옵션). Chrome 137+ 제약으로 실행 브라우저는 Whale(AGENTS 규칙 6 참조) |
 | T-111 | 스토어 배포 준비 (PERMISSIONS.md 갱신: axe 내장·host_permissions 재검토 + webstore-publish dry-run) | ⬜ | 배포 직전 수행 |

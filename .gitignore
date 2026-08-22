@@ -20,3 +20,6 @@ extension-yt/
 
 # 검증 스크린샷 (로컬 산출물 — 커밋 제외)
 docs/screenshots/
+
+# Node (루트 E2E 전용)
+node_modules/

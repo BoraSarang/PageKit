@@ -6,6 +6,7 @@
 > 3. 크롬과 웨일은 동일하게 동작하므로 크롬 테스트 결과 = 웨일 동일 적용
 > 4. Chrome 137+ 제약(`--load-extension` 무시)은 `--disable-extensions-except` 병행 또는 `chrome://extensions` 개발자 모드 수동 로드로 우회 (bd WPageTools-hq0 참조)
 > 5. `build_and_run.sh`의 실행/킬/재시작 대상은 Chrome만 — Whale 관련 명령 금지
+> 6. **자동 E2E만 예외: Whale + 완전 격리 임시프로필(mkdtemp)로 기동** (2026-08-23 확정) — Chrome 137+ 는 headed에서도 `--load-extension`이 제거되어 플래그 우회 불가 확인. `./scripts/e2e-chrome.sh` 사용. 임시 프로필 외 실사용 `.whale-profile*`·실행 중 웨일 프로세스는 본 항목으로도 계속 무접촉.
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 

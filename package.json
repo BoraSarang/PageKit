@@ -1,0 +1,27 @@
+{
+  "name": "pagekit",
+  "version": "1.0.0",
+  "description": "페이지의 이미지, 영상, 링크를 한 번에 수집하고 일괄 다운로드하는 Chrome · 웨일 확장 프로그램.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "node e2e/run-smoke.cjs",
+    "test:e2e": "./scripts/e2e-chrome.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BoraSarang/PageKit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BoraSarang/PageKit/issues"
+  },
+  "homepage": "https://github.com/BoraSarang/PageKit#readme",
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
+  }
+}
