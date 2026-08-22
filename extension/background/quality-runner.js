@@ -106,7 +106,7 @@ async function exportResult({ format = 'json', data, filename }) {
 // HTML 리포트 생성 (shared/quality-rules.js의 로직과 동일)
 function generateHtmlReport(data) {
   const { scores, coreWebVitals, modules, analyzedAt, url } = data;
-  const catScores = { SEO: scores.seo, Performance: scores.performance, Accessibility: scores.a11y, 'Best Practices': scores.bestPractices };
+  const catScores = { SEO: scores.seo, Performance: scores.performance, Accessibility: scores.accessibility, Content: scores.content };
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
 <style>
@@ -132,8 +132,8 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <div class="grid">
   <div class="metric"><div class="val">${scores.seo??'-'}</div><div class="lbl">SEO</div></div>
   <div class="metric"><div class="val">${scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${scores.a11y??'-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${scores.bestPractices??'-'}</div><div class="lbl">모범 사례</div></div>
+  <div class="metric"><div class="val">${scores.accessibility??'-'</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${scores.content??'-'</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>

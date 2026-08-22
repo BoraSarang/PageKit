@@ -37,8 +37,8 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <div class="grid">
   <div class="metric"><div class="val">${scores.seo??'-'}</div><div class="lbl">SEO</div></div>
   <div class="metric"><div class="val">${scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${scores.a11y??'-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${scores.bestPractices??'-'}</div><div class="lbl">모범 사례</div></div>
+  <div class="metric"><div class="val">${scores.accessibility??'-'</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${scores.content??'-'</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>
@@ -52,6 +52,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 
 ${Object.entries(modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
 
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:.75rem;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(analyzedAt||Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
 </body></html>` ;
 }
 

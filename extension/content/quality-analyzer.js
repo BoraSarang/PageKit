@@ -495,13 +495,21 @@
 
   // CWV 측정 (web-vitals.js에서 제공)
   async function getCWV() {
+    // web-vitals가 __pkCWV를 즉시 노출하더라도 옵저버 버퍼 전달은 비동기 —
+    // LCP 도착(또는 타임아웃)까지 폴링해야 null 대신 실측값이 반환된다
+    const start = Date.now();
     return new Promise((resolve) => {
-      if (window.__pkCWV) {
-        resolve(window.__pkCWV);
-      } else {
-        // web-vitals.js가 아직 준비 안 됐으면 기본값
-        setTimeout(() => resolve(window.__pkCWV || {}), 100);
-      }
+      const tick = () => {
+        const cwv = window.__pkCWV;
+        if (cwv && cwv.lcp != null) { resolve(cwv); return; }
+        if (Date.now() - start >= 1000) {
+          if (!cwv) DebugLogger.warn('QUALITY', '__pkCWV 미노출 — web-vitals 주입 확인 필요');
+          resolve(cwv || {});
+          return;
+        }
+        setTimeout(tick, 100);
+      };
+      tick();
     });
   }
 

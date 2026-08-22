@@ -88,11 +88,14 @@ function calculateCategoryScores(moduleScores, enabledModules) {
       cats[meta.category].push(score);
     }
   }
-  const out = {};
-  for (const [cat, scores] of Object.entries(cats)) {
-    out[cat] = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-  }
-  return out;
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  // UI·리포트가 읽는 소문자 camelCase 키로 정규화
+  return {
+    seo: avg(cats.SEO),
+    performance: avg(cats.Performance),
+    accessibility: avg(cats.Accessibility),
+    content: avg(cats.Content),
+  };
 }
 
 // 임계값 체크
@@ -150,8 +153,8 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <div class="grid">
   <div class="metric"><div class="val">${scores.seo??'-'}</div><div class="lbl">SEO</div></div>
   <div class="metric"><div class="val">${scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${scores.a11y??'-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${scores.bestPractices??'-'}</div><div class="lbl">모범 사례</div></div>
+  <div class="metric"><div class="val">${scores.accessibility??'-'}</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${scores.content??'-'}</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>

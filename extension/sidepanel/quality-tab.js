@@ -156,12 +156,12 @@ function renderResult(result) {
   $('overall-score').className = `score-value ${scoreClass(scores.overall)}`;
   $('score-seo').textContent = scores.seo ?? '--';
   $('score-perf').textContent = scores.performance ?? '--';
-  $('score-a11y').textContent = scores.a11y ?? '--';
-  $('score-bp').textContent = scores.bestPractices ?? '--';
+  $('score-a11y').textContent = scores.accessibility ?? '--';
+  $('score-bp').textContent = scores.content ?? '--';
 
-  // CWV 게이지
+  // CWV 게이지 (INP는 상호작용 전엔 미측정 — 별도 안내 문구)
   updateGauge('lcp', coreWebVitals.lcp, 2500);
-  updateGauge('inp', coreWebVitals.inp, 200);
+  updateGauge('inp', coreWebVitals.inp, 200, '상호작용 필요');
   updateGauge('cls', coreWebVitals.cls, 0.1);
 
   // 리소스 폭포수
@@ -171,20 +171,21 @@ function renderResult(result) {
   renderIssues(result.issues || []);
 }
 
-function updateGauge(key, value, threshold) {
+function updateGauge(key, value, threshold, emptyText = '--') {
   const valEl = $(`gauge-${key}-val`);
   const progEl = $(`gauge-${key}-progress`);
   if (!valEl || !progEl) return;
 
   let displayVal, pct;
   if (key === 'cls') {
-    displayVal = value?.toFixed(3) ?? '--';
+    displayVal = value?.toFixed(3) ?? emptyText;
     pct = Math.min(100, (value ?? 0) / threshold * 100);
   } else {
-    displayVal = value ?? '--';
+    displayVal = value ?? emptyText;
     pct = Math.min(100, (value ?? 0) / threshold * 100);
   }
   valEl.textContent = displayVal;
+  valEl.title = value == null && emptyText !== '--' ? emptyText : '';
   const offset = 264 * (1 - pct / 100);
   $(`gauge-${key}-progress`).style.strokeDashoffset = offset;
   $(`gauge-${key}-progress`).style.stroke = pct > 90 ? '#dc2626' : pct > 70 ? '#d97706' : '#0d9488';
@@ -196,15 +197,16 @@ function renderWaterfall(slowest) {
     container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;">느린 리소스 없음</div>';
     return;
   }
-  const maxDur = Math.max(...slowest.map(s => s.duration));
+  const maxDur = Math.max(...slowest.map(s => s.duration)) || 1;
   container.innerHTML = slowest.map(s => {
-    const width = Math.max(20, (s.duration / s.duration) * 120); // relative
+    // 한 줄 구성: [소요시간] [상대 막대] [URL …]
+    const pct = Math.max(6, Math.round((s.duration / maxDur) * 100));
+    const color = s.duration > 1000 ? '#dc2626' : s.duration > 500 ? '#d97706' : '#0d9488';
+    const kb = Math.round((s.size || 0) / 1024);
     return `<div class="waterfall-item">
-      <div class="waterfall-bar" style="width:${Math.min(120, (s.duration / 2000) * 120)}px;background:${s.duration > 1000 ? '#dc2626' : s.duration > 500 ? '#d97706' : '#0d9488'}"></div>
-      <div class="waterfall-info">
-        <span class="waterfall-url" title="${s.url}">${s.url}</span>
-        <span class="waterfall-time">${s.duration}ms · ${Math.round(s.size/1024)}KB</span>
-      </div>
+      <span class="waterfall-time">${s.duration}ms</span>
+      <span class="waterfall-track"><i style="width:${pct}%;background:${color}"></i></span>
+      <span class="waterfall-url" title="${s.url}${kb ? ` · ${kb}KB` : ''}">${s.url}</span>
     </div>`;
   }).join('');
 }
@@ -287,8 +289,8 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <div class="grid">
   <div class="metric"><div class="val">${data.scores.seo??'-'}</div><div class="lbl">SEO</div></div>
   <div class="metric"><div class="val">${data.scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${data.scores.a11y??'-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${data.scores.bestPractices??'-'}</div><div class="lbl">모범 사례</div></div>
+  <div class="metric"><div class="val">${data.scores.accessibility??'-'}</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${data.scores.content??'-'}</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>
@@ -302,6 +304,7 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 
 ${Object.entries(data.modules||{}).map(([k,v])=>v?`<div class="card"><h3>${k} <span style="font-weight:400;color:#6b7280">(${v.score}/100)</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
 
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:12px;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(data.analyzedAt||Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
 </body></html>`;
 }
 
