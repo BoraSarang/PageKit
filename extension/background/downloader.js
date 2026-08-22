@@ -1,4 +1,9 @@
 // background/downloader.js — 배치 다운로드 + 상태 추적 (T-23/T-24)
+// ┌ 역할 구분 (이름 혼동 주의) ─────────────────────────────
+// │ 역할: [BG 배치 처리] 이미지·링크 등 일반 파일 동시 다운로드 + 상태 추적(storage.session) + 재시도
+// │ 짝 파일: background/downloader.js = BG 배치 처리 | downloader/downloader.js = 작업창 UI
+// └──────────────────────────────────────────────────────
+
 // chrome.downloads 사용, 동시 N건, 실패 시 재시도 2회, 상태는 storage.session에 기록.
 
 import { BGLogger } from './logger.js';

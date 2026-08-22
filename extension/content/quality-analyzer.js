@@ -1,4 +1,10 @@
 // content/quality-analyzer.js — 페이지 품질 진단 엔진 (모듈형, 설정 연동, iframe 협업)
+//
+// 구조 맵 (classic script — FRAME_SCRIPTS 주입, export 금지):
+//   설정 로드 → 공용 유틸 → 진단 모듈 9종(SEO메타·헤딩·구조화·이미지SEO·링크·
+//   콘텐츠·CWV·리소스타이밍·a11y) → 셀렉터 → 메인 실행(runQualityAnalysis:
+//   waitForSettle 게이트 → 점수/라벨 주입 → 임계값·최소점수 검사) →
+//   플랫 이슈 단일원천화(rebuildFlatIssues) → iframe 협업 → 메시지 리스너(응답 보장 catch 필수)
 
 (() => {
   if (globalThis.__pkQualityLoaded) return;

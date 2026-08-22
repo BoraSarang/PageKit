@@ -1,4 +1,9 @@
 // downloader/downloader.js — PageKit 스트림 다운로드 작업 창 (마스터 해석 → 세그먼트 병합 → 저장)
+// ┌ 역할 구분 (이름 혼동 주의) ─────────────────────────────
+// │ 역할: [작업창 UI] 다운로드 전용 팝업 창에서 실행 — 스트림 마스터 해석(m3u8/mpd/유튜브) → 세그먼트 병합 → chrome.downloads 저장
+// │ 짝 파일: background/downloader.js = BG 배치 처리 | downloader/downloader.js = 작업창 UI
+// └──────────────────────────────────────────────────────
+
 globalThis.__PKDL_VER = 7;
 // BG가 연 작은 팝업 창에서 실행. 확장 페이지라 fetch + Blob + chrome.downloads 전부 가능.
 // 진행률은 BG로 전송 → 확장 아이콘 배지 표시. 완료 시 BG가 시스템 알림 + 10초 후 창 자동 닫기.
