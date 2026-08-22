@@ -175,6 +175,11 @@ chrome.runtime.onInstalled.addListener((details) => {
       contexts: ['page', 'selection', 'image', 'video', 'link'],
     }) ;
     chrome.contextMenus.create({
+      id: 'pk-analyze-quality',
+      title: 'PageKit으로 품질 진단',
+      contexts: ['page', 'selection', 'image', 'video', 'link'],
+    }) ;
+    chrome.contextMenus.create({
       id: 'pk-debug',
       title: 'PageKit 디버그 창 열기',
       contexts: ['action'],
@@ -192,16 +197,17 @@ initDownloader({ ensureInjected }) ;
 initStreamDetector() ;
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'pk-analyze') {
+  if (info.menuItemId === 'pk-analyze' || info.menuItemId === 'pk-analyze-quality') {
     // 주의: sidePanel.open()은 사용자 제스처가 유지되는 동안만 성공 — await로 제스처가
     // 소멸하기 전에 openSidePanel을 동기 호출한다 (ensureInjected는 이후 fire-and-forget).
+    const view = info.menuItemId === 'pk-analyze-quality' ? 'quality' : 'media' ;
     const targetTabId = tab?.id ;
     if (targetTabId != null) {
       // 패널이 분석할 대상 탭을 세션에 기록 (활성 탭이 아닌 우클릭한 탭 분석)
       chrome.storage.session.set({ contextTarget: { tabId: targetTabId, url: tab.url || '', ts: Date.now() } }).catch(() => {}) ;
       ensureInjected(targetTabId).catch(() => {}) ;
     }
-    openSidePanel('context', tab?.windowId) ;
+    openSidePanel('context', tab?.windowId, view) ;
   } else if (info.menuItemId === 'pk-debug') {
     openDebugWindow() ;
   }
@@ -212,7 +218,8 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'pagekit-open-panel') {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }) ;
     if (tab?.id != null) await ensureInjected(tab.id) ;
-    await openSidePanel('shortcut') ;
+    // 단축키는 항상 미디어 패널로 복귀 (품질 패널에 갇히지 않게 경로 리셋)
+    await openSidePanel('shortcut', null, 'media') ;
   } else if (command === 'pagekit-toggle-debug') {
     openDebugWindow() ;
   }

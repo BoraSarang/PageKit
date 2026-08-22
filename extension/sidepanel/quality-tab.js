@@ -1,6 +1,10 @@
 // sidepanel/quality-tab.js — 품질 진단 탭 UI 로직
+// 단독 패널 모드(?auto=1): 열리자마자 분석 1회 실행 + 탭 전환/이동 시 자동 재분석
+// 임베드 모드(메인 패널 iframe): 기존대로 옵션 autoRun 설정 시에만 자동 실행
 
 import { MSG } from '../shared/messages.js';
+
+const STANDALONE = new URLSearchParams(location.search).has('auto');
 
 const $ = (id) => document.getElementById(id);
 
@@ -23,7 +27,28 @@ function init() {
   renderModuleChecks();
   bindEvents();
   loadSavedModules();
-  checkAutoRun();
+  if (STANDALONE) {
+    DebugLogger.feature('QUALITY', '품질 진단 단독 패널 모드 진입 — 즉시 분석');
+    runAnalysis();
+    bindTabTracking();
+  } else {
+    checkAutoRun();
+  }
+}
+
+// 단독 패널 모드: 미디어 패널과 동일하게 탭 전환/페이지 이동 시 자동 재분석
+let reanalyzeTimer = null;
+function bindTabTracking() {
+  const schedule = () => {
+    clearTimeout(reanalyzeTimer);
+    reanalyzeTimer = setTimeout(() => {
+      if (!analyzing) runAnalysis();
+    }, 300);
+  };
+  chrome.tabs.onActivated.addListener(schedule);
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.status === 'complete') schedule();
+  });
 }
 
 function renderModuleChecks() {

@@ -6,11 +6,18 @@ import { PANEL_SOURCES } from '../shared/messages.js' ;
 
 let lastOpenAt = 0 ;
 
-export async function openSidePanel(source, windowId) {
+// 패널 뷰별 경로 (quality는 단독 패널 모드 — ?auto=1로 즉시 분석 + 탭 추적)
+const PANEL_VIEW_PATHS = {
+  media: 'sidepanel/panel.html',
+  quality: 'sidepanel/quality-tab.html?auto=1',
+} ;
+
+export async function openSidePanel(source, windowId, view = 'media') {
   if (!PANEL_SOURCES.includes(source)) {
     BGLogger.warn('PANEL', `알 수 없는 진입점 source=${source}`) ;
     source = 'icon' ;
   }
+  const panelPath = PANEL_VIEW_PATHS[view] || PANEL_VIEW_PATHS.media ;
   try {
     // 제스처 유지: windowId를 받으면 tabs.query(await) 없이 즉시 호출
     let wId = windowId ;
@@ -29,24 +36,25 @@ export async function openSidePanel(source, windowId) {
       return { ok: true } ;
     }
     lastOpenAt = now ;
+    // 뷰 경로 전환 후 오픈 (열려 있는 패널도 경로가 교체됨)
+    await chrome.sidePanel.setOptions({ path: panelPath }) ;
     await chrome.sidePanel.open({ windowId: wId }) ;
-    BGLogger.feature('PANEL', `사이드 패널 열림 source=${source}`) ;
+    BGLogger.feature('PANEL', `사이드 패널 열림 source=${source} view=${view}`) ;
     return { ok: true } ;
   } catch (e) {
     BGLogger.error('PANEL', `사이드 패널 열기 실패 (${e.message})`) ;
     // content script(플로팅) 경유는 MV3에서 user gesture가 전달되지 않아 sidePanel.open()이 항상 실패함.
     // "반응 없음" 방지: 기존 패널 탭이 있으면 활성화, 없으면 새 탭으로 폴백.
     try {
-      const panelUrl = chrome.runtime.getURL('sidepanel/panel.html') ;
-      // tabs.query의 url 필터는 chrome-extension:// 스킴을 매치하지 못하고,
-      // 'tabs' 권한 없이는 패널 탭의 url도 조회되지 않음 → runtime.getContexts로 확장 패널 탭을 정확히 탐지
+      const basePath = chrome.runtime.getURL(panelPath.split('?')[0]) ;
+      const targetUrl = chrome.runtime.getURL(panelPath) ;
       const ctxs = await chrome.runtime.getContexts({ contextTypes: ['TAB'] }) ;
-      const panelCtx = ctxs.find((c) => c.documentUrl?.startsWith(panelUrl)) ;
+      const panelCtx = ctxs.find((c) => c.documentUrl?.split('?')[0] === basePath || c.documentUrl?.startsWith(basePath)) ;
       if (panelCtx?.tabId != null) {
         await chrome.tabs.update(panelCtx.tabId, { active: true }) ;
         BGLogger.warn('PANEL', '사이드 패널 열기 실패 → 기존 패널 탭 활성화 (fallback=tab)') ;
       } else {
-        await chrome.tabs.create({ url: panelUrl, active: true }) ;
+        await chrome.tabs.create({ url: targetUrl, active: true }) ;
         BGLogger.warn('PANEL', '사이드 패널 열기 실패 → 패널 탭 생성 (fallback=tab)') ;
       }
       return { ok: true, fallback: 'tab' } ;

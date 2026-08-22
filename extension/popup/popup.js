@@ -47,14 +47,11 @@ async function analyzeCurrentTab() {
 
 function renderSummary(result) {
   const section = $('pk-summary') ;
-  const openBtn = $('pk-open-panel') ;
   if (!result) {
     section.hidden = true ;
-    openBtn.hidden = false ;
     return ;
   }
   section.hidden = false ;
-  openBtn.hidden = false ;
   $('pk-page-title').textContent = result.title || result.url ;
 
   const s = result.stats || {} ;
@@ -107,21 +104,30 @@ async function init() {
     renderSummary(result) ;
   }) ;
 
-  // 사이드 패널 열기 (진입점 ①/④) — 팝업에서 직접 호출 (BG 경유 시 사용자 제스처 상실로 실패 가능)
-  $('pk-open-panel').addEventListener('click', async () => {
-    DebugLogger.feature('POPUP', '사이드 패널 열기 요청 (source=popup)') ;
+  // 사이드 패널 열기 (뷰 지정) — 팝업에서 직접 호출 (BG 경유 시 사용자 제스처 상실로 실패 가능)
+  async function openPanelWith(view) {
+    DebugLogger.feature('POPUP', `사이드 패널 열기 요청 view=${view}`) ;
     const tab = await getActiveTab() ;
     if (!tab?.windowId) {
       DebugLogger.error('[POPUP] 패널 열기 실패', 'windowId 없음', { code: 'E-CHR-UI-1001' }) ;
       return ;
     }
     try {
+      const paths = {
+        media: 'sidepanel/panel.html',
+        quality: 'sidepanel/quality-tab.html?auto=1',
+      } ;
+      // 패널 경로 전환 후 오픈 (품질 진단 = 단독 패널, auto=1은 즉시 분석 플래그)
+      await chrome.sidePanel.setOptions({ path: paths[view] || paths.media }) ;
       await chrome.sidePanel.open({ windowId: tab.windowId }) ;
       window.close() ;
     } catch (e) {
       DebugLogger.error('[POPUP] 패널 열기 실패', `${e.name}: ${e.message}`, { code: 'E-CHR-UI-1001' }) ;
     }
-  }) ;
+  }
+
+  $('pk-panel-media').addEventListener('click', () => openPanelWith('media')) ;
+  $('pk-panel-quality').addEventListener('click', () => openPanelWith('quality')) ;
 
   $('pk-open-options').addEventListener('click', (e) => {
     e.preventDefault() ;
@@ -132,9 +138,7 @@ async function init() {
   const jobs = await chrome.storage.session.get('downloadJobs').then((v) => v.downloadJobs || []) ;
   renderDownloads(jobs) ;
 
-  // 자동 1회 분석 (가벼운 요약)
-  const result = await analyzeCurrentTab() ;
-  renderSummary(result) ;
+  // 자동 분석 없음 — "이 페이지 분석" 버튼 클릭 시에만 실행 (요구사항: 툴바 클릭 = 메뉴 노출만)
 }
 
 init() ;
