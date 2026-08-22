@@ -8,20 +8,35 @@ function walk(dir) {
   let out = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (e.name !== 'node_modules' && e.name !== '.git') out = out.concat(walk(p)); }
-    else if (e.name.endsWith('.js')) out.push(p);
+    if (e.isDirectory()) {
+      if (e.name !== 'node_modules' && e.name !== '.git') out = out.concat(walk(p));
+    } else if (e.name.endsWith('.js')) out.push(p);
   }
   return out;
 }
-const base = process.argv[2] ? path.resolve(process.argv[2]) : path.resolve(__dirname, '..', 'extension');
+const base = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(__dirname, '..', 'extension');
 let fail = 0;
 for (const f of walk(base)) {
   const src = fs.readFileSync(f, 'utf8');
   const rel = path.relative(base, f);
-  let scriptOk = false, moduleOk = false;
-  let sErr = '', mErr = '';
-  try { new vm.Script(src); scriptOk = true; } catch (e) { sErr = e.message; }
-  try { new vm.SourceTextModule(src, { identifier: rel }); moduleOk = true; } catch (e) { mErr = e.message; }
+  let scriptOk = false,
+    moduleOk = false;
+  let sErr = '',
+    mErr = '';
+  try {
+    new vm.Script(src);
+    scriptOk = true;
+  } catch (e) {
+    sErr = e.message;
+  }
+  try {
+    new vm.SourceTextModule(src, { identifier: rel });
+    moduleOk = true;
+  } catch (e) {
+    mErr = e.message;
+  }
   if (!scriptOk && !moduleOk) {
     fail++;
     console.log(`❌ ${rel}`);

@@ -29,20 +29,22 @@ function init() {
   loadSavedModules();
   if (STANDALONE) {
     // 옵션 autoRun(기본 켬)에 따라 즉시 분석 + 탭 추적 자동 재분석 활성화
-    sendMessage({ type: 'pk.quality.getConfig' }).then((resp) => {
-      const auto = resp?.data?.autoRun !== false;
-      DebugLogger.feature('QUALITY', `품질 진단 단독 패널 모드 진입 (autoRun=${auto})`);
-      if (auto) {
+    sendMessage({ type: 'pk.quality.getConfig' })
+      .then((resp) => {
+        const auto = resp?.data?.autoRun !== false;
+        DebugLogger.feature('QUALITY', `품질 진단 단독 패널 모드 진입 (autoRun=${auto})`);
+        if (auto) {
+          runAnalysis({ manual: true });
+          bindTabTracking();
+        } else {
+          setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
+        }
+      })
+      .catch(() => {
+        // 설정 조회 실패 시 기본 동작(자동) 유지
         runAnalysis({ manual: true });
         bindTabTracking();
-      } else {
-        setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
-      }
-    }).catch(() => {
-      // 설정 조회 실패 시 기본 동작(자동) 유지
-      runAnalysis({ manual: true });
-      bindTabTracking();
-    });
+      });
   } else {
     checkAutoRun();
   }
@@ -92,13 +94,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 function renderModuleChecks() {
   const container = $('module-checks');
-  container.innerHTML = MODULES.map(m => `
+  container.innerHTML = MODULES.map(
+    (m) => `
     <label class="check-item" data-module="${m.key}">
       <input type="checkbox" name="module" value="${m.key}" checked />
       <span>${m.label}</span>
       <span style="margin-left:auto;font-size:10px;color:var(--muted);">${m.cat}</span>
     </label>
-  `).join('');
+  `
+  ).join('');
 }
 
 function bindEvents() {
@@ -113,13 +117,13 @@ function bindEvents() {
   });
 
   // 모듈 체크박스 변경 시 저장
-  document.querySelectorAll('input[name="module"]').forEach(el => {
+  document.querySelectorAll('input[name="module"]').forEach((el) => {
     el.addEventListener('change', saveModuleSelection);
   });
 }
 
 function setAllChecks(checked) {
-  document.querySelectorAll('input[name="module"]').forEach(el => {
+  document.querySelectorAll('input[name="module"]').forEach((el) => {
     el.checked = checked;
   });
   saveModuleSelection();
@@ -127,7 +131,7 @@ function setAllChecks(checked) {
 
 function saveModuleSelection() {
   const mods = {};
-  document.querySelectorAll('input[name="module"]').forEach(el => {
+  document.querySelectorAll('input[name="module"]').forEach((el) => {
     mods[el.value] = el.checked;
   });
   chrome.storage.local.set({ qualityModules: mods });
@@ -136,7 +140,7 @@ function saveModuleSelection() {
 function loadSavedModules() {
   chrome.storage.local.get('qualityModules', (v) => {
     if (v.qualityModules) {
-      document.querySelectorAll('input[name="module"]').forEach(el => {
+      document.querySelectorAll('input[name="module"]').forEach((el) => {
         el.checked = v.qualityModules[el.value] !== false;
       });
     }
@@ -157,12 +161,15 @@ async function runAnalysis({ manual = false } = {}) {
   updateUIState(true);
 
   const enabledModules = {};
-  document.querySelectorAll('input[name="module"]').forEach(el => {
+  document.querySelectorAll('input[name="module"]').forEach((el) => {
     enabledModules[el.value] = el.checked;
   });
 
   try {
-    const response = await sendMessage({ type: 'pk.quality.analyze', payload: { modules: enabledModules } });
+    const response = await sendMessage({
+      type: 'pk.quality.analyze',
+      payload: { modules: enabledModules },
+    });
     if (!response?.ok) throw new Error(response?.error || '분석 실패');
     currentResult = response.data;
     renderResult(currentResult);
@@ -178,7 +185,7 @@ async function runAnalysis({ manual = false } = {}) {
 }
 
 function sendMessage(msg) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     chrome.runtime.sendMessage(msg, resolve);
   });
 }
@@ -224,10 +231,10 @@ function updateGauge(key, value, threshold, emptyText = '--') {
   let displayVal, pct;
   if (key === 'cls') {
     displayVal = value?.toFixed(3) ?? emptyText;
-    pct = Math.min(100, (value ?? 0) / threshold * 100);
+    pct = Math.min(100, ((value ?? 0) / threshold) * 100);
   } else {
     displayVal = value ?? emptyText;
-    pct = Math.min(100, (value ?? 0) / threshold * 100);
+    pct = Math.min(100, ((value ?? 0) / threshold) * 100);
   }
   valEl.textContent = displayVal;
   valEl.title = value == null && emptyText !== '--' ? emptyText : '';
@@ -239,21 +246,24 @@ function updateGauge(key, value, threshold, emptyText = '--') {
 function renderWaterfall(slowest) {
   const container = $('waterfall');
   if (!slowest.length) {
-    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:16px;">느린 리소스 없음</div>';
+    container.innerHTML =
+      '<div style="text-align:center;color:var(--muted);padding:16px;">느린 리소스 없음</div>';
     return;
   }
-  const maxDur = Math.max(...slowest.map(s => s.duration)) || 1;
-  container.innerHTML = slowest.map(s => {
-    // 한 줄 구성: [소요시간] [상대 막대] [URL …]
-    const pct = Math.max(6, Math.round((s.duration / maxDur) * 100));
-    const color = s.duration > 1000 ? '#dc2626' : s.duration > 500 ? '#d97706' : '#0d9488';
-    const kb = Math.round((s.size || 0) / 1024);
-    return `<div class="waterfall-item">
+  const maxDur = Math.max(...slowest.map((s) => s.duration)) || 1;
+  container.innerHTML = slowest
+    .map((s) => {
+      // 한 줄 구성: [소요시간] [상대 막대] [URL …]
+      const pct = Math.max(6, Math.round((s.duration / maxDur) * 100));
+      const color = s.duration > 1000 ? '#dc2626' : s.duration > 500 ? '#d97706' : '#0d9488';
+      const kb = Math.round((s.size || 0) / 1024);
+      return `<div class="waterfall-item">
       <span class="waterfall-time">${s.duration}ms</span>
       <span class="waterfall-track"><i style="width:${pct}%;background:${color}"></i></span>
       <span class="waterfall-url" title="${s.url}${kb ? ` · ${kb}KB` : ''}">${s.url}</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 function renderIssues(issues) {
@@ -275,7 +285,9 @@ function renderIssues(issues) {
   const severityOrder = { critical: 0, major: 1, minor: 2, info: 3 };
   issues.sort((a, b) => (severityOrder[a.severity] || 99) - (severityOrder[b.severity] || 99));
 
-  container.innerHTML = issues.map(issue => `
+  container.innerHTML = issues
+    .map(
+      (issue) => `
     <div class="issue issue-${issue.severity}">
       <div class="issue-header">
         <span class="issue-sev sev-${issue.severity}">${issue.severity}</span>
@@ -285,7 +297,9 @@ function renderIssues(issues) {
       <div class="issue-msg">${escapeHtml(issue.message)}</div>
       <div class="issue-fix">${escapeHtml(issue.fix || '')}</div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function updateUIState(isAnalyzing) {
@@ -311,8 +325,9 @@ function exportResult(format) {
   if (!currentResult) return alert('분석 결과가 없습니다.');
   const data = currentResult;
   const ext = format === 'html' ? 'html' : 'json';
-  const name = `quality-report-${new Date().toISOString().slice(0,10)}.${ext}`;
-  const content = format === 'html' ? generateHtmlReport(currentResult) : JSON.stringify(currentResult, null, 2);
+  const name = `quality-report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  const content =
+    format === 'html' ? generateHtmlReport(currentResult) : JSON.stringify(currentResult, null, 2);
   const url = `data:${format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}`;
   chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false });
 }
@@ -339,35 +354,44 @@ h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;m
 <h1>PageKit 품질 진단 리포트</h1>
 <p class="meta">URL: ${data.url} | 분석 시각: ${new Date(data.analyzedAt).toLocaleString('ko-KR')} | 소요 ${duration ? `${(duration / 1000).toFixed(1)}s` : '-'}</p>
 
-<div class="score score-${data.scores.overall>=90?'excellent':data.scores.overall>=70?'good':data.scores.overall>=50?'fair':'poor'}">${data.scores.overall}/100</div>
+<div class="score score-${data.scores.overall >= 90 ? 'excellent' : data.scores.overall >= 70 ? 'good' : data.scores.overall >= 50 ? 'fair' : 'poor'}">${data.scores.overall}/100</div>
 
 <div class="grid">
-  <div class="metric"><div class="val">${data.scores.seo??'-'}</div><div class="lbl">SEO</div></div>
-  <div class="metric"><div class="val">${data.scores.performance??'-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${data.scores.accessibility??'-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${data.scores.content??'-'}</div><div class="lbl">콘텐츠</div></div>
+  <div class="metric"><div class="val">${data.scores.seo ?? '-'}</div><div class="lbl">SEO</div></div>
+  <div class="metric"><div class="val">${data.scores.performance ?? '-'}</div><div class="lbl">성능</div></div>
+  <div class="metric"><div class="val">${data.scores.accessibility ?? '-'}</div><div class="lbl">접근성</div></div>
+  <div class="metric"><div class="val">${data.scores.content ?? '-'}</div><div class="lbl">콘텐츠</div></div>
 </div>
 
 <h2>Core Web Vitals</h2>
 <div class="grid">
-  <div class="metric"><div class="val">${data.coreWebVitals.lcp??'-'}ms</div><div class="lbl">LCP</div></div>
-  <div class="metric"><div class="val">${data.coreWebVitals.inp??'-'}ms</div><div class="lbl">INP</div></div>
-  <div class="metric"><div class="val">${data.coreWebVitals.cls??'-'}</div><div class="lbl">CLS</div></div>
-  <div class="metric"><div class="val">${data.coreWebVitals.fcp??'-'}ms</div><div class="lbl">FCP</div></div>
-  <div class="metric"><div class="val">${data.coreWebVitals.ttfb??'-'}ms</div><div class="lbl">TTFB</div></div>
+  <div class="metric"><div class="val">${data.coreWebVitals.lcp ?? '-'}ms</div><div class="lbl">LCP</div></div>
+  <div class="metric"><div class="val">${data.coreWebVitals.inp ?? '-'}ms</div><div class="lbl">INP</div></div>
+  <div class="metric"><div class="val">${data.coreWebVitals.cls ?? '-'}</div><div class="lbl">CLS</div></div>
+  <div class="metric"><div class="val">${data.coreWebVitals.fcp ?? '-'}ms</div><div class="lbl">FCP</div></div>
+  <div class="metric"><div class="val">${data.coreWebVitals.ttfb ?? '-'}ms</div><div class="lbl">TTFB</div></div>
 </div>
 
-${Object.entries(data.modules||{}).map(([k,v])=>v?`<div class="card"><h3>${v.label||k} <span style="font-weight:400;color:#6b7280">(${v.error?'분석 오류':(v.score??'-')+'/100'})</span></h3>${v.issues?.map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>`:'').join('')}
+${Object.entries(data.modules || {})
+  .map(([k, v]) =>
+    v
+      ? `<div class="card"><h3>${v.label || k} <span style="font-weight:400;color:#6b7280">(${v.error ? '분석 오류' : (v.score ?? '-') + '/100'})</span></h3>${v.issues?.map((i) => `<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location ? '<span class="loc">' + i.location + '</span> ' : ''}${i.message}<br><small>${i.fix}</small></div>`).join('') || '<p style="color:#059669">이슈 없음</p>'}</div>`
+      : ''
+  )
+  .join('')}
 
 <h2>전체 이슈 목록 (심각도순)</h2>
-<div class="card">${(data.issues||[]).map(i=>`<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span><span style="color:#6b7280;font-size:.75rem;margin-right:.5rem">${i.module||''}</span>${i.location?'<span class="loc">'+i.location+'</span> ':''}${i.message}<br><small>${i.fix||''}</small></div>`).join('')||'<p style="color:#059669">이슈 없음</p>'}</div>
+<div class="card">${(data.issues || []).map((i) => `<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span><span style="color:#6b7280;font-size:.75rem;margin-right:.5rem">${i.module || ''}</span>${i.location ? '<span class="loc">' + i.location + '</span> ' : ''}${i.message}<br><small>${i.fix || ''}</small></div>`).join('') || '<p style="color:#059669">이슈 없음</p>'}</div>
 
-<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:12px;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(data.analyzedAt||Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:12px;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(data.analyzedAt || Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
 </body></html>`;
 }
 
 function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(str).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  );
 }
 
 function scoreClass(score) {

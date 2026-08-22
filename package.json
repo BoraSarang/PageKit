@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "node e2e/run-smoke.cjs",
-    "test:e2e": "./scripts/e2e-chrome.sh"
+    "test:e2e": "./scripts/e2e-chrome.sh",
+    "format": "prettier --write \"extension/**/*.js\" \"e2e/*.cjs\" \"scripts/*.cjs\" \"scripts/*.js\"",
+    "format:check": "prettier --check \"extension/**/*.js\" \"e2e/*.cjs\""
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,7 @@
   },
   "homepage": "https://github.com/BoraSarang/PageKit#readme",
   "devDependencies": {
-    "playwright-core": "^1.62.1"
+    "playwright-core": "^1.62.1",
+    "prettier": "^3.9.6"
   }
 }

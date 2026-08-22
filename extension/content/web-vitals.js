@@ -19,20 +19,24 @@
       }
     });
     lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-  } catch (e) { DebugLogger.warn('CWV', `LCP observer 실패: ${e.message}`); }
+  } catch (e) {
+    DebugLogger.warn('CWV', `LCP observer 실패: ${e.message}`);
+  }
 
   // ---------- FCP ----------
   try {
     const fcpObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries();
-      const fcp = entries.find(e => e.name === 'first-contentful-paint');
+      const fcp = entries.find((e) => e.name === 'first-contentful-paint');
       if (fcp) {
         metrics.fcp = Math.round(fcp.startTime);
         DebugLogger.debug('CWV', `FCP: ${metrics.fcp}ms`);
       }
     });
     fcpObserver.observe({ type: 'paint', buffered: true });
-  } catch (e) { DebugLogger.warn('CWV', `FCP observer 실패: ${e.message}`); }
+  } catch (e) {
+    DebugLogger.warn('CWV', `FCP observer 실패: ${e.message}`);
+  }
 
   // ---------- CLS ----------
   try {
@@ -46,7 +50,9 @@
       metrics.cls = Number(clsSessionValue.toFixed(4));
     });
     clsObserver.observe({ type: 'layout-shift', buffered: true });
-  } catch (e) { DebugLogger.warn('CWV', `CLS observer 실패: ${e.message}`); }
+  } catch (e) {
+    DebugLogger.warn('CWV', `CLS observer 실패: ${e.message}`);
+  }
 
   // ---------- INP (Interaction to Next Paint) ----------
   // PerformanceEventTiming (Chrome 96+) 사용

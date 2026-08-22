@@ -5,7 +5,17 @@
   globalThis.__pkQualityLoaded = true;
 
   // quality-rules.js는 FRAME_SCRIPTS로 선행 주입되어 전역에서 사용 가능
-  const { DEFAULT_QUALITY_CONFIG, MODULE_META, SEVERITY, createIssue, calculateOverallScore, calculateCategoryScores, checkThresholds, serializeResult, generateHtmlReport } = globalThis.pkQualityRules || {};
+  const {
+    DEFAULT_QUALITY_CONFIG,
+    MODULE_META,
+    SEVERITY,
+    createIssue,
+    calculateOverallScore,
+    calculateCategoryScores,
+    checkThresholds,
+    serializeResult,
+    generateHtmlReport,
+  } = globalThis.pkQualityRules || {};
 
   // ---------- 설정 로드 ----------
   async function getConfig() {
@@ -22,7 +32,10 @@
 
   // ---------- 유틸 ----------
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const idleCallback = (fn) => ('requestIdleCallback' in window) ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 1);
+  const idleCallback = (fn) =>
+    'requestIdleCallback' in window
+      ? requestIdleCallback(fn, { timeout: 2000 })
+      : setTimeout(fn, 1);
 
   // ---------- 모듈: SEO 메타 ----------
   async function collectSEOMeta() {
@@ -34,46 +47,110 @@
     const title = document.title;
     meta.title = title;
     if (!title || title.trim().length === 0) {
-      issues.push(createIssue('seoMeta', SEVERITY.CRITICAL, 'head > title', '제목(title) 태그가 없습니다.', '페이지마다 고유하고 설명적인 title을 추가하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.CRITICAL,
+          'head > title',
+          '제목(title) 태그가 없습니다.',
+          '페이지마다 고유하고 설명적인 title을 추가하세요.'
+        )
+      );
     } else if (title.length > 60) {
-      issues.push(createIssue('seoMeta', SEVERITY.MINOR, 'head > title', `제목이 ${title.length}자로 깁니다 (권장 50~60자).`, '핵심 키워드를 앞쪽에 두고 60자 내외로 줄이세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MINOR,
+          'head > title',
+          `제목이 ${title.length}자로 깁니다 (권장 50~60자).`,
+          '핵심 키워드를 앞쪽에 두고 60자 내외로 줄이세요.'
+        )
+      );
     }
 
     // meta description
     const descEl = head.querySelector('meta[name="description"]');
     meta.description = descEl?.getAttribute('content') || '';
     if (!meta.description) {
-      issues.push(createIssue('seoMeta', SEVERITY.MAJOR, 'meta[name="description"]', '메타 설명(description)이 없습니다.', '150~160자 내외로 페이지 요약을 작성하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MAJOR,
+          'meta[name="description"]',
+          '메타 설명(description)이 없습니다.',
+          '150~160자 내외로 페이지 요약을 작성하세요.'
+        )
+      );
     } else if (meta.description.length > 160) {
-      issues.push(createIssue('seoMeta', SEVERITY.MINOR, 'meta[name="description"]', `메타 설명이 ${meta.description.length}자로 깁니다 (권장 150~160자).`, '핵심 내용을 160자 내외로 요약하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MINOR,
+          'meta[name="description"]',
+          `메타 설명이 ${meta.description.length}자로 깁니다 (권장 150~160자).`,
+          '핵심 내용을 160자 내외로 요약하세요.'
+        )
+      );
     }
 
     // canonical
     const canonicalEl = head.querySelector('link[rel="canonical"]');
     meta.canonical = canonicalEl?.getAttribute('href') || '';
     if (!meta.canonical) {
-      issues.push(createIssue('seoMeta', SEVERITY.MAJOR, 'link[rel="canonical"]', 'Canonical URL이 없습니다.', '중복 콘텐츠 방지를 위해 self-referencing canonical을 추가하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MAJOR,
+          'link[rel="canonical"]',
+          'Canonical URL이 없습니다.',
+          '중복 콘텐츠 방지를 위해 self-referencing canonical을 추가하세요.'
+        )
+      );
     }
 
     // robots
     const robotsEl = head.querySelector('meta[name="robots"]');
     meta.robots = robotsEl?.getAttribute('content') || '';
     if (meta.robots.toLowerCase().includes('noindex')) {
-      issues.push(createIssue('seoMeta', SEVERITY.CRITICAL, 'meta[name="robots"]', 'noindex가 설정되어 있습니다.', '의도적이지 않다면 noindex를 제거하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.CRITICAL,
+          'meta[name="robots"]',
+          'noindex가 설정되어 있습니다.',
+          '의도적이지 않다면 noindex를 제거하세요.'
+        )
+      );
     }
 
     // viewport
     const viewportEl = head.querySelector('meta[name="viewport"]');
     meta.viewport = viewportEl?.getAttribute('content') || '';
     if (!meta.viewport) {
-      issues.push(createIssue('seoMeta', SEVERITY.MAJOR, 'meta[name="viewport"]', 'viewport 메타 태그가 없습니다.', '모바일 친화적 viewport를 설정하세요: width=device-width, initial-scale=1'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MAJOR,
+          'meta[name="viewport"]',
+          'viewport 메타 태그가 없습니다.',
+          '모바일 친화적 viewport를 설정하세요: width=device-width, initial-scale=1'
+        )
+      );
     }
 
     // charset
     const charsetEl = head.querySelector('meta[charset]');
     meta.charset = charsetEl?.getAttribute('charset') || '';
     if (!meta.charset || meta.charset.toLowerCase() !== 'utf-8') {
-      issues.push(createIssue('seoMeta', SEVERITY.MINOR, 'meta[charset]', 'UTF-8 charset이 명시되지 않았습니다.', '<meta charset="UTF-8">를 head 최상단에 추가하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MINOR,
+          'meta[charset]',
+          'UTF-8 charset이 명시되지 않았습니다.',
+          '<meta charset="UTF-8">를 head 최상단에 추가하세요.'
+        )
+      );
     }
 
     // Open Graph
@@ -83,7 +160,15 @@
       const el = head.querySelector(`meta[property="${prop}"]`);
       meta.og[prop] = el?.getAttribute('content') || '';
       if (!meta.og[prop]) {
-        issues.push(createIssue('seoMeta', SEVERITY.MINOR, `meta[property="${prop}"]`, `Open Graph ${prop} 태그가 없습니다.`, `소셜 공유 최적화를 위해 og:${prop.split(':')[1]}를 추가하세요.`));
+        issues.push(
+          createIssue(
+            'seoMeta',
+            SEVERITY.MINOR,
+            `meta[property="${prop}"]`,
+            `Open Graph ${prop} 태그가 없습니다.`,
+            `소셜 공유 최적화를 위해 og:${prop.split(':')[1]}를 추가하세요.`
+          )
+        );
       }
     }
 
@@ -94,7 +179,15 @@
       const el = head.querySelector(`meta[name="${name}"]`);
       meta.twitter[name] = el?.getAttribute('content') || '';
       if (!meta.twitter[name]) {
-        issues.push(createIssue('seoMeta', SEVERITY.MINOR, `meta[name="${name}"]`, `Twitter Card ${name} 태그가 없습니다.`, 'Twitter 공유 최적화를 위해 추가하세요.'));
+        issues.push(
+          createIssue(
+            'seoMeta',
+            SEVERITY.MINOR,
+            `meta[name="${name}"]`,
+            `Twitter Card ${name} 태그가 없습니다.`,
+            'Twitter 공유 최적화를 위해 추가하세요.'
+          )
+        );
       }
     }
 
@@ -105,13 +198,29 @@
       href: el.getAttribute('href'),
     }));
     if (hreflangEls.length === 0) {
-      issues.push(createIssue('seoMeta', SEVERITY.INFO, 'link[rel="alternate"][hreflang]', 'hreflang 태그가 없습니다.', '다국어 사이트라면 hreflang을 추가하세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.INFO,
+          'link[rel="alternate"][hreflang]',
+          'hreflang 태그가 없습니다.',
+          '다국어 사이트라면 hreflang을 추가하세요.'
+        )
+      );
     }
 
     // meta refresh
     const refreshEl = head.querySelector('meta[http-equiv="refresh"]');
     if (refreshEl) {
-      issues.push(createIssue('seoMeta', SEVERITY.MAJOR, 'meta[http-equiv="refresh"]', '메타 리프레시가 사용되었습니다.', '301 리다이렉트나 자바스크립트 리다이렉트 대신 사용하지 마세요.'));
+      issues.push(
+        createIssue(
+          'seoMeta',
+          SEVERITY.MAJOR,
+          'meta[http-equiv="refresh"]',
+          '메타 리프레시가 사용되었습니다.',
+          '301 리다이렉트나 자바스크립트 리다이렉트 대신 사용하지 마세요.'
+        )
+      );
     }
 
     return { issues, meta };
@@ -132,17 +241,39 @@
       if (level === 1) h1Count++;
 
       if (lastLevel > 0 && level > lastLevel + 1) {
-        issues.push(createIssue('headings', SEVERITY.MAJOR, getSelector(el),
-          `헤딩 레벨이 ${lastLevel}에서 ${level}으로 건너뛰었습니다 (H${lastLevel} → H${level}).`,
-          '헤딩 레벨은 한 단계씩만 올라가도록 구성하세요 (H2 → H3 → H4...).'));
+        issues.push(
+          createIssue(
+            'headings',
+            SEVERITY.MAJOR,
+            getSelector(el),
+            `헤딩 레벨이 ${lastLevel}에서 ${level}으로 건너뛰었습니다 (H${lastLevel} → H${level}).`,
+            '헤딩 레벨은 한 단계씩만 올라가도록 구성하세요 (H2 → H3 → H4...).'
+          )
+        );
       }
       lastLevel = level;
     }
 
     if (h1Count === 0) {
-      issues.push(createIssue('headings', SEVERITY.CRITICAL, 'h1', 'H1 태그가 없습니다.', '페이지마다 하나 이상의 H1을 포함하세요.'));
+      issues.push(
+        createIssue(
+          'headings',
+          SEVERITY.CRITICAL,
+          'h1',
+          'H1 태그가 없습니다.',
+          '페이지마다 하나 이상의 H1을 포함하세요.'
+        )
+      );
     } else if (h1Count > 1) {
-      issues.push(createIssue('headings', SEVERITY.MAJOR, 'h1', `H1 태그가 ${h1Count}개 있습니다.`, '페이지당 H1은 하나만 사용하세요.'));
+      issues.push(
+        createIssue(
+          'headings',
+          SEVERITY.MAJOR,
+          'h1',
+          `H1 태그가 ${h1Count}개 있습니다.`,
+          '페이지당 H1은 하나만 사용하세요.'
+        )
+      );
     }
 
     // 헤딩 순서 검증
@@ -153,7 +284,15 @@
       prevLevel = h.level;
     }
     if (!inOrder) {
-      issues.push(createIssue('headings', SEVERITY.MAJOR, 'document', '헤딩 계층 순서가 올바르지 않습니다.', 'H1 → H2 → H3 순서로 논리적으로 구성하세요.'));
+      issues.push(
+        createIssue(
+          'headings',
+          SEVERITY.MAJOR,
+          'document',
+          '헤딩 계층 순서가 올바르지 않습니다.',
+          'H1 → H2 → H3 순서로 논리적으로 구성하세요.'
+        )
+      );
     }
 
     return { issues, headings, h1Count };
@@ -166,7 +305,15 @@
 
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     if (scripts.length === 0) {
-      issues.push(createIssue('structuredData', SEVERITY.MAJOR, 'script[type="application/ld+json"]', 'JSON-LD 구조화 데이터가 없습니다.', '페이지 성격에 맞는 Schema.org 타입(Product, Article, WebPage 등)을 JSON-LD로 추가하세요.'));
+      issues.push(
+        createIssue(
+          'structuredData',
+          SEVERITY.MAJOR,
+          'script[type="application/ld+json"]',
+          'JSON-LD 구조화 데이터가 없습니다.',
+          '페이지 성격에 맞는 Schema.org 타입(Product, Article, WebPage 등)을 JSON-LD로 추가하세요.'
+        )
+      );
       return { issues, structuredData: [] };
     }
 
@@ -177,26 +324,73 @@
 
         // 기본 검증
         if (!data['@context'] || !data['@context'].includes('schema.org')) {
-          issues.push(createIssue('structuredData', SEVERITY.MAJOR, 'script[type="application/ld+json"]', '@context에 schema.org가 없습니다.', '@context를 "https://schema.org"로 설정하세요.'));
+          issues.push(
+            createIssue(
+              'structuredData',
+              SEVERITY.MAJOR,
+              'script[type="application/ld+json"]',
+              '@context에 schema.org가 없습니다.',
+              '@context를 "https://schema.org"로 설정하세요.'
+            )
+          );
         }
         if (!data['@type']) {
-          issues.push(createIssue('structuredData', SEVERITY.MAJOR, 'script[type="application/ld+json"]', '@type이 누락되었습니다.', '페이지 성격에 맞는 @type(Product, Article, WebPage 등)을 지정하세요.'));
+          issues.push(
+            createIssue(
+              'structuredData',
+              SEVERITY.MAJOR,
+              'script[type="application/ld+json"]',
+              '@type이 누락되었습니다.',
+              '페이지 성격에 맞는 @type(Product, Article, WebPage 등)을 지정하세요.'
+            )
+          );
         }
 
         // 타입별 필수 필드 검증
         const type = data['@type'];
         if (type === 'Product' && !data.offers) {
-          issues.push(createIssue('structuredData', SEVERITY.MAJOR, 'Product', 'Product 타입에 offers가 없습니다.', '가격/재고 정보를 담은 offers를 포함하세요.'));
+          issues.push(
+            createIssue(
+              'structuredData',
+              SEVERITY.MAJOR,
+              'Product',
+              'Product 타입에 offers가 없습니다.',
+              '가격/재고 정보를 담은 offers를 포함하세요.'
+            )
+          );
         }
         if (type === 'Article' && !data.author) {
-          issues.push(createIssue('structuredData', SEVERITY.MINOR, 'Article', 'Article 타입에 author가 없습니다.', '작성자 정보를 추가하세요.'));
+          issues.push(
+            createIssue(
+              'structuredData',
+              SEVERITY.MINOR,
+              'Article',
+              'Article 타입에 author가 없습니다.',
+              '작성자 정보를 추가하세요.'
+            )
+          );
         }
         if (type === 'WebPage' && !data.name) {
-          issues.push(createIssue('structuredData', SEVERITY.MINOR, 'WebPage', 'WebPage 타입에 name이 없습니다.', '페이지 이름을 추가하세요.'));
+          issues.push(
+            createIssue(
+              'structuredData',
+              SEVERITY.MINOR,
+              'WebPage',
+              'WebPage 타입에 name이 없습니다.',
+              '페이지 이름을 추가하세요.'
+            )
+          );
         }
-
       } catch (e) {
-        issues.push(createIssue('structuredData', SEVERITY.CRITICAL, 'script[type="application/ld+json"]', `JSON 파싱 오류: ${e.message}`, 'JSON 문법을 수정하세요.'));
+        issues.push(
+          createIssue(
+            'structuredData',
+            SEVERITY.CRITICAL,
+            'script[type="application/ld+json"]',
+            `JSON 파싱 오류: ${e.message}`,
+            'JSON 문법을 수정하세요.'
+          )
+        );
       }
     }
 
@@ -222,16 +416,40 @@
       images.push(imgData);
 
       if (!alt) {
-        issues.push(createIssue('imageSEO', SEVERITY.MAJOR, getSelector(img), 'alt 텍스트가 없습니다.', '이미지 내용을 설명하는 alt 텍스트를 추가하세요.'));
+        issues.push(
+          createIssue(
+            'imageSEO',
+            SEVERITY.MAJOR,
+            getSelector(img),
+            'alt 텍스트가 없습니다.',
+            '이미지 내용을 설명하는 alt 텍스트를 추가하세요.'
+          )
+        );
       } else if (alt.length > 125) {
-        issues.push(createIssue('imageSEO', SEVERITY.MINOR, getSelector(img), `alt 텍스트가 ${alt.length}자로 깁니다 (권장 125자 이내).`, '간결하고 핵심적으로 작성하세요.'));
+        issues.push(
+          createIssue(
+            'imageSEO',
+            SEVERITY.MINOR,
+            getSelector(img),
+            `alt 텍스트가 ${alt.length}자로 깁니다 (권장 125자 이내).`,
+            '간결하고 핵심적으로 작성하세요.'
+          )
+        );
       }
 
       if (!loading || loading === 'auto') {
         // viewport 밖 이미지는 lazy 권장
         const rect = img.getBoundingClientRect();
         if (rect.top > window.innerHeight) {
-          issues.push(createIssue('imageSEO', SEVERITY.MINOR, getSelector(img), '화면 밖 이미지에 lazy-loading이 없습니다.', 'loading="lazy"를 추가하세요.'));
+          issues.push(
+            createIssue(
+              'imageSEO',
+              SEVERITY.MINOR,
+              getSelector(img),
+              '화면 밖 이미지에 lazy-loading이 없습니다.',
+              'loading="lazy"를 추가하세요.'
+            )
+          );
         }
       }
 
@@ -241,12 +459,28 @@
       const extMatch = lastSeg.match(/\.([a-z0-9]{2,5})$/i);
       const ext = extMatch ? extMatch[1].toLowerCase() : null;
       if (ext && !['webp', 'avif'].includes(ext)) {
-        issues.push(createIssue('imageSEO', SEVERITY.INFO, getSelector(img), `이미지 포맷이 ${ext.toUpperCase()}입니다.`, 'WebP 또는 AVIF 포맷으로 변환하면 용량 절감 가능.'));
+        issues.push(
+          createIssue(
+            'imageSEO',
+            SEVERITY.INFO,
+            getSelector(img),
+            `이미지 포맷이 ${ext.toUpperCase()}입니다.`,
+            'WebP 또는 AVIF 포맷으로 변환하면 용량 절감 가능.'
+          )
+        );
       }
 
       // srcset 확인
       if (!img.srcset && w > 800) {
-        issues.push(createIssue('imageSEO', SEVERITY.INFO, getSelector(img), '큰 이미지에 srcset이 없습니다.', '반응형 이미지를 위해 srcset을 제공하세요.'));
+        issues.push(
+          createIssue(
+            'imageSEO',
+            SEVERITY.INFO,
+            getSelector(img),
+            '큰 이미지에 srcset이 없습니다.',
+            '반응형 이미지를 위해 srcset을 제공하세요.'
+          )
+        );
       }
     }
 
@@ -272,23 +506,53 @@
 
       // 내부 링크에 nofollow가 있으면 경고
       if (isInternal && relVals.includes('nofollow')) {
-        issues.push(createIssue('linkSEO', SEVERITY.MINOR, getSelector(a), '내부 링크에 nofollow가 있습니다.', '내부 링크에는 nofollow를 사용하지 마세요.'));
+        issues.push(
+          createIssue(
+            'linkSEO',
+            SEVERITY.MINOR,
+            getSelector(a),
+            '내부 링크에 nofollow가 있습니다.',
+            '내부 링크에는 nofollow를 사용하지 마세요.'
+          )
+        );
       }
 
       // 외부 링크에 noopener/noreferrer 확인
       if (!isInternal && !relVals.includes('noopener')) {
-        issues.push(createIssue('linkSEO', SEVERITY.MINOR, getSelector(a), '외부 링크에 rel="noopener"가 없습니다.', '보안/성능을 위해 rel="noopener noreferrer"를 추가하세요.'));
+        issues.push(
+          createIssue(
+            'linkSEO',
+            SEVERITY.MINOR,
+            getSelector(a),
+            '외부 링크에 rel="noopener"가 없습니다.',
+            '보안/성능을 위해 rel="noopener noreferrer"를 추가하세요.'
+          )
+        );
       }
 
       // 앵커 텍스트 검사
       if (!text || text.length < 2) {
-        issues.push(createIssue('linkSEO', SEVERITY.MINOR, getSelector(a), '앵커 텍스트가 없거나 너무 짧습니다.', '링크 목적지를 설명하는 의미 있는 앵커 텍스트를 사용하세요.'));
+        issues.push(
+          createIssue(
+            'linkSEO',
+            SEVERITY.MINOR,
+            getSelector(a),
+            '앵커 텍스트가 없거나 너무 짧습니다.',
+            '링크 목적지를 설명하는 의미 있는 앵커 텍스트를 사용하세요.'
+          )
+        );
       }
     }
 
     // 리다이렉트 체인 감지는 백그라운드에서 HEAD 요청으로 수행 (여기서는 생략)
 
-    return { issues, links, totalLinks: links.length, internal: links.filter(l => l.internal).length, external: links.filter(l => !l.internal).length };
+    return {
+      issues,
+      links,
+      totalLinks: links.length,
+      internal: links.filter((l) => l.internal).length,
+      external: links.filter((l) => !l.internal).length,
+    };
   }
 
   // ---------- 모듈: 콘텐츠 품질 ----------
@@ -299,35 +563,119 @@
     const charCount = bodyText.length;
 
     // 가독성 (Flesch-Kincaid 간단 버전)
-    const sentences = bodyText.split(/[.!?。！？]/).filter(s => s.trim().length > 0).length;
+    const sentences = bodyText.split(/[.!?。！？]/).filter((s) => s.trim().length > 0).length;
     const words = wordCount;
     const avgWordsPerSentence = sentences > 0 ? words / sentences : 0;
-    const flesch = sentences > 0 ? 206.835 - 1.015 * avgWordsPerSentence - 84.6 * (words / sentences) : 0; // 간단화
+    const flesch =
+      sentences > 0 ? 206.835 - 1.015 * avgWordsPerSentence - 84.6 * (words / sentences) : 0; // 간단화
 
     // 키워드 밀도 (상위 5개 단어)
     const wordFreq = {};
-    const stopWords = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','must','this','that','these','those','i','you','he','she','it','we','they','me','him','her','us','them','my','your','his','her','its','our','their']);
+    const stopWords = new Set([
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'must',
+      'this',
+      'that',
+      'these',
+      'those',
+      'i',
+      'you',
+      'he',
+      'she',
+      'it',
+      'we',
+      'they',
+      'me',
+      'him',
+      'her',
+      'us',
+      'them',
+      'my',
+      'your',
+      'his',
+      'her',
+      'its',
+      'our',
+      'their',
+    ]);
     for (const w of bodyText.toLowerCase().match(/\b\w{2,}\b/g) || []) {
       if (!stopWords.has(w)) wordFreq[w] = (wordFreq[w] || 0) + 1;
     }
-    const topKeywords = Object.entries(wordFreq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([w,c])=>({word:w,count:c}));
+    const topKeywords = Object.entries(wordFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([w, c]) => ({ word: w, count: c }));
 
     // 얇은 콘텐츠 감지
     if (wordCount < 300) {
-      issues.push(createIssue('contentQuality', SEVERITY.MAJOR, 'body', `본문 단어 수가 ${wordCount}개로 적습니다 (권장 300자 이상).`, '충분한 깊이의 콘텐츠를 작성하세요.'));
+      issues.push(
+        createIssue(
+          'contentQuality',
+          SEVERITY.MAJOR,
+          'body',
+          `본문 단어 수가 ${wordCount}개로 적습니다 (권장 300자 이상).`,
+          '충분한 깊이의 콘텐츠를 작성하세요.'
+        )
+      );
     }
 
     // 키워드 스터핑 감지
-    for (const {word, count} of topKeywords) {
-      const density = (count / words * 100).toFixed(1);
+    for (const { word, count } of topKeywords) {
+      const density = ((count / words) * 100).toFixed(1);
       if (count > 10 && density > 3) {
-        issues.push(createIssue('contentQuality', SEVERITY.MINOR, 'body', `키워드 "${word}" 밀도가 ${density}%로 높습니다.`, '자연스러운 문맥에서 키워드를 사용하세요.'));
+        issues.push(
+          createIssue(
+            'contentQuality',
+            SEVERITY.MINOR,
+            'body',
+            `키워드 "${word}" 밀도가 ${density}%로 높습니다.`,
+            '자연스러운 문맥에서 키워드를 사용하세요.'
+          )
+        );
       }
     }
 
     return {
       issues,
-      stats: { wordCount, charCount, sentences, avgWordsPerSentence: Math.round(avgWordsPerSentence*10)/10, fleschScore: Math.round(flesch*10)/10 },
+      stats: {
+        wordCount,
+        charCount,
+        sentences,
+        avgWordsPerSentence: Math.round(avgWordsPerSentence * 10) / 10,
+        fleschScore: Math.round(flesch * 10) / 10,
+      },
       topKeywords,
     };
   }
@@ -340,12 +688,12 @@
     while (cur && cur !== document.body) {
       let sel = cur.tagName.toLowerCase();
       if (cur.className) {
-        const classes = cur.className.split(/\s+/).filter(c => c && !c.startsWith('pk-'));
+        const classes = cur.className.split(/\s+/).filter((c) => c && !c.startsWith('pk-'));
         if (classes.length) sel += '.' + classes[0];
       }
       const parent = cur.parentElement;
       if (parent) {
-        const siblings = [...parent.children].filter(c => c.tagName === cur.tagName);
+        const siblings = [...parent.children].filter((c) => c.tagName === cur.tagName);
         if (siblings.length > 1) {
           const idx = siblings.indexOf(cur) + 1;
           sel += `:nth-of-type(${idx})`;
@@ -380,7 +728,12 @@
       summary.byType[type] = (summary.byType[type] || 0) + size;
 
       // 압축 확인
-      if (r.encodedBodySize && r.decodedBodySize && r.encodedBodySize === r.decodedBodySize && r.encodedBodySize > 1024) {
+      if (
+        r.encodedBodySize &&
+        r.decodedBodySize &&
+        r.encodedBodySize === r.decodedBodySize &&
+        r.encodedBodySize > 1024
+      ) {
         summary.uncompressed.push(r.name);
       }
 
@@ -394,15 +747,25 @@
 
     // 상위 5개 느린 리소스
     summary.slowest = resources
-      .filter(r => r.duration > 100)
-      .sort((a,b) => b.duration - a.duration)
+      .filter((r) => r.duration > 100)
+      .sort((a, b) => b.duration - a.duration)
       .slice(0, 5)
-      .map(r => ({ url: r.name.slice(0,100), duration: Math.round(r.duration), size: r.transferSize }));
+      .map((r) => ({
+        url: r.name.slice(0, 100),
+        duration: Math.round(r.duration),
+        size: r.transferSize,
+      }));
 
     if (summary.uncompressed.length > 0) {
-      issues.push(createIssue('resourceTiming', SEVERITY.MAJOR, 'response headers',
-        `${summary.uncompressed.length}개 리소스가 압축되지 않았습니다 (gzip/br).`,
-        '서버에서 gzip 또는 Brotli 압축을 활성화하세요.'));
+      issues.push(
+        createIssue(
+          'resourceTiming',
+          SEVERITY.MAJOR,
+          'response headers',
+          `${summary.uncompressed.length}개 리소스가 압축되지 않았습니다 (gzip/br).`,
+          '서버에서 gzip 또는 Brotli 압축을 활성화하세요.'
+        )
+      );
     }
 
     return { issues, summary };
@@ -416,7 +779,14 @@
     if (document.readyState !== 'complete') {
       await new Promise((resolve) => {
         const t = setTimeout(resolve, 5000);
-        window.addEventListener('load', () => { clearTimeout(t); resolve(); }, { once: true });
+        window.addEventListener(
+          'load',
+          () => {
+            clearTimeout(t);
+            resolve();
+          },
+          { once: true }
+        );
       });
     }
     // 2) 네트워크 정지 감지 — 리소스 엔트리 수가 800ms간 불변이면 진행 (최대 4초)
@@ -426,8 +796,10 @@
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 200));
       const now = performance.getEntriesByType('resource').length;
-      if (now !== last) { last = now; stableSince = Date.now(); }
-      else if (Date.now() - stableSince >= 800) break;
+      if (now !== last) {
+        last = now;
+        stableSince = Date.now();
+      } else if (Date.now() - stableSince >= 800) break;
     }
   }
 
@@ -436,15 +808,26 @@
     const activeModules = { ...DEFAULT_QUALITY_CONFIG.modules, ...enabledModules };
 
     // 안정화 대기 게이트 — 실패해도 분석은 계속 (best-effort)
-    try { await waitForSettle(); } catch (e) { DebugLogger.warn('QUALITY', `안정화 대기 생략: ${e.message}`); }
+    try {
+      await waitForSettle();
+    } catch (e) {
+      DebugLogger.warn('QUALITY', `안정화 대기 생략: ${e.message}`);
+    }
 
     const results = { modules: {}, issues: [] };
     const startTime = performance.now();
 
     // 모듈 실행 순서 (의존성 고려)
     const moduleOrder = [
-      'seoMeta', 'headings', 'structuredData', 'imageSEO', 'linkSEO',
-      'contentQuality', 'coreWebVitals', 'resourceTiming', 'a11yScan'
+      'seoMeta',
+      'headings',
+      'structuredData',
+      'imageSEO',
+      'linkSEO',
+      'contentQuality',
+      'coreWebVitals',
+      'resourceTiming',
+      'a11yScan',
     ];
 
     for (const mod of moduleOrder) {
@@ -454,15 +837,33 @@
       try {
         let modResult = {};
         switch (mod) {
-          case 'seoMeta': modResult = await collectSEOMeta(); break;
-          case 'headings': modResult = await collectHeadings(); break;
-          case 'structuredData': modResult = await collectStructuredData(); break;
-          case 'imageSEO': modResult = await analyzeImageSEO(); break;
-          case 'linkSEO': modResult = await analyzeLinkSEO(); break;
-          case 'contentQuality': modResult = await analyzeContentQuality(); break;
-          case 'resourceTiming': modResult = await collectResourceTiming(); break;
-          case 'coreWebVitals': modResult = { cwv: await getCWV() }; break;
-          case 'a11yScan': modResult = await runA11yScan(); break;
+          case 'seoMeta':
+            modResult = await collectSEOMeta();
+            break;
+          case 'headings':
+            modResult = await collectHeadings();
+            break;
+          case 'structuredData':
+            modResult = await collectStructuredData();
+            break;
+          case 'imageSEO':
+            modResult = await analyzeImageSEO();
+            break;
+          case 'linkSEO':
+            modResult = await analyzeLinkSEO();
+            break;
+          case 'contentQuality':
+            modResult = await analyzeContentQuality();
+            break;
+          case 'resourceTiming':
+            modResult = await collectResourceTiming();
+            break;
+          case 'coreWebVitals':
+            modResult = { cwv: await getCWV() };
+            break;
+          case 'a11yScan':
+            modResult = await runA11yScan();
+            break;
         }
         results.modules[mod] = modResult;
         if (modResult.issues) results.issues.push(...modResult.issues);
@@ -480,7 +881,7 @@
       const threshIssues = checkThresholds(results.modules.coreWebVitals.cwv, th);
       if (threshIssues.length) {
         const cwvMod = results.modules.coreWebVitals;
-        cwvMod.issues = [ ...(cwvMod.issues || []), ...threshIssues ];
+        cwvMod.issues = [...(cwvMod.issues || []), ...threshIssues];
       }
     }
 
@@ -509,7 +910,16 @@
         if (!min || v == null || v >= min) continue;
         const m = results.modules[modKey];
         if (!m) continue;
-        m.issues = [...(m.issues || []), createIssue(modKey, SEVERITY.MINOR, '', `${label} 점수 ${v}점 — 설정한 최소 기준(${min}점) 미달`, '설정 > 페이지 품질 진단에서 기준을 조정하거나 관련 항목을 개선하세요.')];
+        m.issues = [
+          ...(m.issues || []),
+          createIssue(
+            modKey,
+            SEVERITY.MINOR,
+            '',
+            `${label} 점수 ${v}점 — 설정한 최소 기준(${min}점) 미달`,
+            '설정 > 페이지 품질 진단에서 기준을 조정하거나 관련 항목을 개선하세요.'
+          ),
+        ];
       }
     } catch (e) {
       DebugLogger.warn('QUALITY', `최소 점수 검사 생략: ${e.message}`);
@@ -542,10 +952,18 @@
     let penalty = 0;
     for (const issue of issues) {
       switch (issue.severity) {
-        case SEVERITY.CRITICAL: penalty += 25; break;
-        case SEVERITY.MAJOR: penalty += 15; break;
-        case SEVERITY.MINOR: penalty += 5; break;
-        case SEVERITY.INFO: penalty += 1; break;
+        case SEVERITY.CRITICAL:
+          penalty += 25;
+          break;
+        case SEVERITY.MAJOR:
+          penalty += 15;
+          break;
+        case SEVERITY.MINOR:
+          penalty += 5;
+          break;
+        case SEVERITY.INFO:
+          penalty += 1;
+          break;
       }
     }
     return Math.max(0, base - penalty);
@@ -560,7 +978,10 @@
       const tick = () => {
         const cwv = window.__pkCWV;
         // live 객체 참조 대신 복사본 반환 — 분석 도중 지표 변화가 결과를 오염시키지 않도록
-        if (cwv && cwv.lcp != null) { resolve({ ...cwv }); return; }
+        if (cwv && cwv.lcp != null) {
+          resolve({ ...cwv });
+          return;
+        }
         if (Date.now() - start >= 1000) {
           if (!cwv) DebugLogger.warn('QUALITY', '__pkCWV 미노출 — web-vitals 주입 확인 필요');
           resolve(cwv ? { ...cwv } : {});
@@ -576,7 +997,10 @@
   async function runA11yScan() {
     return new Promise((resolve) => {
       if (window.__pkA11y) {
-        window.__pkA11y().then(resolve).catch(() => resolve({ issues: [] }));
+        window
+          .__pkA11y()
+          .then(resolve)
+          .catch(() => resolve({ issues: [] }));
       } else {
         setTimeout(() => resolve({ issues: [], note: 'axe-core not ready' }), 100);
       }
@@ -597,7 +1021,7 @@
         seen.add(key);
         return true;
       })
-      .sort((a, b) => ((order[a?.severity] ?? 99) - (order[b?.severity] ?? 99)));
+      .sort((a, b) => (order[a?.severity] ?? 99) - (order[b?.severity] ?? 99));
     result.totalIssues = result.issues.length;
   }
 
@@ -606,16 +1030,18 @@
   async function collectFrameQuality(mainResult) {
     if (window !== window.top) return;
 
-    const frames = [...document.querySelectorAll('iframe[src]')].filter(f => f.src.startsWith('http'));
+    const frames = [...document.querySelectorAll('iframe[src]')].filter((f) =>
+      f.src.startsWith('http')
+    );
     if (!frames.length) return;
 
-    const requestId = `q-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+    const requestId = `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const received = new Map();
     const pending = new Set(frames);
 
     const onMsg = (e) => {
       if (e.data?.type !== 'pk.quality.frame.result' || e.data.requestId !== requestId) return;
-      const f = frames.find(fr => fr.contentWindow === e.source);
+      const f = frames.find((fr) => fr.contentWindow === e.source);
       if (!f || !pending.has(f)) return;
       received.set(e.source, e.data.quality);
       pending.delete(f);
@@ -625,8 +1051,11 @@
     const send = () => {
       for (const f of frames) {
         if (!pending.has(f)) continue;
-        try { f.contentWindow.postMessage({ type: 'pk.quality.frame.analyze', requestId }, '*'); }
-        catch { pending.delete(f); }
+        try {
+          f.contentWindow.postMessage({ type: 'pk.quality.frame.analyze', requestId }, '*');
+        } catch {
+          pending.delete(f);
+        }
       }
     };
 
@@ -648,18 +1077,24 @@
       }
       // 점수 재계산
       mainResult.scores.overall = calculateOverallScore(
-        Object.fromEntries(Object.entries(mainResult.modules).map(([k,v])=>[k,calculateModuleScore(k,v)])),
+        Object.fromEntries(
+          Object.entries(mainResult.modules).map(([k, v]) => [k, calculateModuleScore(k, v)])
+        ),
         DEFAULT_QUALITY_CONFIG.modules
       );
       mainResult.categoryScores = calculateCategoryScores(
-        Object.fromEntries(Object.entries(mainResult.modules).map(([k,v])=>[k,calculateModuleScore(k,v)])),
+        Object.fromEntries(
+          Object.entries(mainResult.modules).map(([k, v]) => [k, calculateModuleScore(k, v)])
+        ),
         DEFAULT_QUALITY_CONFIG.modules
       );
     };
 
     window.addEventListener('message', onMsg);
     send();
-    setTimeout(() => { if (pending.size) send(); }, 1000);
+    setTimeout(() => {
+      if (pending.size) send();
+    }, 1000);
     setTimeout(finish, 3000);
   }
 
@@ -676,26 +1111,33 @@
         .catch((e) => {
           // catch가 없으면 채널이 응답 없이 닫혀 'message channel closed' 오류로 발현됨 — 반드시 응답
           DebugLogger.error('QUALITY', `분석 파이프라인 오류: ${e.message}`);
-          try { sendResponse({ ok: false, error: `분석 중 오류가 발생했습니다: ${e.message}` }); } catch {}
+          try {
+            sendResponse({ ok: false, error: `분석 중 오류가 발생했습니다: ${e.message}` });
+          } catch {}
         });
       return true;
     }
 
     if (message?.type === 'pk.quality.getConfig') {
-      getConfig().then(config => sendResponse({ ok: true, data: config }));
+      getConfig().then((config) => sendResponse({ ok: true, data: config }));
       return true;
     }
 
     // iframe에서 분석 요청 수신
     if (message?.type === 'pk.quality.frame.analyze') {
       if (window === window.top) return false;
-      runQualityAnalysis(message.payload?.modules).then(result => {
-        window.parent.postMessage({
-          type: 'pk.quality.frame.result',
-          requestId: message.requestId,
-          quality: result,
-        }, '*');
-      }).catch(() => {}); // 부모 쪽 3초 타임아웃이 처리 — 무응답 rejection만 방지
+      runQualityAnalysis(message.payload?.modules)
+        .then((result) => {
+          window.parent.postMessage(
+            {
+              type: 'pk.quality.frame.result',
+              requestId: message.requestId,
+              quality: result,
+            },
+            '*'
+          );
+        })
+        .catch(() => {}); // 부모 쪽 3초 타임아웃이 처리 — 무응답 rejection만 방지
       return true;
     }
 

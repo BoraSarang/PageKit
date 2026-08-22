@@ -22,15 +22,16 @@ function assert(cond, msg) {
 // → Whale(Chromium 계열)을 '완전 격리 임시 프로필'로 기동한다 (실사용 .whale-profile·프로세스 무접촉).
 const EXECUTABLE = process.env.E2E_EXECUTABLE || '/Applications/Whale.app/Contents/MacOS/Whale';
 
-const LAUNCH_MODES = process.env.E2E_HEADLESS === '0'
-  ? [
-      { name: 'headed', extraArgs: [] },
-      { name: 'new-headless', extraArgs: ['--headless=new'] },
-    ]
-  : [
-      { name: 'new-headless(무창 확장 지원)', extraArgs: ['--headless=new'] },
-      { name: 'headed', extraArgs: [] },
-    ];
+const LAUNCH_MODES =
+  process.env.E2E_HEADLESS === '0'
+    ? [
+        { name: 'headed', extraArgs: [] },
+        { name: 'new-headless', extraArgs: ['--headless=new'] },
+      ]
+    : [
+        { name: 'new-headless(무창 확장 지원)', extraArgs: ['--headless=new'] },
+        { name: 'headed', extraArgs: [] },
+      ];
 
 async function launchWithExtension(mode) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pagekit-e2e-'));
@@ -73,7 +74,8 @@ async function waitForServiceWorker(context, ms = 10000) {
     await context.close().catch(() => {});
     context = null;
   }
-  if (!context || !sw) throw new Error('❌ 어떤 실행 모드에서도 확장 서비스 워커가 기동하지 않았습니다');
+  if (!context || !sw)
+    throw new Error('❌ 어떤 실행 모드에서도 확장 서비스 워커가 기동하지 않았습니다');
 
   try {
     const extId = new URL(sw.url()).host;
@@ -87,7 +89,7 @@ async function waitForServiceWorker(context, ms = 10000) {
     assert(await popup.isVisible('#pk-panel-media'), '팝업: [사이드 패널에서 분석] 버튼');
     assert(await popup.isVisible('#pk-panel-quality'), '팝업: [사이드 패널에서 품질 진단] 버튼');
     assert(!(await popup.isVisible('#pk-summary')), '팝업: 이전 자동요약 섹션 제거 확인');
-    const ver = (await popup.textContent('#pk-version') || '').trim();
+    const ver = ((await popup.textContent('#pk-version')) || '').trim();
     assert(/^v\d+\.\d+\.\d+$/.test(ver), `팝업 버전 실시간 표시 (${ver})`);
 
     // 2) 품질 진단 단독 패널
@@ -106,7 +108,10 @@ async function waitForServiceWorker(context, ms = 10000) {
     await op.goto(`${base}/options/options.html`, { waitUntil: 'domcontentloaded' });
     await op.waitForSelector('.pk-fieldset legend', { timeout: 5000 });
     const legends = await op.locator('.pk-fieldset legend').allTextContents();
-    assert(legends.some((t) => t.includes('분석 모듈')), '옵션: [분석 모듈] fieldset 렌더');
+    assert(
+      legends.some((t) => t.includes('분석 모듈')),
+      '옵션: [분석 모듈] fieldset 렌더'
+    );
     assert(await op.isChecked('#pk-quality-enabled'), '옵션: 품질진단 기본 켬');
 
     console.log('\n🎉 E2E 스모크 전체 통과');

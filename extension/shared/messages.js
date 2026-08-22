@@ -28,14 +28,14 @@ export const MSG = {
   QUALITY_EXPORT: 'pk.quality.export',
   QUALITY_FRAME_ANALYZE: 'pk.quality.frame.analyze',
   QUALITY_FRAME_RESULT: 'pk.quality.frame.result',
-} ;
+};
 
-export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup'] ;
+export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup'];
 
-export const MSG_OK = { ok: true } ;
+export const MSG_OK = { ok: true };
 export function msgOk(data) {
-  return data === undefined ? { ok: true } : { ok: true, data } ;
+  return data === undefined ? { ok: true } : { ok: true, data };
 }
 export function msgErr(code, message) {
-  return { ok: false, error: { code, message } } ;
+  return { ok: false, error: { code, message } };
 }

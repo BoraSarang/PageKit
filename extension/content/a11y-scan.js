@@ -28,7 +28,7 @@
 
     // 1) 이미지 alt 텍스트
     for (const img of document.images) {
-      if (!img.alt && !img.hasAttribute('role') || img.getAttribute('role') === 'presentation') {
+      if ((!img.alt && !img.hasAttribute('role')) || img.getAttribute('role') === 'presentation') {
         continue;
       }
       if (!img.alt) {
@@ -103,7 +103,9 @@
     }
 
     // 6) 랜드마크
-    const landmarks = document.querySelectorAll('[role="banner"], [role="navigation"], [role="main"], [role="contentinfo"], [role="search"], [role="complementary"], header, nav, main, footer, aside, search');
+    const landmarks = document.querySelectorAll(
+      '[role="banner"], [role="navigation"], [role="main"], [role="contentinfo"], [role="search"], [role="complementary"], header, nav, main, footer, aside, search'
+    );
     if (landmarks.length === 0) {
       issues.push({
         id: 'landmark-one-main',
@@ -115,7 +117,7 @@
     }
 
     // axe 포맷으로 변환
-    const violations = issues.map(issue => ({
+    const violations = issues.map((issue) => ({
       id: issue.id,
       impact: issue.impact,
       description: issue.message,
@@ -133,23 +135,26 @@
       try {
         // axe-core 실행 (전체 페이지)
         const results = await axe.run(document, {
-          runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] },
+          runOnly: {
+            type: 'tag',
+            values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'],
+          },
           resultTypes: ['violations', 'passes', 'incomplete', 'inapplicable'],
         });
         return {
-          violations: results.violations.map(v => ({
+          violations: results.violations.map((v) => ({
             id: v.id,
             impact: v.impact,
             description: v.description,
             help: v.help,
             helpUrl: v.helpUrl,
-            nodes: v.nodes.map(n => ({
+            nodes: v.nodes.map((n) => ({
               target: n.target,
               html: n.html?.slice(0, 200),
               failureSummary: n.failureSummary,
             })),
           })),
-          passes: results.passes.map(p => ({ id: p.id, impact: p.impact })),
+          passes: results.passes.map((p) => ({ id: p.id, impact: p.impact })),
           incomplete: results.incomplete,
           inapplicable: results.inapplicable,
           timestamp: Date.now(),
@@ -172,12 +177,12 @@
     while (cur && cur !== document.body) {
       let sel = cur.tagName.toLowerCase();
       if (cur.className) {
-        const classes = cur.className.split(/\s+/).filter(c => c && !c.startsWith('pk-'));
+        const classes = cur.className.split(/\s+/).filter((c) => c && !c.startsWith('pk-'));
         if (classes.length) sel += '.' + classes[0];
       }
       const parent = cur.parentElement;
       if (parent) {
-        const siblings = [...parent.children].filter(c => c.tagName === cur.tagName);
+        const siblings = [...parent.children].filter((c) => c.tagName === cur.tagName);
         if (siblings.length > 1) {
           const idx = siblings.indexOf(cur) + 1;
           sel += `:nth-of-type(${siblings.indexOf(cur) + 1})`;

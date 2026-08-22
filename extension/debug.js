@@ -11,19 +11,23 @@
 // AGENTS.md 19장 DebugPanel 표준 — 전용 디버그 창(chrome.windows.create) 대응.
 
 const DebugLogger = (() => {
-  "use strict";
-  const ENABLE_KEY = "debugEnabled";
-  const LOG_KEY = "debugLog";
+  'use strict';
+  const ENABLE_KEY = 'debugEnabled';
+  const LOG_KEY = 'debugLog';
   const MAX_LOG = 2000;
   const FLUSH_MS = 300;
 
   const isContent =
-    typeof location !== "undefined" &&
-    /^https?:/.test(location.protocol || "") &&
-    typeof chrome !== "undefined" &&
+    typeof location !== 'undefined' &&
+    /^https?:/.test(location.protocol || '') &&
+    typeof chrome !== 'undefined' &&
     chrome.runtime &&
     chrome.runtime.id;
-  const scope = isContent ? "content" : typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id ? "ext" : "page";
+  const scope = isContent
+    ? 'content'
+    : typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id
+      ? 'ext'
+      : 'page';
 
   // 기본 활성화 — 디버그 패널의 목적(모든 기능 동작 추적)을 위해 저장값이 없으면 true
   let enabled = true;
@@ -47,14 +51,14 @@ const DebugLogger = (() => {
   function safeString(v) {
     try {
       if (v instanceof Error) return `${v.name}: ${v.message}`;
-      if (typeof v === "object" && v !== null) return JSON.stringify(v);
+      if (typeof v === 'object' && v !== null) return JSON.stringify(v);
       return String(v);
     } catch {
-      if (typeof v === "object" && v !== null) {
+      if (typeof v === 'object' && v !== null) {
         try {
           return JSON.stringify(v);
         } catch {
-          return "[unserializable]";
+          return '[unserializable]';
         }
       }
       return String(v);
@@ -71,7 +75,7 @@ const DebugLogger = (() => {
 
   function sendDelegated(entry) {
     try {
-      chrome.runtime.sendMessage({ type: "DEBUG_LOG", entry });
+      chrome.runtime.sendMessage({ type: 'DEBUG_LOG', entry });
     } catch {
       /* 컨텍스트 소멸 등 무해 */
     }
@@ -88,7 +92,7 @@ const DebugLogger = (() => {
 
   function enqueue(level, args, consoleFn) {
     const ts = Date.now();
-    const text = args.map((a) => (typeof a === "string" ? a : safeString(a))).join(" ");
+    const text = args.map((a) => (typeof a === 'string' ? a : safeString(a))).join(' ');
     const entry = { ts, level, scope, text };
     if (isContent) Object.assign(entry, hashUrlTag());
 
@@ -117,10 +121,13 @@ const DebugLogger = (() => {
 
   function debugLine(e) {
     const d = new Date(e.ts);
-    const p = (n) => String(n).padStart(2, "0");
-    const t = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, "0")}`;
-    const scopeMark = e.scope === "content" ? `[TAB${e.tabId != null ? " " + e.tabId : ""}]` : `[${(e.scope || "ext").toUpperCase()}]`;
-    const urlMark = e.url ? ` (${e.url})` : "";
+    const p = (n) => String(n).padStart(2, '0');
+    const t = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+    const scopeMark =
+      e.scope === 'content'
+        ? `[TAB${e.tabId != null ? ' ' + e.tabId : ''}]`
+        : `[${(e.scope || 'ext').toUpperCase()}]`;
+    const urlMark = e.url ? ` (${e.url})` : '';
     return `[${t}] [${e.level}] ${scopeMark}${urlMark} ${e.text}`;
   }
 
@@ -154,25 +161,25 @@ const DebugLogger = (() => {
       return enabled;
     },
     debug(...a) {
-      enqueue("DEBUG", a, console.log);
+      enqueue('DEBUG', a, console.log);
     },
     info(...a) {
-      enqueue("INFO", a, console.log);
+      enqueue('INFO', a, console.log);
     },
     warn(...a) {
-      enqueue("WARN", a, console.warn);
+      enqueue('WARN', a, console.warn);
     },
     error(...a) {
-      enqueue("ERROR", a, console.error);
+      enqueue('ERROR', a, console.error);
     },
     perf(label, ms) {
-      enqueue("PERF", [`${label} ${ms.toFixed(1)}ms`], console.log);
+      enqueue('PERF', [`${label} ${ms.toFixed(1)}ms`], console.log);
     },
     cache(label, ms) {
-      enqueue("CACHE", [`${label} ${ms.toFixed(1)}ms`], console.log);
+      enqueue('CACHE', [`${label} ${ms.toFixed(1)}ms`], console.log);
     },
     feature(...a) {
-      enqueue("FEATURE", a, console.log);
+      enqueue('FEATURE', a, console.log);
     },
     recent,
     list(n = 2000) {
@@ -199,4 +206,4 @@ const DebugLogger = (() => {
 
 // ES module(서비스 워커)과 일반 스크립트(content/UI) 모두에서 사용 가능하게 전역 노출.
 // BG SW는 debug-module.js가 이 파일을 side-effect import 후 re-export한다.
-if (typeof globalThis !== "undefined") globalThis.DebugLogger = DebugLogger;
+if (typeof globalThis !== 'undefined') globalThis.DebugLogger = DebugLogger;

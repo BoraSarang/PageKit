@@ -29,13 +29,19 @@ ws.on('message', (data) => {
     send('DOM.setFileInputFiles', {
       files: [extDir],
       backendNodeId: msg.params.backendNodeId,
-    }).then(() => {
-      console.log('SET_FILES_OK');
-      setTimeout(() => { ws.close(); process.exit(0); }, 1500);
-    }).catch((e) => {
-      console.log('SET_FILES_ERR:', e.message);
-      ws.close(); process.exit(1);
-    });
+    })
+      .then(() => {
+        console.log('SET_FILES_OK');
+        setTimeout(() => {
+          ws.close();
+          process.exit(0);
+        }, 1500);
+      })
+      .catch((e) => {
+        console.log('SET_FILES_ERR:', e.message);
+        ws.close();
+        process.exit(1);
+      });
   }
 });
 
@@ -66,9 +72,16 @@ ws.on('open', async () => {
     console.log('CLICK:', JSON.stringify(r.result.value));
   } catch (e) {
     console.log('ERR:', e.message);
-    ws.close(); process.exit(1);
+    ws.close();
+    process.exit(1);
   }
 });
 
-ws.on('error', (e) => { console.log('WS ERROR:', e.message); process.exit(1); });
-setTimeout(() => { console.log('TIMEOUT'); process.exit(1); }, 20000);
+ws.on('error', (e) => {
+  console.log('WS ERROR:', e.message);
+  process.exit(1);
+});
+setTimeout(() => {
+  console.log('TIMEOUT');
+  process.exit(1);
+}, 20000);

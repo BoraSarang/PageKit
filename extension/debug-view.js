@@ -9,66 +9,82 @@ let paused = false;
 
 function esc(s) {
   return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function levelClass(level) {
   return (
-    { ERROR: "d-err", WARN: "d-warn", PERF: "d-perf", CACHE: "d-cache", FEATURE: "d-feature", DEBUG: "d-debug" }[level] || ""
+    {
+      ERROR: 'd-err',
+      WARN: 'd-warn',
+      PERF: 'd-perf',
+      CACHE: 'd-cache',
+      FEATURE: 'd-feature',
+      DEBUG: 'd-debug',
+    }[level] || ''
   );
 }
 
 function entryHtml(e) {
-  const t = new Date(e.ts).toISOString().replace("T", " ").slice(0, 23);
+  const t = new Date(e.ts).toISOString().replace('T', ' ').slice(0, 23);
   const cls = levelClass(e.level);
   const scopeMark =
-    e.scope === "content" ? `[TAB${e.tabId != null ? " " + e.tabId : ""}]` : `[${(e.scope || "ext").toUpperCase()}]`;
-  let meta = "";
+    e.scope === 'content'
+      ? `[TAB${e.tabId != null ? ' ' + e.tabId : ''}]`
+      : `[${(e.scope || 'ext').toUpperCase()}]`;
+  let meta = '';
   if (e.tabId != null || e.url) {
     const parts = [];
     if (e.tabId != null) parts.push(`tab#${e.tabId}`);
     if (e.url) parts.push(e.url);
-    meta = `<span class="d-meta">(${esc(parts.join(" · "))})</span>`;
+    meta = `<span class="d-meta">(${esc(parts.join(' · '))})</span>`;
   }
   const body = cls ? `<span class="${cls}">${esc(e.text)}</span>` : esc(e.text);
   return `<span class="d-meta">${t}</span> [${e.level}] ${scopeMark} ${body} ${meta}`;
 }
 
 function rebuildTabs() {
-  const sel = $("fTab");
+  const sel = $('fTab');
   const cur = sel.value;
   const tabSet = new Set();
   for (const e of logs) if (e.tabId != null) tabSet.add(e.tabId);
   const ids = [...tabSet].sort((a, b) => a - b);
-  sel.innerHTML = '<option value="">전체</option>' + ids.map((id) => `<option value="${id}">탭 #${id}</option>`).join("");
+  sel.innerHTML =
+    '<option value="">전체</option>' +
+    ids.map((id) => `<option value="${id}">탭 #${id}</option>`).join('');
   if (ids.includes(Number(cur))) sel.value = String(cur);
 }
 
 function filtered() {
-  const lv = $("fLevel").value;
-  const tab = $("fTab").value;
-  const q = $("fText").value.trim().toLowerCase();
+  const lv = $('fLevel').value;
+  const tab = $('fTab').value;
+  const q = $('fText').value.trim().toLowerCase();
   return logs.filter((e) => {
     if (lv && e.level !== lv) return false;
     if (tab && String(e.tabId) !== tab) return false;
-    if (q && !(e.text || "").toLowerCase().includes(q) && !((e.url || "") + "").toLowerCase().includes(q)) return false;
+    if (
+      q &&
+      !(e.text || '').toLowerCase().includes(q) &&
+      !((e.url || '') + '').toLowerCase().includes(q)
+    )
+      return false;
     return true;
   });
 }
 
 function render() {
   const rows = filtered();
-  const el = $("log");
+  const el = $('log');
   if (!rows.length) {
-    el.textContent = "(로그 없음 — 페이지를 분석하거나 기능을 사용하면 여기에 쌓입니다)";
-    $("count").textContent = "0";
+    el.textContent = '(로그 없음 — 페이지를 분석하거나 기능을 사용하면 여기에 쌓입니다)';
+    $('count').textContent = '0';
     return;
   }
-  el.innerHTML = rows.map(entryHtml).join("\n");
-  $("count").textContent = `${rows.length} / ${logs.length}건`;
+  el.innerHTML = rows.map(entryHtml).join('\n');
+  $('count').textContent = `${rows.length} / ${logs.length}건`;
   el.scrollTop = el.scrollHeight;
 }
 
@@ -84,13 +100,13 @@ async function refresh() {
 }
 
 async function copyAll() {
-  const text = logs.map((e) => DebugLogger.format(e)).join("\n");
+  const text = logs.map((e) => DebugLogger.format(e)).join('\n');
   try {
-    await navigator.clipboard.writeText(text || "(로그 없음)");
-    $("copyBtn").textContent = "복사됨";
-    setTimeout(() => ($("copyBtn").textContent = "전체 복사"), 1500);
+    await navigator.clipboard.writeText(text || '(로그 없음)');
+    $('copyBtn').textContent = '복사됨';
+    setTimeout(() => ($('copyBtn').textContent = '전체 복사'), 1500);
   } catch (e) {
-    DebugLogger.warn("로그 복사 실패", e);
+    DebugLogger.warn('로그 복사 실패', e);
   }
 }
 
@@ -100,30 +116,30 @@ function clearAll() {
   refresh();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   // 디버그 창을 열면 로그 수집 자동 활성화 (상태 배너 표시)
-  const statusBar = $("statusBar");
-  const enableBtn = $("enableBtn");
+  const statusBar = $('statusBar');
+  const enableBtn = $('enableBtn');
   function refreshStatus() {
     const on = DebugLogger.isEnabled();
     statusBar.hidden = on;
-    enableBtn.textContent = on ? "" : "로그 수집 켜기";
+    enableBtn.textContent = on ? '' : '로그 수집 켜기';
   }
   DebugLogger.setEnabled(true);
-  enableBtn.addEventListener("click", () => {
+  enableBtn.addEventListener('click', () => {
     DebugLogger.setEnabled(true);
     refreshStatus();
   });
   refreshStatus();
-  ["fLevel", "fTab"].forEach((id) => $(id).addEventListener("change", render));
-  $("fText").addEventListener("input", render);
-  $("pauseBtn").addEventListener("click", () => {
+  ['fLevel', 'fTab'].forEach((id) => $(id).addEventListener('change', render));
+  $('fText').addEventListener('input', render);
+  $('pauseBtn').addEventListener('click', () => {
     paused = !paused;
-    $("pauseBtn").textContent = paused ? "재개" : "일시정지";
+    $('pauseBtn').textContent = paused ? '재개' : '일시정지';
     if (!paused) refresh();
   });
-  $("copyBtn").addEventListener("click", copyAll);
-  $("clearBtn").addEventListener("click", clearAll);
+  $('copyBtn').addEventListener('click', copyAll);
+  $('clearBtn').addEventListener('click', clearAll);
   refresh();
   setInterval(refresh, 2000);
 });
