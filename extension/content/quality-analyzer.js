@@ -235,8 +235,11 @@
         }
       }
 
-      // WebP/AVIF 포맷 권장
-      const ext = new URL(url).pathname.split('.').pop()?.toLowerCase();
+      // WebP/AVIF 포맷 권장 — 실제 확장자 패턴(마지막 세그먼트 끝 2~5자 영숫자)일 때만 검사.
+      // 확장자 없는 경로(예: 구글 프록시 ...=S64-C-MO)는 경로 전체가 '확장자'로 잡히는 오탐 방지
+      const lastSeg = new URL(url).pathname.split('/').pop() || '';
+      const extMatch = lastSeg.match(/\.([a-z0-9]{2,5})$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : null;
       if (ext && !['webp', 'avif'].includes(ext)) {
         issues.push(createIssue('imageSEO', SEVERITY.INFO, getSelector(img), `이미지 포맷이 ${ext.toUpperCase()}입니다.`, 'WebP 또는 AVIF 포맷으로 변환하면 용량 절감 가능.'));
       }

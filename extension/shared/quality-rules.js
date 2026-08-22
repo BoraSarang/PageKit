@@ -3,7 +3,7 @@
 // 모듈별 기본 설정 (옵션 페이지에서 덮어씀)
 const DEFAULT_QUALITY_CONFIG = {
   enabled: true,
-  autoRun: false,
+  autoRun: true,
   modules: {
     seoMeta: true,
     headings: true,

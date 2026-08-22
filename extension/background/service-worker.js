@@ -7,7 +7,6 @@ import { MSG, msgOk, msgErr } from '../shared/messages.js' ;
 import * as storage from './storage.js' ;
 import { initDownloader, ensureReferer } from './downloader.js' ;
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js' ;
-import { initQualityRunner } from './quality-runner.js' ;
 
 // HTML 리포트 생성 (내보내기용)
 function generateHtmlReport(data) {
@@ -360,7 +359,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       (async () => {
         const { qualityAnalysis } = await chrome.storage.local.get('qualityAnalysis') ;
         const DEFAULT = {
-          enabled: true, autoRun: false,
+          enabled: true, autoRun: true,
           modules: { seoMeta: true, headings: true, structuredData: true, imageSEO: true, linkSEO: true, contentQuality: true, coreWebVitals: true, resourceTiming: true, a11yScan: true },
           thresholds: { lcp: 2500, inp: 200, cls: 0.1, a11yScore: 90, seoScore: 80 },
           axeCore: { enabled: true }, exportFormat: 'json',
