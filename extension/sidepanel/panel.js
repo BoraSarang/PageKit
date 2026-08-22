@@ -3,15 +3,6 @@
 import { MSG } from '../shared/messages.js';
 import { fetchStreamText, parseM3U8 } from '../shared/m3u8.js';
 
-const $ = (id) => document.getElementById(id);
-
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 // 앞 줄임 주소 표시: 파일명(쿼리 제외) 끝부분만 보존 — "앞부분…파일명끝" 양끝 표시
 function shortenUrl(s, max = 38) {

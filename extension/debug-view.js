@@ -1,19 +1,12 @@
-// debug-view.js — PageKit 디버그 창 로직 (v0.1, Shop WiseBar 참고)
+if (!globalThis.pkDom) throw new Error('pkDom 미로드 — dom-utils.js 먼저 포함 필요');
+const { $, escapeHtml: esc } = globalThis.pkDom;
+
+// debug-view.js — 디버그 뷰어 UI (classic; 공용 유틸은 pkDom) — PageKit 디버그 창 로직 (v0.1, Shop WiseBar 참고)
 // chrome.windows.create로 연 전용 창 페이지 — 2초 폴링으로 storage 로그를 읽어 표시.
 // 필터(레벨/탭/검색) + 전체 복사 + 지우기. 닫기 전까지 계속 누적 갱신.
 
-const $ = (id) => document.getElementById(id);
-
 let logs = [];
 let paused = false;
-
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function levelClass(level) {
   return (

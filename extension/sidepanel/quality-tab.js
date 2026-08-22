@@ -4,10 +4,11 @@
 
 import { MSG } from '../shared/messages.js';
 import '../shared/quality-rules.js'; // 리포트 단일 구현(globalThis.pkQualityRules)
+import '../shared/dom-utils.js';
+
+const { $, escapeHtml } = globalThis.pkDom;
 
 const STANDALONE = new URLSearchParams(location.search).has('auto');
-
-const $ = (id) => document.getElementById(id);
 
 const MODULES = [
   { key: 'seoMeta', label: '메타 태그', cat: 'SEO' },
@@ -335,13 +336,6 @@ function exportResult(format) {
   chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false });
 }
 
-
-function escapeHtml(str) {
-  return String(str).replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
-  );
-}
 
 function scoreClass(score) {
   if (score == null) return 'score-poor';
