@@ -89,6 +89,15 @@ async function maybeInjectUnlock(tabId, tabUrl) {
 }
 
 // 주입 여부는 ping으로 실시간 검증 (세션 키는 페이지 리로드 후 스크립트가 사라져도 남아 있어 부정확)
+// 크롬 원문 영어 오류 → 사용자용 한국어 메시지 (내부 페이지·권한 계열)
+function friendlyScriptError(e) {
+  const m = String(e?.message || e || '') ;
+  if (/chrome-extension|different extension|Cannot access contents|cannot be scripted|permission|host/i.test(m)) {
+    return '이 페이지는 분석할 수 없습니다. 일반 웹페이지(http/https)에서 실행해 주세요.' ;
+  }
+  return m || '알 수 없는 오류로 분석에 실패했습니다.' ;
+}
+
 async function ensureInjected(tabId, force = false) {
   if (!force) {
     try {
@@ -365,6 +374,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const tabId = message.payload?.tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ;
         if (!tabId) { sendResponse({ ok: false, error: '탭 없음' }) ; return ; }
         try {
+          // 브라우저 내부 페이지·타 확장 페이지는 분석 대상이 아님 — 주입 전에 차단해 한국어 안내만 반환
+          const tab = await chrome.tabs.get(tabId).catch(() => null) ;
+          if (!tab?.url || !/^https?:/i.test(tab.url)) {
+            sendResponse({ ok: false, error: '이 페이지는 분석할 수 없습니다. 일반 웹페이지(http/https)에서 실행해 주세요.', code: 'E-CHR-PERM-1002' }) ;
+            return ;
+          }
           // 품질 분석용 스크립트 + axe-core를 격리 월드에 주입 (멱등 — 스크립트별 가드 플래그 존재)
           await chrome.scripting.executeScript({
             target: { tabId },
@@ -374,7 +389,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (!response?.ok) throw new Error(response?.error || '분석 실행 실패') ;
           sendResponse(response) ;
         } catch (e) {
-          sendResponse({ ok: false, error: e.message }) ;
+          BGLogger.warn('QUALITY', `분석 실패 tab=${tabId}: ${e.message}`, { code: 'E-CHR-PERM-1002' }) ;
+          sendResponse({ ok: false, error: friendlyScriptError(e), code: 'E-CHR-PERM-1002' }) ;
         }
       })() ;
       return true ;

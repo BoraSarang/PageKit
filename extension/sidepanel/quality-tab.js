@@ -29,7 +29,7 @@ function init() {
   loadSavedModules();
   if (STANDALONE) {
     DebugLogger.feature('QUALITY', '품질 진단 단독 패널 모드 진입 — 즉시 분석');
-    runAnalysis();
+    runAnalysis({ manual: true });
     bindTabTracking();
   } else {
     checkAutoRun();
@@ -63,7 +63,7 @@ function renderModuleChecks() {
 }
 
 function bindEvents() {
-  $('btn-analyze').addEventListener('click', runAnalysis);
+  $('btn-analyze').addEventListener('click', () => runAnalysis({ manual: true }));
   $('btn-check-all').addEventListener('click', () => setAllChecks(true));
   $('btn-uncheck-all').addEventListener('click', () => setAllChecks(false));
   $('btn-export-json').addEventListener('click', () => exportResult('json'));
@@ -112,7 +112,7 @@ function checkAutoRun() {
   });
 }
 
-async function runAnalysis() {
+async function runAnalysis({ manual = false } = {}) {
   if (analyzing) return;
   analyzing = true;
   updateUIState(true);
@@ -128,8 +128,9 @@ async function runAnalysis() {
     currentResult = response.data;
     renderResult(currentResult);
   } catch (e) {
-    console.error('분석 실패:', e);
-    alert('분석 실패: ' + e.message);
+    // 자동 경로(탭 추적·autoRun)는 조용히 건너뛰고, 수동 클릭에만 알림
+    DebugLogger.warn('QUALITY', `분석 실패 (${manual ? '수동' : '자동'})`, e.message);
+    if (manual) alert('분석 실패: ' + e.message);
   } finally {
     analyzing = false;
     updateUIState(false);
