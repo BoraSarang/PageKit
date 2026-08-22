@@ -1,70 +1,9 @@
-// popup/popup.js — 팝업 로직 (진입점 ① 아이콘 → 팝업, ④ [전체 보기 →])
-
-import { MSG } from '../shared/messages.js' ;
+// popup/popup.js — 팝업 로직 (사이드 패널 진입 메뉴 + 다운로드 상태)
 
 const $ = (id) => document.getElementById(id) ;
 
 function getActiveTab() {
   return chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => tab) ;
-}
-
-async function analyzeCurrentTab() {
-  const tab = await getActiveTab() ;
-  // 빈 URL/특수 페이지는 분석 불가 — 주입 시도 생략
-  if (!tab?.id || !tab?.url || !/^https?:/.test(tab.url)) return null ;
-  DebugLogger.info('[POPUP] 분석 시작', { url: tab.url || '' }) ;
-  try {
-    // 콘텐츠 스크립트가 없으면 BG에 주입 요청 후 재시도 (팝업 메시지엔 sender.tab이 없으므로 tabId 명시 전달)
-    const ensure = await chrome.runtime.sendMessage({ type: MSG.ENSURE_INJECTED, tabId: tab.id }) ;
-    if (!ensure?.ok) {
-      DebugLogger.error('[POPUP] 스크립트 주입 실패', ensure?.error, { code: 'E-CHR-PERM-1001' }) ;
-      return null ;
-    }
-    // 팝업 → content 직접 분석 요청 (읽기 전용, BG 경유 불필요) — 메인 프레임만 (frameId: 0)
-    let content ;
-    try {
-      content = await chrome.tabs.sendMessage(tab.id, { type: MSG.ANALYZE_PAGE }, { frameId: 0 }) ;
-    } catch (e) {
-      // 페이지 리로드 등으로 콘텐츠 스크립트가 사라진 경우 → 강제 재주입 후 1회 재시도
-      DebugLogger.warn('[POPUP] 콘텐츠 스크립트 없음 — 강제 재주입 후 재시도', `${e.name}: ${e.message}`) ;
-      const reinject = await chrome.runtime.sendMessage({ type: MSG.ENSURE_INJECTED, tabId: tab.id, force: true }) ;
-      if (!reinject?.ok) throw e ;
-      content = await chrome.tabs.sendMessage(tab.id, { type: MSG.ANALYZE_PAGE }, { frameId: 0 }) ;
-    }
-    if (content?.ok) {
-      DebugLogger.feature('POPUP', '분석 완료', content.data.stats) ;
-      // 패널이 재사용하도록 마지막 분석 결과 공유 (팝업=패널 숫자 일치)
-      chrome.storage.session.set({ lastAnalysis: { tabId: tab.id, url: tab.url || '', result: content.data } }).catch(() => {}) ;
-      return content.data ;
-    }
-    DebugLogger.warn('[POPUP] 분석 결과 없음', { code: 'E-CHR-NET-1001' }) ;
-    return null ;
-  } catch (e) {
-    DebugLogger.error('[POPUP] 분석 실패', `${e.name}: ${e.message}`, { code: 'E-CHR-NET-1001' }) ;
-    return null ;
-  }
-}
-
-function renderSummary(result) {
-  const section = $('pk-summary') ;
-  if (!result) {
-    section.hidden = true ;
-    return ;
-  }
-  section.hidden = false ;
-  $('pk-page-title').textContent = result.title || result.url ;
-
-  const s = result.stats || {} ;
-  $('pk-stats').innerHTML = [
-    `<span class="chip">📷 이미지 ${s.totalImages ?? 0}</span>`,
-    `<span class="chip">🎬 동영상 ${s.totalVideos ?? 0}</span>`,
-    `<span class="chip">🔊 오디오 ${s.totalAudios ?? 0}</span>`,
-    `<span class="chip">🔗 링크 ${s.totalLinks ?? 0}</span>`,
-    `<span class="chip">🌐 스트림 ${s.totalStreams ?? 0}</span>`,
-  ].join('') ;
-
-  const a = result.article ;
-  $('pk-article').textContent = a?.found ? `✅ 본문 감지 (${(a.bodyTextLen / 1000).toFixed(1)}K자) · ${a.title || ''}` : '⚠️ 본문 영역을 찾지 못했습니다.' ;
 }
 
 function renderDownloads(jobs) {
@@ -89,20 +28,8 @@ function renderDownloads(jobs) {
 
 async function init() {
 
-  // 분석 실행
-  $('pk-analyze').addEventListener('click', async () => {
-    DebugLogger.feature('POPUP', '분석 실행 (버튼 클릭)') ;
-    $('pk-analyze').textContent = '⏳ 분석 중...' ;
-    $('pk-analyze').disabled = true ;
-    const result = await analyzeCurrentTab() ;
-    if (result) {
-      $('pk-analyze').textContent = '🔍 이 페이지 분석' ;
-    } else {
-      $('pk-analyze').textContent = '❌ 분석 실패 — 재시도' ;
-    }
-    $('pk-analyze').disabled = false ;
-    renderSummary(result) ;
-  }) ;
+  // 버전 표시 (manifest 실시간 조회 — bump 시 자동 갱신)
+  $('pk-version').textContent = `v${chrome.runtime.getManifest().version}` ;
 
   // 사이드 패널 열기 (뷰 지정) — 팝업에서 직접 호출 (BG 경유 시 사용자 제스처 상실로 실패 가능)
   async function openPanelWith(view) {

@@ -85,3 +85,54 @@ body {
 }
 
 .pk-foot { text-align: center; color: var(--pk-muted); font-size: 12px; margin-top: 20px; }.pk-version { font-size: 12px; opacity: 0.6; font-weight: normal; margin-left: 6px; }
+
+/* 체크박스 행: 라벨+체크박스 한 줄 (전폭 라벨 규칙의 예외) */
+.pk-row:has(input[type="checkbox"]) label {
+  flex-basis: auto;
+  color: var(--pk-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 품질 진단 — 분류 상자 (카드와 동일한 디자인 언어) */
+.pk-fieldset {
+  border: 1px solid var(--pk-border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.pk-fieldset legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pk-muted);
+  padding: 0 6px;
+}
+.pk-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 12px;
+  padding-top: 4px;
+}
+.pk-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--pk-text);
+  cursor: pointer;
+}
+.pk-checklist label:hover { color: var(--pk-primary); }
+.pk-checklist input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--pk-primary);
+  flex: none;
+  margin-top: 1px;
+}
+
+/* 임계값 행: 라벨 좌측 고정폭 + 입력 우측 */
+.pk-fieldset .pk-row { margin-bottom: 6px; flex-wrap: nowrap; }
+.pk-fieldset .pk-row:last-child { margin-bottom: 0; }
+.pk-fieldset .pk-row label { flex-basis: auto; min-width: 130px; color: var(--pk-text); font-weight: 600; }
