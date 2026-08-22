@@ -8,61 +8,8 @@ import * as storage from './storage.js';
 import { initDownloader, ensureReferer } from './downloader.js';
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js';
 
-// HTML 리포트 생성 (내보내기용)
-function generateHtmlReport(data) {
-  const { scores, coreWebVitals, modules, analyzedAt, url, duration } = data;
-  return `<!DOCTYPE html>
-<html lang="ko"><head><meta charset="UTF-8"><title>PageKit 품질 진단 리포트</title>
-<style>
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem;line-height:1.6;color:#1f2937}
-h1,h2,h3{color:#111827}.score{font-size:3rem;font-weight:700;text-align:center;margin:1rem 0}
-.score-excellent{color:#059669}.score-good{color:#0d9488}.score-fair{color:#d97706}.score-poor{color:#dc2626}
-.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:1.5rem;margin:1rem 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin:1rem 0}
-.metric{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;text-align:center}
-.metric .val{font-size:2rem;font-weight:700}.metric .lbl{color:#6b7280;font-size:.875rem}
-.issue{padding:.75rem 1rem;margin:.5rem 0;border-radius:6px;border-left:4px solid}
-.issue-critical{border-color:#dc2626;background:#fef2f2}.issue-major{border-color:#d97706;background:#fffbeb}
-.issue-minor{border-color:#0d9488;background:#f0fdfa}.issue-info{border-color:#3b82f6;background:#eff6ff}
-.issue .sev{font-weight:600;text-transform:uppercase;font-size:.75rem;margin-right:.5rem}
-.issue .loc{font-family:monospace;font-size:.875rem;color:#6b7280}
-.meta{color:#6b7280;font-size:.875rem;margin-top:1rem}
-</style></head><body>
-<h1>PageKit 품질 진단 리포트</h1>
-<p class="meta">URL: ${url} | 분석 시각: ${new Date(analyzedAt).toLocaleString('ko-KR')} | 소요 ${duration ? `${(duration / 1000).toFixed(1)}s` : '-'}</p>
-
-<div class="score score-${scores.overall >= 90 ? 'excellent' : scores.overall >= 70 ? 'good' : scores.overall >= 50 ? 'fair' : 'poor'}">${scores.overall}/100</div>
-
-<div class="grid">
-  <div class="metric"><div class="val">${scores.seo ?? '-'}</div><div class="lbl">SEO</div></div>
-  <div class="metric"><div class="val">${scores.performance ?? '-'}</div><div class="lbl">성능</div></div>
-  <div class="metric"><div class="val">${scores.accessibility ?? '-'}</div><div class="lbl">접근성</div></div>
-  <div class="metric"><div class="val">${scores.content ?? '-'}</div><div class="lbl">콘텐츠</div></div>
-</div>
-
-<h2>Core Web Vitals</h2>
-<div class="grid">
-  <div class="metric"><div class="val">${coreWebVitals.lcp ?? '-'}ms</div><div class="lbl">LCP</div></div>
-  <div class="metric"><div class="val">${coreWebVitals.inp ?? '-'}ms</div><div class="lbl">INP</div></div>
-  <div class="metric"><div class="val">${coreWebVitals.cls ?? '-'}</div><div class="lbl">CLS</div></div>
-  <div class="metric"><div class="val">${coreWebVitals.fcp ?? '-'}ms</div><div class="lbl">FCP</div></div>
-  <div class="metric"><div class="val">${coreWebVitals.ttfb ?? '-'}ms</div><div class="lbl">TTFB</div></div>
-</div>
-
-${Object.entries(modules || {})
-  .map(([k, v]) =>
-    v
-      ? `<div class="card"><h3>${v.label || k} <span style="font-weight:400;color:#6b7280">(${v.error ? '분석 오류' : (v.score ?? '-') + '/100'})</span></h3>${v.issues?.map((i) => `<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span>${i.location ? '<span class="loc">' + i.location + '</span> ' : ''}${i.message}<br><small>${i.fix}</small></div>`).join('') || '<p style="color:#059669">이슈 없음</p>'}</div>`
-      : ''
-  )
-  .join('')}
-
-<h2>전체 이슈 목록 (심각도순)</h2>
-<div class="card">${(data.issues || []).map((i) => `<div class="issue issue-${i.severity}"><span class="sev">${i.severity}</span><span style="color:#6b7280;font-size:.75rem;margin-right:.5rem">${i.module || ''}</span>${i.location ? '<span class="loc">' + i.location + '</span> ' : ''}${i.message}<br><small>${i.fix || ''}</small></div>`).join('') || '<p style="color:#059669">이슈 없음</p>'}</div>
-
-<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#6b7280;font-size:.75rem;text-align:center;">PageKit v${chrome.runtime.getManifest().version} · ${new Date(analyzedAt || Date.now()).toLocaleString('ko-KR')} 생성 · 모든 데이터는 이 기기에서만 처리되었습니다.</div>
-</body></html>`;
-}
+// HTML 리포트 생성 — shared/quality-rules.js 단일 구현 위임
+const generateHtmlReport = (data) => globalThis.pkQualityRules.generateHtmlReport(data);
 
 // 교차 오리진 iframe의 미디어(blob 재생 등)도 수집하기 위해 분석용 스크립트는 모든 프레임에 주입
 const FRAME_SCRIPTS = [

@@ -13,8 +13,6 @@
     calculateOverallScore,
     calculateCategoryScores,
     checkThresholds,
-    serializeResult,
-    generateHtmlReport,
   } = globalThis.pkQualityRules || {};
 
   // ---------- 설정 로드 ----------
