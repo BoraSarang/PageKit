@@ -77,7 +77,7 @@
     .issues-title { font-weight: 600; font-size: 12px; }
     .issue-count { font-size: 10px; color: var(--muted); }
     .issue-list { display: flex; flex-direction: column; gap: 6px; }
-    .issue { padding: 7px 9px; border-radius: var(--r-md); border-left: 3px solid; font-size: 11px; }
+    .issue { padding: 7px 9px; border-radius: var(--r-md); border-left: 3px solid; font-size: 11px; overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
     .issue-critical { background: var(--iss-critical); border-color: #dc2626; }
     .issue-major { background: var(--iss-major); border-color: #d97706; }
     .issue-minor { background: var(--iss-minor); border-color: #0d9488; }
@@ -89,7 +89,7 @@
     .sev-minor { background: #0d9488; color: #fff; }
     .sev-info { background: #3b82f6; color: #fff; }
     .issue-module { font-size: 9px; color: var(--muted); background: var(--bg); padding: 1px 5px; border-radius: 4px; }
-    .issue-loc { font-family: monospace; font-size: 9px; color: var(--muted); margin-left: auto; }
+    .issue-loc { font-family: monospace; font-size: 9px; color: var(--muted); margin-left: auto; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .issue-msg { font-weight: 500; margin-bottom: 2px; }
     .issue-fix { font-size: 10px; color: var(--muted); }
     .no-issues { text-align: center; padding: 18px; color: var(--muted); }

@@ -235,7 +235,7 @@ function renderIssues(issues) {
       <div class="issue-header">
         <span class="issue-sev sev-${issue.severity}">${issue.severity}</span>
         <span class="issue-module">${issue.module || 'general'}</span>
-        ${issue.location ? `<span class="issue-loc">${escapeHtml(issue.location)}</span>` : ''}
+        ${issue.location ? `<span class="issue-loc" title="${escapeHtml(issue.location)}">${escapeHtml(issue.location)}</span>` : ''}
       </div>
       <div class="issue-msg">${escapeHtml(issue.message)}</div>
       <div class="issue-fix">${escapeHtml(issue.fix || '')}</div>
