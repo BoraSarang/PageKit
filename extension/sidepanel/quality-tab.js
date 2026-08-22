@@ -48,20 +48,47 @@ function init() {
   }
 }
 
-// 단독 패널 모드: 미디어 패널과 동일하게 탭 전환/페이지 이동 시 자동 재분석
+// 단독 패널 모드: 탭 전환/페이지 이동 시 자동 재분석 (옵션 autoRun에 실시간 연동)
 let reanalyzeTimer = null;
+let tabHandlers = null;
+
 function bindTabTracking() {
+  if (tabHandlers) return; // 중복 바인딩 방지
   const schedule = () => {
     clearTimeout(reanalyzeTimer);
     reanalyzeTimer = setTimeout(() => {
       if (!analyzing) runAnalysis();
     }, 300);
   };
-  chrome.tabs.onActivated.addListener(schedule);
-  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+  const onUpdated = (_tabId, changeInfo) => {
     if (changeInfo.status === 'complete') schedule();
-  });
+  };
+  chrome.tabs.onActivated.addListener(schedule);
+  chrome.tabs.onUpdated.addListener(onUpdated);
+  tabHandlers = { schedule, onUpdated };
 }
+
+function unbindTabTracking() {
+  if (!tabHandlers) return;
+  chrome.tabs.onActivated.removeListener(tabHandlers.schedule);
+  chrome.tabs.onUpdated.removeListener(tabHandlers.onUpdated);
+  clearTimeout(reanalyzeTimer);
+  tabHandlers = null;
+}
+
+// 옵션 페이지에서 자동 분석을 토글하면 열려 있는 패널에 즉시 반영
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !STANDALONE || !changes.qualityAnalysis) return;
+  const auto = changes.qualityAnalysis.newValue?.autoRun !== false;
+  DebugLogger.feature('QUALITY', `옵션 변경 감지 — 자동 분석 ${auto ? '켬' : '끔'}`);
+  if (auto) {
+    bindTabTracking();
+    runAnalysis(); // 현재 페이지 조용히 즉시 재진단
+  } else {
+    unbindTabTracking();
+    setTargetBar('분석 대기', "'분석 시작' 버튼을 누르면 현재 페이지를 진단합니다");
+  }
+});
 
 function renderModuleChecks() {
   const container = $('module-checks');
