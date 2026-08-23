@@ -902,6 +902,9 @@
       results.modules[mod].score = moduleScores[mod] ?? 0;
     }
 
+    const overall = calculateOverallScore(moduleScores, activeModules);
+    const categoryScores = calculateCategoryScores(moduleScores, activeModules);
+
     // 최소 점수 기준(옵션 a11yScore·seoScore) 미달 안내 — 부가 정보이므로 실패해도 분석은 계속
     try {
       const minChecks = [
@@ -928,9 +931,6 @@
     } catch (e) {
       DebugLogger.warn('QUALITY', `최소 점수 검사 생략: ${e.message}`);
     }
-
-    const overall = calculateOverallScore(moduleScores, activeModules);
-    const categoryScores = calculateCategoryScores(moduleScores, activeModules);
 
     const result = {
       url: location.href,
