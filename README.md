@@ -1,73 +1,162 @@
-# PageKit
+<div align="center">
 
-페이지의 이미지, 영상, 링크를 한 번에 수집하고 일괄 다운로드하는 Chrome · 웨일 확장 프로그램.
+# 🧰 PageKit
 
-- 우클릭·복사 제한 해제, HLS(m3u8)·DASH(mpd) 영상 병합, 배치 ZIP 저장, 링크 추출·CSV 내보내기
-- 스토어 배포 준비 중 — 지금은 GitHub Releases에서 받아 개발자 모드로 설치할 수 있습니다.
+**웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
+*Grab the good stuff from any page: media collection · batch download · page quality audit.*
 
-## 랜딩 페이지
+[![version](https://img.shields.io/badge/version-1.0.0-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
+[![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](https://github.com/BoraSarang/PageKit/pulls)
 
-- GitHub Pages: https://borasarang.github.io/PageKit/
-- 소스: [`landing/index.html`](landing/index.html) (정적 HTML, Tailwind CDN)
+[기능](#-주요-기능) · [설치](#-설치) · [스크린샷](#-스크린샷) · [사용법](#-빠른-시작) · [개발자](#%EC%A7%80%EC%9A%B0%EC%A7%80-%EC%95%8A%EC%9D%8C--developers) · [English](#-english)
 
-## 기능
+</div>
 
-| 기능 | 설명 |
-|------|------|
-| 이미지 수집 | srcset/lazy/background 이미지 감지 + 본문 안/밖 분류 필터 |
-| 영상 병합 다운로드 | HLS(m3u8)·DASH(mpd) 스트리밍을 품질 선택 후 하나의 MP4로 병합 (유튜브 지원) |
-| 배치 ZIP 저장 | 선택 항목을 폴더 구조 그대로 ZIP 압축, 실패 항목 자동 재시도 |
-| 링크 추출 · CSV | 중복 제거 추출 + 정규식 필터·프리셋 + CSV 내보내기 |
-| 우클릭·복사 해제 | 복사·저장 제한 페이지에서 자유로운 사용 |
-| 가벼운 MV3 | 요청 시에만 스크립트 주입, 최소 권한 Manifest V3 |
+---
 
-## 설치 (스토어 배포 전)
+## 🇰🇷 한국어
 
-1. [GitHub Releases](https://github.com/BoraSarang/PageKit/releases/latest)에서 최신 버전 ZIP 다운로드
-2. `chrome://extensions`(웨일: `whale://extensions`) → 개발자 모드 ON
-3. "압축 해제된 확장 프로그램 로드" → 압축 해제 폴더 선택
+### ✨ 주요 기능
 
-## 사용법
+| | 기능 | 설명 |
+|---|------|------|
+| 🖼 | **미디어 수집** | `srcset`·lazy·background 이미지, 동영상, 오디오, 링크를 한 번에 수집하고 본문 안/밖으로 자동 분류 |
+| 🎬 | **스트리밍 병합 다운로드** | HLS(m3u8)·DASH(mpd)를 품질별로 감지해 **하나의 MP4로 병합 저장** (유튜브 지원) |
+| 📦 | **배치 ZIP 저장** | 선택 항목을 폴더 구조 그대로 ZIP으로 일괄 저장, 실패 항목 자동 재시도 |
+| 🔗 | **링크 추출 · CSV** | 중복 제거 추출 + 정규식 필터 프리셋 + CSV 내보내기 |
+| 🔓 | **우클릭·복사 해제** | 복사·저장이 막힌 페이지에서 자유롭게 사용 |
+| 🔍 | **페이지 품질 진단** ⭐NEW | SEO·성능(Core Web Vitals 실측)·접근성(axe-core 내장)·콘텐츠 품질을 종합 진단하고 **HTML/JSON 리포트**로 저장 |
 
-1. 페이지에서 확장 아이콘 클릭 또는 우클릭 → "PageKit으로 분석"
-2. 수집된 이미지·영상·링크 확인 (본문/외부 분류, 정규식 필터)
-3. 원하는 것 선택 → ZIP 배치 다운로드, 영상은 품질 선택 후 MP4 병합, 링크는 CSV 내보내기
+> 💡 모든 처리는 **100% 로컬**에서 이루어집니다. 서버 통신 없음, 추적 없음.
+> ⚡ Manifest V3 · 요청 시에만 스크립트 주입하는 가벼운 구조.
 
-단축키: `Cmd+Shift+K` 사이드 패널 열기 · `Cmd+Shift+D` 디버그 창
+### 📦 설치
 
-## 문서
+**Chrome Web Store** — 준비 중 🏗️
+**Whale(웨일)** — 동일하게 동작합니다
 
-- [PRD](docs/PRD.md) · [DESIGN](docs/DESIGN.md) · [TODO](docs/TODO.md) · [CHANGELOG](docs/CHANGELOG.md)
-- [권한 정의서](docs/chrome/PERMISSIONS.md) · [메시지 규약](docs/chrome/MESSAGING.md) · [E2E 계획](docs/e2e/PLAN.md)
-- 계획: `docs/plans/PLAN_v0.x_{platform}.md`
+<details open>
+<summary><b>수동 설치 (개발자 모드)</b></summary>
 
-## 개발
+1. [Releases](https://github.com/BoraSarang/PageKit/releases)에서 최신 ZIP 다운로드
+2. 압축 해제 후 `chrome://extensions` 접속
+3. 우측 상단 **개발자 모드** ON
+4. **압축해제된 확장 프로그램 로드** → 해제한 폴더 선택
 
-```
-extension/          # 확장 소스 (MV3)
-├── manifest.json
-├── background/     # 서비스 워커 (다운로더, 스트림 감지, 패널 컨트롤러)
-├── content/        # 콘텐츠 스크립트 (추출/하이라이트/플로팅 버튼/우클릭 해제)
-├── popup/ sidepanel/ options/ debug-view/
-└── shared/         # 공통 (messages, m3u8/DASH 파서, zip)
-landing/            # 랜딩 페이지 (GitHub Pages)
-docs/               # 문서
-scripts/            # 빌드/검증 스크립트
-```
+</details>
 
-빌드/검증:
+### 🖥 스크린샷
 
+<!-- 📸 캡처 후 .github/assets/ 에 넣고 아래 주석을 해제하세요
+| 팝업 | 미디어 패널 |
+|------|------------|
+| ![](./.github/assets/popup.png) | ![](./.github/assets/media-panel.png) |
+| 품질 리포트 | 스트림 작업 창 |
+| ![](./.github/assets/quality-report.png) | ![](./.github/assets/stream-task.png) |
+-->
+
+> 📸 *스크린샷 준비 중 — 캡처 가이드는 [`docs/screenshots-guide.md`](docs/screenshots-guide.md) 참조*
+
+### 🚀 빠른 시작
+
+1. 툴바 아이콘 클릭 → **[📊 사이드 패널에서 분석]** — 열려 있는 페이지의 미디어가 정리되어 표시됩니다
+2. 항목 선택 → **[다운로드]** (ZIP 일괄 또는 개별)
+3. 우클릭 → **PageKit으로 분석 / PageKit으로 품질 진단**
+
+### 🗺 로드맵
+
+- [x] 미디어 수집 · 배치 다운로드 · 스트림 병합 (v0.5)
+- [x] 페이지 품질 진단 단독 패널 (v0.7)
+- [ ] Chrome Web Store 정식 배포
+- [ ] 진단 히스토리·비교 리포트
+
+---
+
+## 🌍 English
+
+### ✨ Features
+
+| | Feature | Description |
+|---|---------|-------------|
+| 🖼 | **Media collector** | Detects `srcset`/lazy/background images, videos, audios and links; classifies in-article vs off-article |
+| 🎬 | **Stream merge downloader** | Detects HLS(m3u8)/DASH(mpd) by quality and merges into a single MP4 (YouTube supported) |
+| 📦 | **Batch ZIP save** | Download selected items preserving folder structure, with auto-retry |
+| 🔗 | **Link extractor · CSV** | Deduped extraction, regex filter presets, CSV export |
+| 🔓 | **Unlock right-click/copy** | Freely use pages that block copy/save |
+| 🔍 | **Page quality audit** ⭐NEW | One-shot SEO, performance (real Core Web Vitals), accessibility (embedded axe-core) and content-quality checks with **HTML/JSON reports** |
+
+> 💡 100% local processing. No servers, no tracking.
+> ⚡ Lightweight Manifest V3 — scripts are injected only on demand.
+
+### 📦 Install
+
+**Chrome Web Store** — coming soon 🏗️
+**Whale browser** — works the same
+
+<details>
+<summary><b>Manual install (developer mode)</b></summary>
+
+1. Grab the latest ZIP from [Releases](https://github.com/BoraSarang/PageKit/releases)
+2. Unzip, then open `chrome://extensions`
+3. Toggle **Developer mode** (top right)
+4. Click **Load unpacked** → select the unzipped folder
+
+</details>
+
+### 🚀 Quick start
+
+1. Click the toolbar icon → **[Analyze in side panel]** — media from the current page is organized instantly
+2. Select items → **Download** (bulk ZIP or individual)
+3. Right-click any page → **Analyze with PageKit / Quality audit**
+
+---
+
+## 🛠️ 개발자 · Developers
+
+### 요구사항 Requirements
+- Node.js ≥ 20 (E2E/도구), Chrome or Whale 116+
+
+### 스크립트 Scripts (repo root)
 ```bash
-./build_and_run.sh debug chrome   # 빌드 + Chrome 테스트
-./scripts/a11y-dump.sh chrome     # a11y 덤프
-./scripts/webstore-publish.sh chrome --dry-run  # 스토어 패키징 검증
+./scripts/e2e-chrome.sh        # E2E 스모크 (Whale 격리 프로필, 브라우저 다운로드 없음)
+node e2e/diag-media.cjs        # 분석·로깅 파이프라인 실측 진단
+npm run format                 # prettier 전체 포맷
+npm run format:check           # CI와 동일 검사
+node --experimental-vm-modules scripts/strict-check.cjs extension   # 엄격 구문 검증
+./scripts/webstore-publish.sh chrome --dry-run   # 스토어 패키징 검증
 ```
 
-## 배포
+> ⚠️ `node --check`는 import/export 파일을 가짜 통과시킵니다 — 반드시 `strict-check`를 사용하세요.
+> ⚠️ Chrome 137+ 는 `--load-extension`을 지원하지 않으므로 E2E는 Whale 격리 프로필로 실행합니다. ([AGENTS.md](AGENTS.md) 규칙 6)
 
-- Chrome 웹 스토어 · 웨일 스토어: **출시 준비 중**
-- 랜딩 페이지: GitHub Actions가 `main` 푸시 시 `landing/`을 GitHub Pages로 자동 배포 (`.github/workflows/pages.yml`)
+### 구조 Structure
+```text
+extension/
+├── background/        # SW 라우팅 + 품질 핸들러 + 다운로더/스트림 감지
+├── content/           # extractor(수정 불가급 핵심)·품질 엔진·a11y·CWV
+├── shared/            # 메시지 규약·룰엔진·DOM 유틸 (classic+ESM 듀얼)
+├── sidepanel/         # 미디어 패널 + 품질진단 단독 패널
+├── popup/ options/    # 진입점 UI
+└── downloader/        # 스트림 작업창 UI
+docs/                  # PRD·DESIGN·CHANGELOG·권한 정의서
+e2e/, scripts/         # 테스트 및 도구
+```
 
-## 제작자
+### 아키텍처 한 줄 Architecture in one line
+SW가 라우팅만 담당하고, 분석은 항상 **요청 시 대상 탭 격리 월드에 주입**되며,
+모든 응답은 catch 보장 · 이슈 목록은 단일 원천(`rebuildFlatIssues`)으로 관리됩니다.
+자세한 설계: [`docs/DESIGN.md`](docs/DESIGN.md) · 메시지 규약: [`docs/chrome/MESSAGING.md`](docs/chrome/MESSAGING.md)
 
-- BoRaSaRang · 문의: leeborasarang@gmail.com
+### 문서 Docs
+[`PRD`](docs/PRD.md) · [`DESIGN`](docs/DESIGN.md) · [`CHANGELOG`](docs/CHANGELOG.md) · [`TODO`](docs/TODO.md) · [`PERMISSIONS`](docs/chrome/PERMISSIONS.md)
+
+---
+
+<div align="center">
+
+🇰🇷 위 한국어 섹션이 본문입니다 · English above is a condensed mirror.
+Made with ☕ by [BoraSaRang](https://github.com/BoraSarang)
+
+</div>

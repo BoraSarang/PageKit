@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    name: Strict JS parse (script+module)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # node --check 는 import/export 파일을 가짜 통과시키므로 vm 엄격 파서 사용
+      - run: node --experimental-vm-modules scripts/strict-check.cjs extension
