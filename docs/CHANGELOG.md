@@ -1,5 +1,21 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.0 (2026-08-23) — 첫 안정판: 전면 리팩토링 + 품질 진단 완성
+
+### 주요 변경 [chrome]
+- **prettier 도입** — 전체 JS 포맷 통일(구 ` ;` 관행 소멸), format/format:check 스크립트
+- **HTML 리포트 생성기 단일화** — shared/quality-rules.js 위임(3벤더 중복 제거)
+- **pkDom 공용 유틸** — escapeHtml/$ 3중복 제거(classic+ESM 듀얼 로드)
+- **SW 구조 정리** — 품질 핸들러 분리(background/quality-handler.js), 응답 보장 catch 필수화
+- **옵션 설정 100% 실반영** — enabled 게이트, CWV/a11y/SEO 임계값, autoRun 실시간 반영
+- **동작 추적 로그 보강** — 클릭·실행·완료(소요ms·이슈수)·내보내기 전 과정
+- **E2E 자동화** — Whale 격리 프로필 스모크 12개(SW 라우팅 왕복 포함) + 파이프라인 진단기(diag-media)
+
+### 수정 [chrome]
+- 중복 주입 크래시 2종: debug.js 재선언, dom-utils 전역 `$` 오염 → 모든 페이지 콘솔 오류 차단
+- 회귀 3종 수습: SW 핸들러 import 누락(전 메시지 사망), panel pkDom 누락(패널 사망), 최소점수 TDZ
+- 디버그 창 경로 복구, 이슈 리스트 긴 URL 넘침, 다크모드 이슈 배경, 패널 무한대기 타임아웃 가드
+
 ## v0.7.13 → v0.7.29 (2026-08-22~23) — 페이지 품질 진단 안정화 시리즈
 
 ### 배경 [chrome]
