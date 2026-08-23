@@ -3,7 +3,6 @@
 import { MSG } from '../shared/messages.js';
 import { fetchStreamText, parseM3U8 } from '../shared/m3u8.js';
 
-
 // 앞 줄임 주소 표시: 파일명(쿼리 제외) 끝부분만 보존 — "앞부분…파일명끝" 양끝 표시
 function shortenUrl(s, max = 38) {
   s = String(s || '');
@@ -55,14 +54,22 @@ async function analyze(force = false) {
   showAnalyzing();
   try {
     // 콘텐츠 스크립트 미주입 시 BG에 주입 요청 (패널 메시지엔 sender.tab이 없으므로 tabId 명시)
-    const ensure = await chrome.runtime.sendMessage({ type: MSG.ENSURE_INJECTED, tabId: tab.id });
+    const ensure = await withTimeout(
+      chrome.runtime.sendMessage({ type: MSG.ENSURE_INJECTED, tabId: tab.id }),
+      15000,
+      '스크립트 주입'
+    );
     if (!ensure?.ok) {
       DebugLogger.error('[PANEL] 스크립트 주입 실패', ensure?.error, { code: 'E-CHR-PERM-1001' });
       analysisSource = { tabId: null, url: '' }; // 실패 → 다음 이벤트에서 재분석 가능
       toast('분석 실패: 스크립트 주입에 실패했습니다. 페이지를 새로고침 후 시도하세요.');
       return;
     }
-    const resp = await chrome.tabs.sendMessage(tab.id, { type: MSG.ANALYZE_PAGE }, { frameId: 0 });
+    const resp = await withTimeout(
+      chrome.tabs.sendMessage(tab.id, { type: MSG.ANALYZE_PAGE }, { frameId: 0 }),
+      25000,
+      '페이지 분석'
+    );
     if (resp?.ok) {
       analysis = resp.data;
       selection = new Set();
@@ -98,6 +105,16 @@ async function analyze(force = false) {
 }
 
 // 분석 중 전체 오버레이 (탭/페이지 변경 자동 갱신 시 "분석 중…" 표시)
+// 메시지 무응답 시 영구 대기가 아니라 반드시 실패 처리되도록 타임아웃 래핑
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) =>
+      setTimeout(() => rej(new Error(label + ' 시간 초과(' + ms / 1000 + '초)')), ms)
+    ),
+  ]);
+}
+
 function showAnalyzing() {
   const ov = $('pk-overlay');
   if (ov) ov.hidden = false;
