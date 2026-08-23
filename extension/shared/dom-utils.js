@@ -3,6 +3,7 @@
 //   ESM:      import '../shared/dom-utils.js';  const { $, escapeHtml } = globalThis.pkDom;
 //   classic:  <script src="../shared/dom-utils.js"></script> 후 globalThis.pkDom 참조
 
+(() => {
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(str) {
@@ -20,3 +21,4 @@ function escapeHtml(str) {
 }
 
 globalThis.pkDom = { $, escapeHtml };
+})();

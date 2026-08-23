@@ -10,7 +10,10 @@
 //   - chrome.storage.local["debugEnabled"] 켜짐 상태에서만 기록 (기본 꺼짐)
 // AGENTS.md 19장 DebugPanel 표준 — 전용 디버그 창(chrome.windows.create) 대응.
 
-const DebugLogger = (() => {
+if (globalThis.DebugLogger) {
+  // 재주입 가드 — manifest 정적 주입 + executeScript 동적 주입이 겹쳐도 1회만 평가
+} else {
+  globalThis.DebugLogger = (() => {
   'use strict';
   const ENABLE_KEY = 'debugEnabled';
   const LOG_KEY = 'debugLog';
@@ -203,7 +206,4 @@ const DebugLogger = (() => {
     scope,
   };
 })();
-
-// ES module(서비스 워커)과 일반 스크립트(content/UI) 모두에서 사용 가능하게 전역 노출.
-// BG SW는 debug-module.js가 이 파일을 side-effect import 후 re-export한다.
-if (typeof globalThis !== 'undefined') globalThis.DebugLogger = DebugLogger;
+  }
