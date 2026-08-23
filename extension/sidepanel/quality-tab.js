@@ -164,7 +164,9 @@ async function runAnalysis({ manual = false } = {}) {
   } catch (e) {
     // 자동 경로(탭 추적·autoRun)는 조용히 건너뛰고, 수동 클릭에만 알림
     DebugLogger.warn('QUALITY', `분석 실패 (${manual ? '수동' : '자동'})`, e.message);
-    setTargetBar('분석 실패', e.message || '');
+    const msg = e.message || '';
+    setTargetBar('분석 실패', msg);
+    if (msg.includes('꺼져 있습니다')) attachOptionsLink();
   } finally {
     analyzing = false;
     updateUIState(false);
@@ -173,7 +175,16 @@ async function runAnalysis({ manual = false } = {}) {
 
 function sendMessage(msg) {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(msg, resolve);
+    chrome.runtime.sendMessage(msg, (resp) => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        // SW 미기동/무응답 — 원문 대신 명확한 코드로 변환해 UI 안내로 연결
+        DebugLogger.error('QUALITY', '백그라운드 무응답', err.message);
+        resolve({ ok: false, error: 'PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.', code: 'E-CHR-SW-1001' });
+        return;
+      }
+      resolve(resp);
+    });
   });
 }
 
@@ -300,6 +311,22 @@ function updateUIState(isAnalyzing) {
 }
 
 // 분석 대상 표시줄 — 제목/URL 노출로 자동 수집 여부를 명확히
+// 기능 꺼짐(CFG-1001) 등 설정 유도가 필요한 경우 target-url 영역에 링크 부착
+function attachOptionsLink() {
+  const urlEl = document.getElementById('target-url');
+  if (!urlEl) return;
+  urlEl.textContent = '';
+  const a = document.createElement('a');
+  a.href = '#';
+  a.textContent = '설정 열기 → 품질 진단 기능 켜기';
+  a.style.cssText = 'color:var(--primary);text-decoration:underline;';
+  a.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    chrome.runtime.openOptionsPage();
+  });
+  urlEl.appendChild(a);
+}
+
 function setTargetBar(title, url) {
   const bar = $('analysis-target');
   if (!bar) return;

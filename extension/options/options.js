@@ -114,6 +114,30 @@ if (qs.get('logs') === '1') {
       'LOGS | ' + logs.map((l) => (typeof l === 'string' ? l : l.text)).join(' /// ');
   });
 }
+
+// 부팅 오류 배너 — 일부 설정 로드 실패 시에도 나머지가 동작하도록 격리 표시
+function showBootError(msg) {
+  DebugLogger.error('OPTIONS', '설정 로드 실패', msg);
+  let el = document.getElementById('pk-boot-error');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pk-boot-error';
+    el.style.cssText =
+      'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;' +
+      'padding:8px 12px;margin-bottom:12px;font-size:12px;white-space:pre-line;';
+    document.querySelector('.pk-wrap').prepend(el);
+  }
+  el.textContent += (el.textContent ? '\n' : '') + msg;
+}
+
+async function bootSafe(name, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    showBootError(`${name} 로드 실패: ${e.message || e}`);
+  }
+}
+
 if (qs.get('dl')) {
   // 테스트 훅: BG의 실제 다운로드 흐름 경유 (chrome.windows.create — 서명 URL 그대로 전달)
   chrome.runtime
@@ -133,17 +157,22 @@ if (qs.get('dl')) {
 }
 async function loadSettings() {
   const resp = await chrome.runtime.sendMessage({ type: MSG.SETTINGS_GET });
-  const s = resp?.data || {};
+  if (!resp?.ok) throw new Error(resp?.error || '백그라운드 응답 없음');
+  const s = resp.data || {};
   $('pk-concurrent').value = s.concurrentDownloads ?? 3;
   $('pk-min-width').value = s.minImageWidth ?? 0;
   $('pk-min-size').value = s.minImageSize ?? 0;
   $('pk-stream-detect').checked = Boolean(s.streamDetect);
   $('pk-unlock-enabled').checked = Boolean(s.unlockEnabled);
 }
-$('pk-unlock-enabled').addEventListener('change', () => {
+$('pk-unlock-enabled').addEventListener('change', async () => {
   const on = $('pk-unlock-enabled').checked;
   DebugLogger.feature('OPTIONS', `우클릭/복사 제한 해제 ${on ? '켬' : '끔'}`);
-  chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload: { unlockEnabled: on } });
+  const resp = await chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload: { unlockEnabled: on } });
+  if (!resp?.ok) {
+    $('pk-unlock-enabled').checked = !on; // 백그라운드 무응답/실패 시 UI 원복
+    showBootError('설정 적용 실패 — PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.');
+  }
 });
 $('pk-save-settings').addEventListener('click', async () => {
   const payload = {
@@ -222,11 +251,11 @@ document.querySelectorAll('input[name="quality-module"]').forEach((el) => {
 $('pk-axe-enabled').addEventListener('change', saveQuality);
 
 DebugLogger.feature('OPTIONS', '옵션 페이지 로드 완료');
-renderRules();
-renderPresets();
-loadSettings();
-loadQuality();
-loadDebug();
+bootSafe('사이트 규칙', renderRules);
+bootSafe('링크 프리셋', renderPresets);
+bootSafe('설정', loadSettings);
+bootSafe('품질 진단', loadQuality);
+bootSafe('디버그', loadDebug);
 
 const pkVersionEl = document.getElementById('pk-version');
 if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().version}`;

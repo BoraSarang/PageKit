@@ -7,6 +7,8 @@ import { MSG, msgOk, msgErr } from '../shared/messages.js';
 import * as storage from './storage.js';
 import { initDownloader, ensureReferer } from './downloader.js';
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js';
+import '../shared/quality-rules.js'; // classic 룰 엔진 로드 → globalThis.pkQualityRules
+import { handleQualityMessage } from './quality-handler.js';
 
 // 교차 오리진 iframe의 미디어(blob 재생 등)도 수집하기 위해 분석용 스크립트는 모든 프레임에 주입
 const FRAME_SCRIPTS = [

@@ -92,6 +92,26 @@ async function waitForServiceWorker(context, ms = 10000) {
     const ver = ((await popup.textContent('#pk-version')) || '').trim();
     assert(/^v\d+\.\d+\.\d+$/.test(ver), `팝업 버전 실시간 표시 (${ver})`);
 
+    // SW 라우팅 전반 생존 검증 — 무응답이면 백그라운드 사망(옵션·분석 전체 정지 상태)
+    const settingsResp = await popup.evaluate(
+      () =>
+        new Promise((res) => {
+          chrome.runtime.sendMessage({ type: 'pk.settings.get' }, (r) => {
+            const le = chrome.runtime.lastError;
+            res({
+              ok: !le && !!r && r.ok === true,
+              hasData: !!r && 'data' in r,
+              lastErr: le ? le.message : '',
+              raw: r ? JSON.stringify(r).slice(0, 200) : 'undefined',
+            });
+          });
+        })
+    );
+    assert(
+      settingsResp.ok === true && settingsResp.hasData,
+      `SW 라우팅 왕복(SETTINGS_GET) — ${JSON.stringify(settingsResp)}`
+    );
+
     // 2) 품질 진단 단독 패널
     const qp = await context.newPage();
     await qp.goto(`${base}/sidepanel/quality-tab.html?auto=1`, { waitUntil: 'domcontentloaded' });
