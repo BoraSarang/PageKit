@@ -122,6 +122,20 @@ function startServer() {
     );
     out.steps.storage = store;
 
+    // 3.5) 미디어 패널 페이지 로드 실측 (module 평가 크래시 감지)
+    const mp = await context.newPage();
+    let mpErr = '';
+    mp.on('pageerror', (e) => (mpErr += e.message + ' | '));
+    await mp.goto('chrome-extension://' + extId + '/sidepanel/panel.html?v=4', {
+      waitUntil: 'domcontentloaded',
+    });
+    await mp.waitForTimeout(800);
+    out.steps.mediaPanel = await mp.evaluate(() => ({
+      catButtons: document.querySelectorAll('.pk-cat-btn').length,
+      hasOverlay: !!document.querySelector('.pk-overlay-box'),
+    }));
+    if (mpErr) out.steps.mediaPanel.moduleError = mpErr.trim();
+
     const dv = await context.newPage();
     dv.on('pageerror', (e) => pageErrors.push('[debugview] ' + e.message));
     await dv.goto('chrome-extension://' + extId + '/debug-view.html', { waitUntil: 'domcontentloaded' });
