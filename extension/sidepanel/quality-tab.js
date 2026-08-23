@@ -102,7 +102,10 @@ function renderModuleChecks() {
 }
 
 function bindEvents() {
-  $('btn-analyze').addEventListener('click', () => runAnalysis({ manual: true }));
+  $('btn-analyze').addEventListener('click', () => {
+    DebugLogger.feature('QUALITY', '수동 분석 클릭');
+    runAnalysis({ manual: true });
+  });
   $('btn-check-all').addEventListener('click', () => setAllChecks(true));
   $('btn-uncheck-all').addEventListener('click', () => setAllChecks(false));
   $('btn-export-json').addEventListener('click', () => exportResult('json'));
@@ -145,8 +148,10 @@ function loadSavedModules() {
 
 async function runAnalysis({ manual = false } = {}) {
   if (analyzing) return;
+  const t0 = performance.now();
   analyzing = true;
   updateUIState(true);
+  DebugLogger.info('QUALITY', `분석 실행 (${manual ? '수동' : '자동'})`);
 
   const enabledModules = {};
   document.querySelectorAll('input[name="module"]').forEach((el) => {
@@ -161,6 +166,10 @@ async function runAnalysis({ manual = false } = {}) {
     if (!response?.ok) throw new Error(response?.error || '분석 실패');
     currentResult = response.data;
     renderResult(currentResult);
+    DebugLogger.feature(
+      'QUALITY',
+      `분석 완료 ${Math.round(performance.now() - t0)}ms · 이슈 ${currentResult.totalIssues ?? 0}건`
+    );
   } catch (e) {
     // 자동 경로(탭 추적·autoRun)는 조용히 건너뛰고, 수동 클릭에만 알림
     DebugLogger.warn('QUALITY', `분석 실패 (${manual ? '수동' : '자동'})`, e.message);
@@ -180,7 +189,11 @@ function sendMessage(msg) {
       if (err) {
         // SW 미기동/무응답 — 원문 대신 명확한 코드로 변환해 UI 안내로 연결
         DebugLogger.error('QUALITY', '백그라운드 무응답', err.message);
-        resolve({ ok: false, error: 'PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.', code: 'E-CHR-SW-1001' });
+        resolve({
+          ok: false,
+          error: 'PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.',
+          code: 'E-CHR-SW-1001',
+        });
         return;
       }
       resolve(resp);
@@ -336,6 +349,7 @@ function setTargetBar(title, url) {
 }
 
 function exportResult(format) {
+  DebugLogger.feature('QUALITY', `리포트 내보내기 클릭 (${format})`);
   if (!currentResult) {
     setTargetBar('내보낼 결과 없음', "먼저 '분석 시작'을 실행하세요");
     return;

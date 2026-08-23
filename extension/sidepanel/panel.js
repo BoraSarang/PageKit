@@ -567,6 +567,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 $('pk-reload').addEventListener('click', () => {
+  DebugLogger.feature('PANEL', '수동 재분석 클릭');
   // 수동 새로고침 = 강제 재분석 (같은 탭·같은 URL이어도 재실행)
   analysisSource = { tabId: null, url: '' };
   analyze(true);
