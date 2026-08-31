@@ -1,6 +1,12 @@
 // shared/m3u8.js — HLS 매니페스트 파싱 + 스트림 다운로드 공통 (BG/작업창/패널 공유)
 
-export const MAX_STREAM_TOTAL = 300 * 1024 * 1024; // 총 병합 용량 가드
+export const MAX_STREAM_TOTAL_DEFAULT = 300 * 1024 * 1024; // 기본 총 병합 용량 가드
+export let MAX_STREAM_TOTAL = MAX_STREAM_TOTAL_DEFAULT; // 옵션(무제한/100/200/300MB)으로 런타임 교체 가능
+
+// 스트림 병합 총 용량 상한을 바이트로 설정. 0 또는 음수 = "제한 없음".
+export function setStreamMaxTotal(bytes) {
+  MAX_STREAM_TOTAL = Number.isFinite(bytes) && bytes > 0 ? bytes : Infinity;
+}
 export const MAX_SEGMENT_SIZE = 50 * 1024 * 1024; // 세그먼트 단일 용량 가드
 export const MAX_SEGMENTS = 200; // 세그먼트 최대 개수 가드 (LIVE 오인 방지)
 export const FETCH_TIMEOUT_MS = 15000; // 단일 요청 타임아웃
@@ -11,6 +17,7 @@ export const FETCH_TIMEOUT_MS = 15000; // 단일 요청 타임아웃
 export function parseM3U8(text, baseUrl) {
   const segs = [];
   const variants = [];
+  let totalDuration = 0; // 세그먼트 재생 길이 누적(초) — 예상 용량(≈길이×대역폭) 추정용
   let hasKey = false;
   let endlist = false;
   let playlistType = null;
@@ -21,6 +28,10 @@ export function parseM3U8(text, baseUrl) {
     if (line.startsWith('#')) {
       if (line.startsWith('#EXT-X-KEY')) hasKey = true;
       if (line.startsWith('#EXT-X-ENDLIST')) endlist = true;
+      if (line.startsWith('#EXTINF')) {
+        const d = parseFloat((line.match(/#EXTINF:([\d.]+)/) || [])[1] || '0');
+        if (d > 0) totalDuration += d;
+      }
       if (line.startsWith('#EXT-X-PLAYLIST-TYPE')) {
         const mt = line.match(/:(VOD|EVENT|LIVE)/i);
         if (mt) playlistType = mt[1].toUpperCase();
@@ -50,7 +61,15 @@ export function parseM3U8(text, baseUrl) {
       segs.push(abs);
     }
   }
-  return { segs, variants, hasKey, endlist, playlistType, isMaster: variants.length > 0 };
+  return {
+    segs,
+    variants,
+    totalDuration,
+    hasKey,
+    endlist,
+    playlistType,
+    isMaster: variants.length > 0,
+  };
 }
 
 // 확장 오리진 fetch → ArrayBuffer (실패 시 throw, 타임아웃 가드 포함)
@@ -136,6 +155,7 @@ export function parseMPD(text, baseUrl) {
     initUrl: null,
     type: 'mp4',
     totalSeconds: mediaPresentationDuration,
+    bandwidth: parseInt(rep.getAttribute('bandwidth') || '0', 10),
     codecs: rep.getAttribute('codecs') || '',
     width: rep.getAttribute('width') || '',
     height: rep.getAttribute('height') || '',

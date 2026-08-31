@@ -15,6 +15,7 @@ import {
   parseMPD,
   MAX_STREAM_TOTAL,
   MAX_SEGMENTS,
+  setStreamMaxTotal,
   streamError,
 } from '../shared/m3u8.js';
 import { MSG } from '../shared/messages.js';
@@ -28,8 +29,17 @@ const JOB = {
   name: params.get('n') || '',
   title: params.get('t') || '',
   folder: params.get('f') || 'page',
+  maxMB: Number(params.get('maxmb')) || 0, // 스트림 병합 상한(MB) — 0 = 제한 없음 (옵션 streamMaxMB)
   tabId: Number(params.get('tid')) || null, // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
 };
+setStreamMaxTotal((JOB.maxMB || 0) > 0 ? JOB.maxMB * 1024 * 1024 : Infinity);
+
+// 설정된 병합 상한 안내 문구 ("제한 없음"이면 일반 안내)
+function streamLimitMsg() {
+  return JOB.maxMB > 0
+    ? `스트림 용량이 ${JOB.maxMB}MB(옵션 상한)를 초과해 중단합니다. 상한은 옵션에서 조정할 수 있습니다.`
+    : '스트림 용량이 설정된 상한을 초과해 중단합니다.';
+}
 
 // 기본 파일명: 페이지 제목 우선 → URL 경로 이름 → stream (특수문자/길이 가드)
 function defaultName() {
@@ -73,35 +83,104 @@ function showResult(ok, title, msg, retry = false) {
   $('dl-filename').disabled = false;
 }
 
-// 마스터면 화질 변형 드롭다운을 채운다 (기본 = 최고 화질). 마스터가 아니거나 fetch 실패 시 UI 없이 진행.
+// 예상 용량: 재생 길이(초) × 대역폭(bps) / 8 → "약 N MB" 문자열. 결과 없으면 null.
+function fmtEstimate(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return null;
+  const mb = bytes / 1048576;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `약 ${Math.round(mb)}MB`;
+}
+function fmtDuration(sec) {
+  if (!sec || sec <= 0) return '';
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}분 ${s}초`;
+}
+function estimateBytesByVariant(v, durMs) {
+  if (!v?.bandwidth || !durMs) return null;
+  return (v.bandwidth / 8) * (durMs / 1000);
+}
+
+// 매니페스트 해석 → 화질 선택(1개여도 표시) + 해상도/예상 용량 리뷰 표시.
+// DASH는 별도 resolveMPD에서 최고 대역폭을 자동 선택(리뷰에 해상도·용량 표시).
 async function prepareQuality() {
   try {
+    if (isMpdUrl(JOB.url)) {
+      const d = parseMPD(await fetchStreamText(JOB.url), JOB.url);
+      if (d.isDash && d.width) {
+        $('dl-res').textContent = `${d.width}×${d.height || ''}`;
+        const est = noiseEstimate(d);
+        $('dl-est').textContent = est || '측정 불가';
+        $('dl-review').hidden = false;
+      }
+      return;
+    }
     const m = parseM3U8(await fetchStreamText(JOB.url), JOB.url);
-    if (!m.isMaster || m.variants.length < 2) return;
-    const opts = [...m.variants].sort((a, b) => b.bandwidth - a.bandwidth);
-    const sel = $('dl-quality-select');
-    sel.innerHTML = opts
-      .map((v, i) => {
-        const label =
-          [
-            v.resolution || '',
-            v.frameRate ? `${v.frameRate}fps` : '',
-            `${(v.bandwidth / 1000).toFixed(0)}kbps`,
-          ]
-            .filter(Boolean)
-            .join(' · ') || `변형 ${i + 1}`;
-        return `<option value="${i}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
-      })
-      .join('');
-    selectedVariant = opts[0];
-    sel.onchange = () => {
-      selectedVariant = opts[sel.selectedIndex];
-    };
-    $('dl-quality').hidden = false;
-    DebugLogger.info('DLWIN', `마스터 감지 — 화질 변형 ${opts.length}개 표시`);
+    if (m.isMaster && m.variants.length) {
+      const opts = [...m.variants].sort((a, b) => b.bandwidth - a.bandwidth);
+      const sel = $('dl-quality-select');
+      sel.innerHTML = opts
+        .map((v, i) => {
+          const label =
+            [
+              v.resolution,
+              v.frameRate ? `${v.frameRate}fps` : '',
+              `${(v.bandwidth / 1000).toFixed(0)}kbps`,
+            ]
+              .filter(Boolean)
+              .join(' · ') || `변형 ${i + 1}`;
+          return `<option value="${i}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+        })
+        .join('');
+      selectedVariant = opts[0];
+      $('dl-quality').hidden = false;
+      $('dl-res').textContent = opts[0].resolution || '단일 해상도';
+      sel.onchange = () => {
+        selectedVariant = opts[sel.selectedIndex];
+        $('dl-res').textContent = selectedVariant.resolution || '단일 해상도';
+        updateEstimate(selectedVariant);
+      };
+      updateEstimate(selectedVariant);
+      $('dl-review').hidden = false;
+      DebugLogger.info('DLWIN', `매니페스트 해석 — 화질 변형 ${opts.length}개 표시`);
+      return;
+    }
+    if (m.totalDuration > 0) {
+      // 단일 세그먼트 매니페스트(마스터 아님) — 대역폭 정보 없음 → 해상도/용량만 표현
+      $('dl-res').textContent = '단일 해상도';
+      $('dl-est').textContent = `길이 ${fmtDuration(m.totalDuration)} · 용량 미정(측정 필요)`;
+      $('dl-review').hidden = false;
+    }
   } catch {
-    /* 변형 1개/세그먼트 매니페스트/fetch 실패 — 기존 흐름 유지 */
+    /* 해석 실패 — 리뷰/화질 UI 없이 기본 흐름 유지 */
   }
+}
+
+function noiseEstimate(d) {
+  if (!d.totalSeconds || !d.bandwidth) return null;
+  return fmtEstimate((d.bandwidth / 8) * d.totalSeconds);
+}
+
+// 선택된 변형의 세그먼트 매니페스트를 가져와 재생 길이×대역폭으로 예상 용량 갱신
+let _estTimer = null;
+async function updateEstimate(v) {
+  clearTimeout(_estTimer);
+  $('dl-est').textContent = '계산 중…';
+  _estTimer = setTimeout(async () => {
+    try {
+      if (!v?.url) return;
+      const child = parseM3U8(await fetchStreamText(v.url), v.url);
+      if (child.totalDuration > 0) {
+        const est = fmtEstimate(estimateBytesByVariant(v, child.totalDuration * 1000));
+        $('dl-est').textContent = est
+          ? `${est} (${fmtDuration(child.totalDuration)})`
+          : '용량 미정(측정 필요)';
+      } else {
+        $('dl-est').textContent = '용량 미정(측정 필요)';
+      }
+    } catch {
+      $('dl-est').textContent = '용량 미정(측정 필요)';
+    }
+  }, 50);
 }
 
 function codeFrom(message) {
@@ -417,8 +496,7 @@ async function downloadDirect() {
           idle = makeIdleP();
           parts.push(value);
           received += value.byteLength;
-          if (received > MAX_STREAM_TOTAL)
-            throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.');
+          if (received > MAX_STREAM_TOTAL) throw streamError('E-CHR-DL-1004', streamLimitMsg());
           const now = performance.now();
           speedWin.push({ bytes: value.byteLength, dt: (now - lastT) / 1000 });
           if (speedWin.length > 3) speedWin.shift();
@@ -558,7 +636,7 @@ async function runDownload() {
         total += buf.byteLength;
         if (total > MAX_STREAM_TOTAL) {
           parts.length = 0;
-          throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.');
+          throw streamError('E-CHR-DL-1004', streamLimitMsg());
         }
         parts.push(buf);
         speedWin.push({ bytes: buf.byteLength, dt: (performance.now() - t0) / 1000 });
@@ -613,7 +691,7 @@ async function runDownload() {
       total += buf.byteLength;
       if (total > MAX_STREAM_TOTAL) {
         parts.length = 0;
-        throw streamError('E-CHR-DL-1004', '스트림 용량이 300MB를 초과해 중단합니다.');
+        throw streamError('E-CHR-DL-1004', streamLimitMsg());
       }
       parts.push(buf);
       speedWin.push({ bytes: buf.byteLength, dt: (performance.now() - t0) / 1000 });
@@ -659,15 +737,19 @@ $('dl-open').addEventListener('click', () => {
   if (lastDownloadId != null) chrome.downloads.show(lastDownloadId);
 });
 
-// 시작 시 자동 실행 (패널/팝업에서 이미 승인된 작업)
+// 시작 시 검토 화면 표시 — 자동 시작 없음. 사용자가 [다운로드 시작]을 눌러야만 진행한다.
 if (JOB.url && JOB.url.startsWith('http')) {
   $('dl-filename').value = defaultName();
+  $('dl-start').disabled = false;
   DebugLogger.feature(
     'DLWIN',
-    `스트림 다운로드 창 열림 — 자동 시작 (기본 파일명: ${$('dl-filename').value})`
+    `스트림 다운로드 창 열림 — 검토 대기 (기본 파일명: ${$('dl-filename').value})`
   );
   (async () => {
-    if (isM3u8Url(JOB.url)) await prepareQuality(); // 유튜브 등 단일 URL은 화질 드롭다운 없이 직접 수신
-    setTimeout(runDownload, 300);
+    try {
+      if (isM3u8Url(JOB.url) || isMpdUrl(JOB.url)) await prepareQuality();
+    } catch {
+      /* 해석 실패 시 화질/리뷰 없이 기본 다운로드만 허용 */
+    }
   })();
 }

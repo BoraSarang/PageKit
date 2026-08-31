@@ -400,6 +400,62 @@
     return streams;
   }
 
+  // ---------- 스트림 안정화 (settle) ----------
+  // HLS/DASH 매니페스트는 플레이어가 부팅된 뒤 네트워크로 뒤늦게 로드됨.
+  // resource 버퍼에서 m3u8/mpd가 새로 나타나면 다시 수집해 "한 번의 분석으로 최종 상태"에 가깝게 만든다.
+  // 스트림 소스(video/audio 태그 또는 매니페스트 리소스)가 검출될 때만 대기 — 일반 페이지는 지연 없이 반환.
+  async function settleStreams(result) {
+    let hasStreamSource = result.media.streams.length > 0;
+    if (!hasStreamSource) {
+      hasStreamSource =
+        (document.querySelector('video, audio') ? true : false) ||
+        resourceManifestUrls().length > 0;
+    }
+    if (!hasStreamSource) return;
+
+    const deadline = performance.now() + 3000;
+    const seen = new Set(result.media.streams.map((s) => s.url));
+    let added = 0;
+    while (performance.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 600));
+      let progressed = false;
+      for (const url of resourceManifestUrls()) {
+        if (/\.(m3u8|mpd)(\?|#|$)/i.test(url) && !seen.has(url)) {
+          seen.add(url);
+          result.media.streams.push({
+            id: `s${result.media.streams.length}`,
+            url,
+            name: streamName(url),
+            protocol: url.toLowerCase().endsWith('.mpd') ? 'dash' : 'hls',
+            qualities: [],
+            inArticle: false,
+            downloadable: url.toLowerCase().endsWith('.mpd') ? false : true,
+          });
+          added++;
+          progressed = true;
+        }
+      }
+      if (result.media.streams.length && !progressed) break; // 더 이상 새 매니페스트 없음 → 안정화 완료
+    }
+    if (added) {
+      result.stats.totalStreams = result.media.streams.length;
+      DebugLogger.feature('EXTRACT', `스트림 안정화 대기 추가 수집 (${added}건)`);
+    }
+  }
+
+  function resourceManifestUrls() {
+    try {
+      const urls = [];
+      for (const e of performance.getEntriesByType('resource')) {
+        const n = e.name;
+        if (/\.(m3u8|mpd)(\?|$)/i.test(n)) urls.push(n);
+      }
+      return urls;
+    } catch {
+      return [];
+    }
+  }
+
   // ---------- 이미지 확장자 판정 ----------
   // 확장자를 추출해도 이미지 종류가 아니면 'unknown' (파일명 뒷자리 노출 방지)
   const IMAGE_EXTS = new Set([
@@ -1029,6 +1085,7 @@
           // readyState가 complete여도 lazy 이미지 로드가 남아 있을 수 있음 — 이미지 안정화까지 추가 대기
           await waitPageStable();
           const result = analyze();
+          await settleStreams(result); // HLS/DASH 매니페스트가 플레이어 부팅 후 뒤늦게 로드됨 — 최대 3초 안정화 대기 후 재수집
           await collectNaverVod(result); // navertv VOD는 먼저 (frameId 재할당은 collectFrameMedia가 수행)
           await collectFrameMedia(result);
           await mergeYoutubePlayerFormats(result); // 유튜브 player API(ANDROID_SDKLESS) adaptiveFormats 병합

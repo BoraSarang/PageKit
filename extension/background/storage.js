@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   retryCount: 2,
   streamDetect: true,
   unlockEnabled: false,
+  streamMaxMB: 0, // 스트림 병합 총 용량 상한(MB). 0 = 제한 없음 (기본)
 };
 
 export async function getLocal(key, fallback = null) {

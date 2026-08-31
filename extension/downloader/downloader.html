@@ -1,50 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-<meta charset="utf-8">
-<title>PageKit 스트림 다운로드</title>
-<link rel="stylesheet" href="downloader.css">
-</head>
-<body>
-  <header class="dl-head">
-    <h1>PageKit 스트림 다운로드</h1>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <title>PageKit 스트림 다운로드</title>
+    <link rel="stylesheet" href="downloader.css" />
+  </head>
+  <body>
+    <header class="dl-head">
+      <h1>PageKit 스트림 다운로드</h1>
+    </header>
 
-  <section class="dl-name">
-    <label for="dl-filename">파일명</label>
-    <div class="dl-name-row">
-      <input id="dl-filename" type="text" spellcheck="false" placeholder="파일명 (비우면 자동)">
-      <button id="dl-start" class="dl-btn primary">다운로드 시작</button>
-    </div>
-    <p class="dl-hint">확장자를 생략하면 .ts(HLS)·.mp4(DASH/직접)가 붙습니다 — 진행 중에도 변경할 수 있습니다</p>
-  </section>
+    <section class="dl-name">
+      <label for="dl-filename">파일명</label>
+      <div class="dl-name-row">
+        <input id="dl-filename" type="text" spellcheck="false" placeholder="파일명 (비우면 자동)" />
+        <button id="dl-start" class="dl-btn primary">다운로드 시작</button>
+      </div>
+      <p class="dl-hint">
+        확장자를 생략하면 .ts(HLS)·.mp4(DASH/직접)가 붙습니다 — 진행 중에도 변경할 수 있습니다
+      </p>
+    </section>
 
-  <section class="dl-quality" id="dl-quality" hidden>
-    <label for="dl-quality-select">화질</label>
-    <select id="dl-quality-select"></select>
-    <p class="dl-hint">시작 전에만 변경할 수 있습니다</p>
-  </section>
+    <section class="dl-quality" id="dl-quality" hidden>
+      <label for="dl-quality-select">화질</label>
+      <select id="dl-quality-select"></select>
+      <p class="dl-hint">시작 전에만 변경할 수 있습니다</p>
+    </section>
 
-  <section class="dl-progress" id="dl-progress" hidden>
-    <div class="dl-state" id="dl-state">준비 중…</div>
-    <div class="dl-bar"><div class="dl-bar-fill" id="dl-bar-fill"></div></div>
-    <div class="dl-meta" id="dl-meta"></div>
-    <div class="dl-actions">
-      <button id="dl-cancel" class="dl-btn danger">취소</button>
-    </div>
-  </section>
+    <section class="dl-review" id="dl-review" hidden>
+      <div class="dl-review-row">
+        <span class="dl-review-label">해상도</span><span id="dl-res">-</span>
+      </div>
+      <div class="dl-review-row">
+        <span class="dl-review-label">예상 용량</span><span id="dl-est">-</span>
+      </div>
+    </section>
 
-  <section class="dl-result" id="dl-result" hidden>
-    <div class="dl-result-title" id="dl-result-title"></div>
-    <div class="dl-result-msg" id="dl-result-msg"></div>
-    <div class="dl-actions">
-      <button id="dl-close" class="dl-btn">창 닫기</button>
-      <button id="dl-open" class="dl-btn primary" hidden>파일 위치 열기</button>
-      <button id="dl-retry" class="dl-btn primary" hidden>다시 시도</button>
-    </div>
-  </section>
+    <section class="dl-progress" id="dl-progress" hidden>
+      <div class="dl-state" id="dl-state">준비 중…</div>
+      <div class="dl-bar"><div class="dl-bar-fill" id="dl-bar-fill"></div></div>
+      <div class="dl-meta" id="dl-meta"></div>
+      <div class="dl-actions">
+        <button id="dl-cancel" class="dl-btn danger">취소</button>
+      </div>
+    </section>
 
-  <script src="../debug.js"></script>
-  <script type="module" src="downloader.js?v=1"></script>
-</body>
+    <section class="dl-result" id="dl-result" hidden>
+      <div class="dl-result-title" id="dl-result-title"></div>
+      <div class="dl-result-msg" id="dl-result-msg"></div>
+      <div class="dl-actions">
+        <button id="dl-close" class="dl-btn">창 닫기</button>
+        <button id="dl-open" class="dl-btn primary" hidden>파일 위치 열기</button>
+        <button id="dl-retry" class="dl-btn primary" hidden>다시 시도</button>
+      </div>
+    </section>
+
+    <script src="../debug.js"></script>
+    <script type="module" src="downloader.js?v=1"></script>
+  </body>
 </html>

@@ -90,6 +90,7 @@ function streamWinUrl(job) {
   if (job.title) q.set('t', job.title);
   if (job.referer) q.set('r', job.referer);
   if (job.tabId != null) q.set('tid', String(job.tabId)); // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
+  if (job.maxmb != null) q.set('maxmb', String(job.maxmb));
   return chrome.runtime.getURL(`downloader/downloader.html?${q.toString()}`);
 }
 
@@ -100,6 +101,13 @@ async function openStreamWindow(job) {
     } catch (e) {
       BGLogger.warn('DL', `스트림 Referer 규칙 등록 실패 ${e.message}`);
     }
+  }
+  // 스트림 병합 저장 상한(옵션 streamMaxMB)을 작업 창에 전달
+  try {
+    const st = await storage.getSettings();
+    job.maxmb = st.streamMaxMB ?? 0;
+  } catch {
+    job.maxmb = 0;
   }
   const url = streamWinUrl(job);
   const win = await chrome.windows.create({

@@ -190,9 +190,22 @@ function allItems() {
     ...analysis.media.images.map((i) => ({ ...i, cat: 'images', size: i.size || 0 })),
     ...analysis.media.videos.map((v) => ({ ...v, cat: 'videos', size: 0 })),
     ...analysis.media.audios.map((a) => ({ ...a, cat: 'audios', size: 0 })),
-    ...analysis.media.streams.map((s) => ({ ...s, cat: 'streams', size: 0 })),
+    ...analysis.media.streams.map((s) => {
+      const it = { ...s, cat: 'streams', size: 0 };
+      if (isYoutubeStream(it)) it.downloadable = false; // 유튜브는 다운로드 지원 안 함 (URL 복사만)
+      return it;
+    }),
     ...analysis.links.map((l) => ({ ...l, cat: 'links', size: 0 })),
   ];
+}
+
+// 유튜브 스트림(다운로드 비지원): player API 병합 or googlevideo webRequest 캡처
+function isYoutubeStream(it) {
+  return (
+    it?.source === 'youtube-capture' ||
+    it?.source === 'youtube-player' ||
+    (it?.url || '').includes('googlevideo.com')
+  );
 }
 
 function tabItems() {
@@ -303,6 +316,63 @@ function itemHtml(it) {
     </label>`;
 }
 
+// 유튜브 동영상 카드: 흩어진 itag/형식을 하나의 `<select>`로 묶고, 다운로드 불가 + URL 복사만 제공
+function youtubeCardHtml(list) {
+  const seen = new Set();
+  const rows = list.filter((it) => {
+    const k = `${it.format || ''}|${it.label || it.name || it.url}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const options = rows
+    .map(
+      (it, i) => `<option value="${i}">${esc(it.name || it.label || `스트림 ${i + 1}`)}</option>`
+    )
+    .join('');
+  const copyUrl = analysis?.url || (rows[0]?.url || '').replace(/googlevideo\.com.*/, '');
+  return `
+    <div class="pk-item pk-item--yt" data-id="yt-card">
+      <div class="pk-thumb">▶</div>
+      <div class="pk-info">
+        <div class="pk-name" title="${esc(copyUrl)}">${esc(shortenUrl(analysis?.title || '유튜브 동영상'))}</div>
+        <div class="pk-meta">이 영상은 다운로드할 수 없습니다 · 아래 형식 정보를 확인하세요</div>
+      </div>
+      <span class="pk-tag pk-tag-no">다운로드 불가</span>
+    </div>
+    <div class="pk-yt-det">
+      <label class="pk-yt-label">형식</label>
+      <select class="pk-yt-select" aria-label="유튜브 형식">${options}</select>
+      <div class="pk-yt-info" id="yt-fmt-info"></div>
+      <button type="button" class="pk-btn pk-btn-yt-copy" data-copy="${esc(copyUrl)}">🔗 주소 복사</button>
+    </div>`;
+}
+
+// 유튜브 카드의 형식 셀렉트 선택 상세 표시 + 주소 복사 (render 직후 호출)
+function bindYoutubeCard() {
+  const sel = document.querySelector('.pk-yt-select');
+  const info = document.getElementById('yt-fmt-info');
+  if (sel && info) {
+    sel.onchange = () => {
+      const opt = sel.options[sel.selectedIndex];
+      info.textContent = opt ? opt.textContent : '';
+    };
+    sel.onchange?.();
+  }
+  const copyBtn = document.querySelector('.pk-btn-yt-copy');
+  if (copyBtn) {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(copyBtn.dataset.copy || '');
+        copyBtn.textContent = '✅ 복사됨';
+        setTimeout(() => (copyBtn.textContent = '🔗 주소 복사'), 1500);
+      } catch {
+        copyBtn.textContent = '복사 실패';
+      }
+    };
+  }
+}
+
 function render() {
   if (!analysis) {
     $('pk-empty').innerHTML = '분석 결과가 없습니다.<br />상단 ⟳ 버튼으로 페이지를 분석하세요.';
@@ -375,8 +445,14 @@ function render() {
   const maxItems = 500;
   let inner;
   if (currentTab === 'streams') {
+    // 유튜브 스트림(다운로드 불가)은 여러 itag/형식이 흩어지지 않게 단일 카드로 묶어 표시
+    const yt = items.filter(isYoutubeStream);
+    const rest = items.filter((it) => !isYoutubeStream(it));
     inner =
-      groupStreams(items.slice(0, maxItems))
+      (yt.length
+        ? `<div class="pk-group"><div class="pk-group-title" role="button" title="클릭하여 펼치기/접기"><span class="pk-arrow">▾</span> 유튜브 동영상 <span class="pk-group-count">1</span></div><div class="pk-group-body">${youtubeCardHtml(yt)}</div></div>`
+        : '') +
+      groupStreams(rest.slice(0, maxItems))
         .map(
           (g) => `
       <div class="pk-group">
@@ -405,6 +481,7 @@ function render() {
       : '');
 
   updateSelectionUI();
+  bindYoutubeCard();
   fixImageDims();
   ensureThumbs();
 }

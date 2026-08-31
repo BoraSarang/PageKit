@@ -163,15 +163,21 @@ async function loadSettings() {
   $('pk-min-width').value = s.minImageWidth ?? 0;
   $('pk-min-size').value = s.minImageSize ?? 0;
   $('pk-stream-detect').checked = Boolean(s.streamDetect);
+  $('pk-stream-max').value = String(s.streamMaxMB ?? 0);
   $('pk-unlock-enabled').checked = Boolean(s.unlockEnabled);
 }
 $('pk-unlock-enabled').addEventListener('change', async () => {
   const on = $('pk-unlock-enabled').checked;
   DebugLogger.feature('OPTIONS', `우클릭/복사 제한 해제 ${on ? '켬' : '끔'}`);
-  const resp = await chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload: { unlockEnabled: on } });
+  const resp = await chrome.runtime.sendMessage({
+    type: MSG.SETTINGS_SET,
+    payload: { unlockEnabled: on },
+  });
   if (!resp?.ok) {
     $('pk-unlock-enabled').checked = !on; // 백그라운드 무응답/실패 시 UI 원복
-    showBootError('설정 적용 실패 — PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.');
+    showBootError(
+      '설정 적용 실패 — PageKit 백그라운드가 응답하지 않습니다. 확장을 새로고침해 주세요.'
+    );
   }
 });
 $('pk-save-settings').addEventListener('click', async () => {
@@ -180,6 +186,7 @@ $('pk-save-settings').addEventListener('click', async () => {
     minImageWidth: Math.max(0, parseInt($('pk-min-width').value, 10) || 0),
     minImageSize: Math.max(0, parseInt($('pk-min-size').value, 10) || 0),
     streamDetect: $('pk-stream-detect').checked,
+    streamMaxMB: Math.max(0, parseInt($('pk-stream-max').value, 10) || 0),
   };
   DebugLogger.feature('OPTIONS', '설정 저장', payload);
   await chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload });
