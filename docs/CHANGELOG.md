@@ -1,5 +1,19 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.9 (2026-08-31) — 스트림 병렬 다운로드 + 체크포인트 재개 + CDN Referer 재생
+
+### 주요 변경 [chrome]
+- **병렬 Range 다운로드** (`shared/parallel-download.js` 신규): HTTP Range 지원 서버 대상으로 단일 영상을 **여러 연결이 병렬 수신** (기본 3개). 순서 버퍼로 청크를 조립하고, 실패 청크는 지수 백오프로 재시도
+  - 적용: 단일 mp4 등 일반 영상(`downloadDirectParallel`), 유튜브 googlevideo는 기존 순차+페이지 폴백 경로 유지
+- **체크포인트 재개** (`shared/download-checkpoint.js` 신규): `chrome.storage.local`에 받은 바이트/세그먼트 index를 저장해 **브라우저·네트워크 중단 후 이어받기**
+  - 단일 영상: 바이트 오프셋 재개 / DASH·HLS: 세그먼트 index 재개
+- **CDN Referer 재생 강화**: 다운로더의 매니페스트·세그먼트 fetch에 원본 페이지 `referer` 헤더 주입 (`refererHeaders()`), 기존 `ensureReferer` DNR 규칙과 병행
+- 유튜브 다운로드·DRM 키 추출은 미채택 (기존 "지원 안 함·URL 복사" 정책 유지)
+
+### 파일
+- 신규: `extension/shared/parallel-download.js`, `extension/shared/download-checkpoint.js`
+- 수정: `extension/shared/m3u8.js`(fetch 헤더 옵션), `extension/downloader/downloader.js`(병렬·체크포인트·referer)
+
 ## v1.0.8 (2026-08-23) — 랜딩 GitHub Pages 연결
 
 ### 주요 변경 [infra/docs]

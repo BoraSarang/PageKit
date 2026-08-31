@@ -73,11 +73,12 @@ export function parseM3U8(text, baseUrl) {
 }
 
 // 확장 오리진 fetch → ArrayBuffer (실패 시 throw, 타임아웃 가드 포함)
-export async function fetchStreamBinary(url, timeoutMs = FETCH_TIMEOUT_MS) {
+// headers: referer 등 원본 요청 헤더 (CDN Referer 체크 대응)
+export async function fetchStreamBinary(url, timeoutMs = FETCH_TIMEOUT_MS, headers = {}) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const r = await fetch(url, { credentials: 'include', signal: ctl.signal });
+    const r = await fetch(url, { credentials: 'include', signal: ctl.signal, headers });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const buf = await r.arrayBuffer();
     if (buf.byteLength > MAX_SEGMENT_SIZE) throw new Error('세그먼트가 50MB를 초과');
@@ -88,8 +89,8 @@ export async function fetchStreamBinary(url, timeoutMs = FETCH_TIMEOUT_MS) {
 }
 
 // m3u8 텍스트 응답 fetch
-export async function fetchStreamText(url, timeoutMs = FETCH_TIMEOUT_MS) {
-  return new TextDecoder().decode(await fetchStreamBinary(url, timeoutMs));
+export async function fetchStreamText(url, timeoutMs = FETCH_TIMEOUT_MS, headers = {}) {
+  return new TextDecoder().decode(await fetchStreamBinary(url, timeoutMs, headers));
 }
 
 // 스트림 저장 불가 사유 에러 팩토리

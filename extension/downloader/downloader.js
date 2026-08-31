@@ -18,6 +18,12 @@ import {
   setStreamMaxTotal,
   streamError,
 } from '../shared/m3u8.js';
+import { parallelDownload, probeHttpRange } from '../shared/parallel-download.js';
+import {
+  getDownloadCheckpoint,
+  setDownloadCheckpoint,
+  clearDownloadCheckpoint,
+} from '../shared/download-checkpoint.js';
 import { MSG } from '../shared/messages.js';
 
 const $ = (id) => document.getElementById(id);
@@ -31,8 +37,14 @@ const JOB = {
   folder: params.get('f') || 'page',
   maxMB: Number(params.get('maxmb')) || 0, // 스트림 병합 상한(MB) — 0 = 제한 없음 (옵션 streamMaxMB)
   tabId: Number(params.get('tid')) || null, // 페이지 컨텍스트 fetch 폴백용 (유튜브 googlevideo 등)
+  referer: params.get('r') || '', // 원본 페이지 URL — CDN Referer 체크 대응 (DNR 규칙 + fetch 헤더)
 };
 setStreamMaxTotal((JOB.maxMB || 0) > 0 ? JOB.maxMB * 1024 * 1024 : Infinity);
+
+// CDN Referer 체크 대응 fetch 헤더 — 원본 페이지 referer가 있으면 주입
+function refererHeaders() {
+  return JOB.referer ? { referer: JOB.referer } : {};
+}
 
 // 설정된 병합 상한 안내 문구 ("제한 없음"이면 일반 안내)
 function streamLimitMsg() {
@@ -200,7 +212,7 @@ function isMpdUrl(url) {
 
 // DASH(mpd) — 파싱 + 화질 선택 (마스터형이면 최고 대역폭 Representation 자동 선택)
 async function resolveMPD(url, depth = 0) {
-  const d = parseMPD(await fetchStreamText(url), url);
+  const d = parseMPD(await fetchStreamText(url, undefined, refererHeaders()), url);
   if (!d.isDash) throw streamError('E-CHR-DL-1003', 'DASH 매니페스트가 아닙니다.');
   if (d.error === 'LIVE') throw streamError('E-CHR-DL-1003', 'LIVE 스트림은 저장할 수 없습니다.');
   if (!d.segs.length)
@@ -524,7 +536,158 @@ async function downloadDirect() {
   await saveBlob(new Blob(parts, { type: 'video/mp4' }), '.mp4');
 }
 
-// CORS 차단 등 fetch 불가 시 폴백 — 브라우저 다운로더에 직접 전달 (진행률은 다운로드 목록에서)
+// 일반 단일 mp4 등 — 병렬 Range 수신 + 체크포인트 재개.
+// googlevideo(유튜브 서명 URL)는 기존 downloadDirect(페이지 폴백)로 처리하므로 이 함수는 제외.
+// 순서: probeHttpRange로 Range 지원 확인 → 병렬 다운로드. 실패/미지원 시 순차 확장 fetch 폴백.
+async function downloadDirectParallel() {
+  setState('동영상 수신 준비 중…');
+  const tErr = (code, msg) => Object.assign(new Error(msg), { code });
+
+  // 무한 대기 방지 — 서버 무응답 25초 제한
+  const connectP = new Promise((_, rej) =>
+    setTimeout(() => rej(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다.')), 25000)
+  );
+
+  // 이전 중단(체크포인트) 확인 → 재개 오프셋
+  const cpKey = `media:${JOB.url}`;
+  const cp = await getDownloadCheckpoint(cpKey);
+  let resumeOffset = 0;
+  if (cp && cp.totalBytes > 0 && cp.bytesWritten > 0 && cp.bytesWritten < cp.totalBytes) {
+    resumeOffset = cp.bytesWritten;
+    DebugLogger.info('DLWIN', `이전 중단 발견 → 재개 ${resumeOffset}/${cp.totalBytes} 바이트`);
+  }
+
+  const abortCtlLocal = abortCtl || new AbortController();
+  const signal = abortCtlLocal.signal;
+  const parts = [];
+  const header = refererHeaders();
+  speedWin = [];
+  let lastT = performance.now();
+
+  // 1) 병렬 Range 가능 여부 확인 (기존 체크포인트가 없을 때만 처음부터 합리적인 판단)
+  const probe = await Promise.race([
+    probeHttpRange(JOB.url, { headers: header, signal }),
+    connectP,
+  ]);
+  if (!probe.ranges || !probe.total || probe.total <= 0) {
+    DebugLogger.info(
+      'DLWIN',
+      `병렬 수신 불가(ranges=${probe.ranges}, total=${probe.total}) → 순차 폴백`
+    );
+    // 병렬 불가 → 기존 순차 확장 fetch (downloadDirect의 페이지 폴백 없이) 로 폴백
+    return downloadDirectSequential();
+  }
+  const total = probe.total;
+
+  // 2) 병렬 다운로드
+  try {
+    await Promise.race([
+      parallelDownload({
+        url: JOB.url,
+        total,
+        headers: header,
+        concurrency: 3,
+        signal,
+        offset: resumeOffset,
+        onChunk: (buf) => {
+          parts.push(buf);
+          const now = performance.now();
+          speedWin.push({ bytes: buf.byteLength, dt: (now - lastT) / 1000 });
+          if (speedWin.length > 3) speedWin.shift();
+          lastT = now;
+        },
+        onProgress: (written, t) => {
+          setProgressBytes(written, t, speedMPBS());
+        },
+        onCheckpoint: async (written, t) => {
+          await setDownloadCheckpoint(cpKey, {
+            bytesWritten: written,
+            totalBytes: t,
+            resumeFromSegment: -1,
+          });
+        },
+      }),
+      connectP,
+    ]);
+    if (signal.aborted) throw streamError('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.');
+  } catch (e) {
+    parts.length = 0;
+    // 사용자 취소 → 재시도 없이 중단
+    if (e?.code === 'E-CHR-DL-1004') throw streamError(e.code, e.message);
+    // 병렬 진행 중 실패(네트워크/HTTP 등) → 순차 수신으로 폴백
+    DebugLogger.info('DLWIN', `병렬 수신 실패 (${e?.message}) → 순차 수신으로 전환`);
+    try {
+      return await downloadDirectSequential();
+    } catch (e2) {
+      // 순차까지 실패 → 브라우저 다운로더로 최종 폴백 (취소는 제외)
+      if (e2?.code === 'E-CHR-DL-1004') throw streamError(e2.code, e2.message);
+      DebugLogger.info('DLWIN', `순차 수신 실패 (${e2?.message}) → 브라우저 다운로더 폴백`);
+      return await downloadViaDownloads();
+    }
+  }
+  await clearDownloadCheckpoint(cpKey).catch(() => {});
+  await saveBlob(new Blob(parts, { type: 'video/mp4' }), '.mp4');
+}
+
+// 속도 이동평균 — 병렬 진행 표시용
+function speedMPBS() {
+  const agg = speedWin.reduce((a, s) => ({ bytes: a.bytes + s.bytes, dt: a.dt + s.dt }), {
+    bytes: 0,
+    dt: 0,
+  });
+  return agg.dt > 0 ? agg.bytes / 1048576 / agg.dt : 0;
+}
+
+// 병렬 불가(비-Range 서버) 폴백 — Range 없는 순차 확장 fetch (전체 수신)
+async function downloadDirectSequential() {
+  setState('동영상 수신 중…');
+  const tErr = (code, msg) => Object.assign(new Error(msg), { code });
+  const abortCtlLocal = abortCtl || new AbortController();
+  const cancelP = new Promise((_, rej) => {
+    abortCtlLocal.signal.addEventListener('abort', () =>
+      rej(tErr('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.'))
+    );
+  });
+  try {
+    const resp = await Promise.race([
+      fetch(JOB.url, { headers: refererHeaders(), signal: abortCtlLocal.signal }),
+      new Promise((_, rej) =>
+        setTimeout(() => rej(tErr('E-CHR-DL-1006', '스트림 서버가 응답하지 않습니다.')), 25000)
+      ),
+      cancelP,
+    ]);
+    if (!resp.ok)
+      throw streamError('E-CHR-DL-1005', `캡처된 주소가 유효하지 않습니다. (HTTP ${resp.status})`);
+    const reader = resp.body.getReader();
+    const parts = [];
+    const total = Number(resp.headers.get('content-length')) || 0;
+    let received = 0;
+    const cpKey = `media:${JOB.url}`;
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), cancelP]);
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      parts.push(value);
+      received += value.byteLength;
+      if (received > MAX_STREAM_TOTAL) throw streamError('E-CHR-DL-1004', streamLimitMsg());
+      setProgressBytes(received, total, speedMPBS());
+      if (total > 0 && received % (8 * 1024 * 1024) < value.byteLength) {
+        await setDownloadCheckpoint(cpKey, {
+          bytesWritten: received,
+          totalBytes: total,
+          resumeFromSegment: -1,
+        });
+      }
+    }
+    await clearDownloadCheckpoint(cpKey).catch(() => {});
+    await saveBlob(new Blob(parts, { type: 'video/mp4' }), '.mp4');
+  } catch (e) {
+    if (e?.code === 'E-CHR-DL-1004' || e?.code === 'E-CHR-DL-1006')
+      throw streamError(e.code, e.message);
+    throw streamError('E-CHR-DL-1004', `다운로드 실패 (${e?.message || '알 수 없음'})`);
+  }
+}
+
 async function downloadViaDownloads() {
   let fileName = $('dl-filename').value.trim() || defaultName();
   fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
@@ -550,7 +713,7 @@ async function downloadViaDownloads() {
 
 // 마스터 매니페스트를 최고 화질 변형까지 재귀 해석 (깊이 2 제한) → 세그먼트 매니페스트 정보
 async function resolveManifest(url, depth = 0) {
-  const text = await fetchStreamText(url);
+  const text = await fetchStreamText(url, undefined, refererHeaders());
   const m = parseM3U8(text, url);
   if (m.isMaster) {
     if (depth >= 2) throw streamError('E-CHR-DL-1003', '매니페스트 해석 깊이를 초과했습니다.');
@@ -568,7 +731,7 @@ async function resolveManifest(url, depth = 0) {
     throw streamError('E-CHR-DL-1003', '세그먼트가 너무 많아 LIVE 스트림으로 판단됩니다.');
   if (!m.endlist && m.playlistType !== 'VOD') {
     // ENDLIST가 없는 VOD(CDN에 따라 누락)를 LIVE와 구분: 0.5초 후 재요청해 세그먼트 수 비교
-    const m2 = parseM3U8(await fetchStreamText(url), url);
+    const m2 = parseM3U8(await fetchStreamText(url, undefined, refererHeaders()), url);
     if (m2.segs.length > m.segs.length) {
       throw streamError('E-CHR-DL-1003', 'LIVE 스트림은 저장할 수 없습니다.');
     }
@@ -592,20 +755,29 @@ async function runDownload() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     DebugLogger.feature('DLWIN', `스트림 다운로드 시작 ${JOB.url.slice(0, 90)}`);
-    // DASH(mpd): 매니페스트 → 초기화 세그먼트 + 미디어 세그먼트 병합
+    // DASH(mpd): 매니페스트 → 초기화 세그먼트 + 미디어 세그먼트 병합 (체크포인트 재개)
     if (isMpdUrl(JOB.url)) {
       setState('DASH 매니페스트 해석 중…');
       const d = await resolveMPD(JOB.url);
       const segs = d.segs;
       setState('세그먼트 수신 중…');
+      const cpKey = `dash:${JOB.url}`;
+      const cp = await getDownloadCheckpoint(cpKey);
+      const resumeFrom = cp && cp.resumeFromSegment >= 0 ? cp.resumeFromSegment + 1 : 0;
+      if (resumeFrom > 0) {
+        DebugLogger.info(
+          'DLWIN',
+          `이전 중단 발견 → 세그먼트 ${resumeFrom}/${segs.length}부터 재개`
+        );
+      }
       const parts = [];
       let total = 0;
-      // 초기화 세그먼트(moov 박스) 먼저 수신 — 실패 시 중단
+      // 초기화 세그먼트(moov 박스) 먼저 수신 — 실패 시 중단 (재개 시에도 항상 수신)
       if (d.initUrl) {
         let initBuf = null;
         for (let attempt = 0; attempt < 2 && !initBuf; attempt++) {
           try {
-            initBuf = await fetchStreamBinary(d.initUrl);
+            initBuf = await fetchStreamBinary(d.initUrl, undefined, refererHeaders());
           } catch (e) {
             if (attempt === 0) await sleep(1200);
             else throw streamError('E-CHR-DL-1004', `초기화 세그먼트 수신 실패 (${e.message})`);
@@ -614,7 +786,7 @@ async function runDownload() {
         parts.push(initBuf);
         total += initBuf.byteLength;
       }
-      for (let i = 0; i < segs.length; i++) {
+      for (let i = resumeFrom; i < segs.length; i++) {
         if (abortCtl.signal.aborted)
           throw streamError('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.');
         const t0 = performance.now();
@@ -622,7 +794,7 @@ async function runDownload() {
         let lastErr = null;
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            buf = await fetchStreamBinary(segs[i]);
+            buf = await fetchStreamBinary(segs[i], undefined, refererHeaders());
             break;
           } catch (e) {
             lastErr = e;
@@ -650,8 +822,14 @@ async function runDownload() {
         });
         const mbps = agg.dt > 0 ? agg.bytes / 1048576 / agg.dt : 0;
         setProgress(i + 1, segs.length, total, mbps);
+        await setDownloadCheckpoint(cpKey, {
+          resumeFromSegment: i,
+          bytesWritten: total,
+          totalBytes: 0,
+        }).catch(() => {});
         if (i + 1 < segs.length) await sleep(1200);
       }
+      await clearDownloadCheckpoint(cpKey).catch(() => {});
       setState('파일 저장 중…');
       const blob = new Blob(parts, { type: 'video/mp4' });
       parts.length = 0;
@@ -659,7 +837,11 @@ async function runDownload() {
       return;
     }
     // 유튜브 googlevideo 등 m3u8이 아닌 단일 URL → 직접 수신 모드
-    if (!isM3u8Url(JOB.url)) return await downloadDirect();
+    // googlevideo(서명 URL)는 페이지 컨텍스트 폴백이 필요 → 기존 순차 경로 유지
+    if (!isM3u8Url(JOB.url)) {
+      if (/googlevideo\.com/i.test(JOB.url)) return await downloadDirect();
+      return await downloadDirectParallel(); // 일반 mp4 → 병렬 Range + 체크포인트 재개
+    }
     setState('매니페스트 해석 중…');
     const m = selectedVariant
       ? await resolveManifest(selectedVariant.url)
@@ -667,9 +849,16 @@ async function runDownload() {
     const segs = m.segs;
     setState('세그먼트 수신 중…');
 
+    // HLS(.ts) 체크포인트 재개 — 받은 세그먼트 index부터 이어받기
+    const cpKey = `hls:${JOB.url}`;
+    const cp = await getDownloadCheckpoint(cpKey);
+    const resumeFrom = cp && cp.resumeFromSegment >= 0 ? cp.resumeFromSegment + 1 : 0;
+    if (resumeFrom > 0) {
+      DebugLogger.info('DLWIN', `이전 중단 발견 → 세그먼트 ${resumeFrom}/${segs.length}부터 재개`);
+    }
     const parts = [];
     let total = 0;
-    for (let i = 0; i < segs.length; i++) {
+    for (let i = resumeFrom; i < segs.length; i++) {
       if (abortCtl.signal.aborted)
         throw streamError('E-CHR-DL-1004', '사용자가 다운로드를 취소했습니다.');
       const t0 = performance.now();
@@ -677,7 +866,7 @@ async function runDownload() {
       let lastErr = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          buf = await fetchStreamBinary(segs[i]);
+          buf = await fetchStreamBinary(segs[i], undefined, refererHeaders());
           break;
         } catch (e) {
           lastErr = e;
@@ -705,8 +894,14 @@ async function runDownload() {
       });
       const mbps = agg.dt > 0 ? agg.bytes / 1048576 / agg.dt : 0;
       setProgress(i + 1, segs.length, total, mbps);
+      await setDownloadCheckpoint(cpKey, {
+        resumeFromSegment: i,
+        bytesWritten: total,
+        totalBytes: 0,
+      }).catch(() => {});
       if (i + 1 < segs.length) await sleep(1200); // CDN/WAF 부하 분산 + 네트워크 서비스 보호
     }
+    await clearDownloadCheckpoint(cpKey).catch(() => {});
 
     setState('파일 저장 중…');
     const blob = new Blob(parts, { type: 'video/mp2t' });

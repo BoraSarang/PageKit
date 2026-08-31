@@ -1,6 +1,6 @@
 # PERMISSIONS.md — Chrome 권한 정의서
 
-**버전**: v1.0.8 / **플랫폼**: chrome / **갱신**: 2026-08-23 (v1.0.8)
+**버전**: v1.0.9 / **플랫폼**: chrome / **갱신**: 2026-08-31 (v1.0.9)
 
 ---
 
@@ -16,7 +16,7 @@
 | `scripting` | 요청 시 스크립트 주입(분석·품질진단·플로팅 버튼) | 필수 |
 | `activeTab` | 현재 탭 접근 (요청 시점) | 필수 |
 | `webRequest` | 스트림 감지 보조 (m3u8/유튜브 캡처, declarativeNetRequest와 병행) | 선택 |
-| `declarativeNetRequest` | HLS/DASH 스트림 URL 감지 + 스트림 CDN referer 규칙 (다운로드 WAF 대응) | 선택 (옵션 ON 시) |
+| `declarativeNetRequest` | HLS/DASH 스트림 URL 감지 + 스트림 CDN referer 규칙 (다운로드 WAF 대응, 병렬 수신 시 원본 Referer/Origin 재생 포함) | 선택 (옵션 ON 시) |
 | `notifications` | 스트림 다운로드 완료 시스템 알림 (클릭 시 파일 위치 열기) | 필수 (v0.2) |
 
 ## 2. host_permissions
@@ -55,3 +55,4 @@
 | 2026-08-14 | `<all_urls>` 추가 (host_permissions) | 패널/단축키 진입점에서 임의 사이트 분석 필요 — 사용자 확정 |
 | 2026-08-14 | `notifications` 추가 | 스트림 다운로드 완료 알림 (v0.2 작업 창) |
 | 2026-08-22 | `webRequest` 명시 + content_scripts 정적 주입 반영 + 품질진단(axe 내장) 설명 갱신 | v0.7 현행화 |
+| 2026-08-31 | `declarativeNetRequest` 용도 설명 갱신 — 병렬 Range 수신·체크포인트 재개·원본 Referer/Origin 재생 | v1.0.9 |
