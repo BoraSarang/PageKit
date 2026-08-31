@@ -5,7 +5,7 @@
 **웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
 _Grab the good stuff from any page: media collection · batch download · page quality audit._
 
-[![version](https://img.shields.io/badge/version-1.0.9-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![version](https://img.shields.io/badge/version-1.0.10-0d9488)](https://github.com/BoraSarang/PageKit/releases)
 [![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
 [![Landing](https://img.shields.io/badge/랜딩%20페이지-PageKit-14B8A6)](https://borasarang.github.io/PageKit/)
 [![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
@@ -24,7 +24,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 |     | 기능                        | 설명                                                                                                                                |
 | --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | 🖼   | **미디어 수집**             | `srcset`·lazy·background 이미지, 동영상, 오디오, 링크를 한 번에 수집하고 본문 안/밖으로 자동 분류                                   |
-| 🎬  | **스트리밍 병합 다운로드**  | HLS(m3u8)·DASH(mpd)를 화질별로 감지해 **화질 변형을 하나의 카드로 통합**, **검토 화면(해상도·예상 용량) 후 하나의 MP4로 병합 저장**. 단일 영상은 **병렬 Range 수신·체크포인트 재개** 지원, 중단돼도 이어받기 |
+| 🎬  | **스트리밍 병합 다운로드**  | HLS(m3u8)·DASH(mpd)를 화질별로 감지해 **화질 변형을 하나의 카드로 통합**, **검토 화면(해상도·예상 용량) 후 하나의 MP4로 병합 저장**. 단일 영상은 **병렬 Range 수신·체크포인트 재개**, 중단돼도 이어받기. 서명 CDN은 **페이지 폴백 + 모바일 UA 재생** 지원 |
 | ⏹   | **유튜브 형식 확인 · 복사** | 유튜브는 다운로드가 제한되어, 지원 형식을 한눈에 보여주고 **페이지 주소 복사**만 제공                                               |
 | 📦  | **배치 ZIP 저장**           | 선택 항목을 폴더 구조 그대로 ZIP으로 일괄 저장, 실패 항목 자동 재시도                                                               |
 | 🔗  | **링크 추출 · CSV**         | 중복 제거 추출 + 정규식 필터 프리셋 + CSV 내보내기                                                                                  |
@@ -74,6 +74,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 - [x] 페이지 품질 진단 단독 패널 (v0.7)
 - [x] 스트림 화질 통합 카드 · 검토 화면(예상 용량 포함) · 유튜브 형식 확인 · 자동 리사이즈 (v1.0.2~1.0.6)
 - [x] 스트림 병렬 Range 다운로드 · 체크포인트 재개 · CDN Referer 헤더 재생 (v1.0.9)
+- [x] 서명 CDN 페이지 폴백 모바일 UA · 파일명/저장 견고화(예약어·트레일링·제어문자) (v1.0.10)
 - [ ] Chrome Web Store 정식 배포
 - [ ] 진단 히스토리·비교 리포트
 

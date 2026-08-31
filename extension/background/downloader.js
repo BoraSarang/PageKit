@@ -9,6 +9,7 @@
 import { BGLogger } from './logger.js';
 import * as storage from './storage.js';
 import { createZip } from '../shared/zip.js';
+import { sanitizeFilename, ensureExtension } from '../shared/filename-sanitize.js';
 
 const MAX_RETRY = 2;
 let jobSeq = 0;
@@ -60,6 +61,46 @@ async function releaseReferer(host) {
   } catch {}
 }
 
+// 페이지 컨텍스트 fetch 폴백(서명 CDN)용 모바일 UA 규칙 — tabIds 범위로 UA set (DNR).
+// 배경: 확장 오리진 fetch에서는 User-Agent override가 불가(Chrome 제약) → DNR로 PAGE 요청에만 적용.
+const mobileUARules = new Map(); // tabId -> ruleId
+let uaRuleSeq = 1500;
+
+export async function ensureMobileUA(tabId, userAgent) {
+  const existing = mobileUARules.get(tabId);
+  if (existing) return existing;
+  const ruleId = ++uaRuleSeq;
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: [ruleId],
+    addRules: [
+      {
+        id: ruleId,
+        priority: 10,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [{ header: 'User-Agent', operation: 'set', value: userAgent }],
+        },
+        condition: {
+          tabIds: [tabId],
+          resourceTypes: ['xmlhttprequest', 'media'],
+        },
+      },
+    ],
+  });
+  mobileUARules.set(tabId, ruleId);
+  BGLogger.info('DL', `모바일 UA 규칙 등록 tab=${tabId}`);
+  return ruleId;
+}
+
+export async function releaseMobileUA(tabId) {
+  const ruleId = mobileUARules.get(tabId);
+  if (!ruleId) return;
+  mobileUARules.delete(tabId);
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [ruleId] });
+  } catch {}
+}
+
 function domainFrom(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '') || 'page';
@@ -72,7 +113,7 @@ function safeName(url, idx) {
   try {
     const u = new URL(url);
     const base = u.pathname.split('/').filter(Boolean).pop() || `file_${idx}`;
-    return decodeURIComponent(base).replace(/[\\/:*?"<>|]/g, '_');
+    return sanitizeFilename(decodeURIComponent(base), `file_${idx}`);
   } catch {
     return `file_${idx}`;
   }
@@ -126,7 +167,7 @@ async function startJob(item, tabId) {
     jobId: `job_${++jobSeq}`,
     item,
     tabId: tabId ?? null,
-    name: item.filename || safeName(item.url, jobSeq),
+    name: sanitizeFilename(item.filename || '', `file_${jobSeq}`) || safeName(item.url, jobSeq),
     folder: domainFrom(item.url),
     state: 'active',
     progress: 0,
@@ -189,9 +230,9 @@ async function zipPack(items, tabId) {
   let total = 0;
   for (let i = 0; i < usable.length; i++) {
     const it = usable[i];
-    const name = (it.name || it.url.split('?')[0].split('/').pop() || `item_${i}`).replace(
-      /[\\/:*?"<>|]/g,
-      '_'
+    const name = sanitizeFilename(
+      it.name || it.url.split('?')[0].split('/').pop() || `item_${i}`,
+      `item_${i}`
     );
     let data = null;
     let lastErr = null;

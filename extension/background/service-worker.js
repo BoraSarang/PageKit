@@ -5,7 +5,7 @@ import { DebugLogger } from '../debug-module.js';
 import { openSidePanel } from './sidepanel-controller.js';
 import { MSG, msgOk, msgErr } from '../shared/messages.js';
 import * as storage from './storage.js';
-import { initDownloader, ensureReferer } from './downloader.js';
+import { initDownloader, ensureReferer, ensureMobileUA, releaseMobileUA } from './downloader.js';
 import { initStreamDetector, getCapturedStreams } from './stream-detector.js';
 import '../shared/quality-rules.js'; // classic 룰 엔진 로드 → globalThis.pkQualityRules
 import { handleQualityMessage } from './quality-handler.js';
@@ -84,6 +84,7 @@ function openDebugWindow() {
 // v0.7: 다운로드는 항상 독립 팝업 창(downloader.html)에서 수행 — 요청마다 새 창(병렬).
 // 진행률은 배지, 완료는 시스템 알림 + 10초 후 자동 닫기 (창 측에서 수행).
 let streamDownloadId = null; // 완료된 파일 (알림 클릭 시 다운로드 항목 표시)
+let streamTabId = null; // 페이지 폴백용 원본 탭 (모바일 UA DNR 규칙 해제 대상)
 
 function streamWinUrl(job) {
   const q = new URLSearchParams({ u: job.url, n: job.name || '', f: job.folder || 'page' });
@@ -100,6 +101,17 @@ async function openStreamWindow(job) {
       await ensureReferer(new URL(job.url).hostname.replace(/^www\./, ''), job.referer);
     } catch (e) {
       BGLogger.warn('DL', `스트림 Referer 규칙 등록 실패 ${e.message}`);
+    }
+  }
+  // 페이지 컨텍스트 fetch 폴백(유튜브 googlevideo·서명 CDN) 시 모바일 UA 스푸핑
+  // → DNR tabIds 규칙으로 해당 페이지 탭의 미디어/XHR 요청에만 적용 (옵션 fallbackMobileUA)
+  if (job.tabId != null) {
+    try {
+      const st = await storage.getSettings();
+      const ua = st.fallbackMobileUA || '';
+      if (ua) await ensureMobileUA(job.tabId, ua);
+    } catch (e) {
+      BGLogger.warn('DL', `모바일 UA 규칙 등록 실패 ${e.message}`);
     }
   }
   // 스트림 병합 저장 상한(옵션 streamMaxMB)을 작업 창에 전달
@@ -285,6 +297,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }).catch((e) =>
         BGLogger.error('DL', `스트림 작업 창 열기 실패 ${e.message}`, { code: 'E-CHR-DL-1001' })
       );
+      streamTabId = p.tabId ?? null;
       sendResponse(msgOk());
       return false;
     }
@@ -302,6 +315,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const p = message.payload || {};
       streamDownloadId = p.downloadId ?? null;
       chrome.action.setBadgeText({ text: '' }).catch(() => {});
+      releaseMobileUA(streamTabId).catch(() => {});
+      streamTabId = null;
       // 완료 — 시스템 알림 (창 자동 닫기는 다운로더가 10초 후 직접 수행:
       // SW 타이머는 서비스 워커 수명과 함께 유실될 수 있으므로 창 측에서 보장)
       chrome.notifications
@@ -318,6 +333,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case MSG.STREAM_FAIL:
     case MSG.STREAM_CANCEL: {
       chrome.action.setBadgeText({ text: '' }).catch(() => {});
+      releaseMobileUA(streamTabId).catch(() => {});
+      streamTabId = null;
       return false;
     }
     case MSG.SETTINGS_GET: {

@@ -2,6 +2,17 @@
 
 > 진행 규칙: 진행중(⏳) → 완료(✅) → 검증(🔍). 세션 단절 시 이 파일과 session 로그로 복구.
 
+## v1.0.10 (chrome) — 모바일 UA 폴백 + 저장·파일명 견고화 (참고기능 ③④)
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-201 | 공용 파일명 sanitize 유틸 신규 (예약어/트레일링/제어문자/길이) | ✅ | shared/filename-sanitize.js |
+| T-202 | saveBlob/defaultName/downloadViaDownloads에 sanitize 적용 | ✅ | downloader.js |
+| T-203 | 배치 다운로드 파일명에도 sanitize 적용 | ✅ | background/downloader.js |
+| T-204 | 모바일 UA 옵션 설정 + storage 키 | ✅ | storage.js, options |
+| T-205 | 페이지 폴백 시 DNR 모바일 UA 규칙 등록/해제 | ✅ | background/service-worker |
+| T-206 | ③④ 단위검증 + E2E smoke + strict-check | ✅ | sanitize 17건, strict-check, smoke 통과 |
+
 ## v1.1 (chrome) — 스트림 개선 + 유튜브 진단
 
 | T | 작업 | 상태 | 비고 |

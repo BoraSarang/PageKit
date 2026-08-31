@@ -165,6 +165,7 @@ async function loadSettings() {
   $('pk-stream-detect').checked = Boolean(s.streamDetect);
   $('pk-stream-max').value = String(s.streamMaxMB ?? 0);
   $('pk-unlock-enabled').checked = Boolean(s.unlockEnabled);
+  $('pk-fallback-ua').value = s.fallbackMobileUA || '';
 }
 $('pk-unlock-enabled').addEventListener('change', async () => {
   const on = $('pk-unlock-enabled').checked;
@@ -187,6 +188,7 @@ $('pk-save-settings').addEventListener('click', async () => {
     minImageSize: Math.max(0, parseInt($('pk-min-size').value, 10) || 0),
     streamDetect: $('pk-stream-detect').checked,
     streamMaxMB: Math.max(0, parseInt($('pk-stream-max').value, 10) || 0),
+    fallbackMobileUA: $('pk-fallback-ua').value.trim(),
   };
   DebugLogger.feature('OPTIONS', '설정 저장', payload);
   await chrome.runtime.sendMessage({ type: MSG.SETTINGS_SET, payload });

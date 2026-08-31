@@ -1,5 +1,18 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.10 (2026-08-31) — 서명 CDN 모바일 UA 폴백 + 파일명/저장 견고화
+
+### 주요 변경 [chrome]
+- **서명 CDN 모바일 UA 스푸핑** (`fallbackMobileUA` 옵션): 페이지 컨텍스트 fetch 폴백(유튜브 googlevideo·틱톡 등 서명 CDN) 때 원본 탭의 미디어/XHR 요청에 **DNR 모바일 User-Agent 규칙** 적용
+  - `shared/` 신규 없음 — `background/downloader.js` `ensureMobileUA`/`releaseMobileUA`, `service-worker.js` 등록/해제(DONE/FAIL/CANCEL), 옵션 UI 추가
+  - 확장 오리진 fetch는 Chrome에서 UA override 불가(제약) → **페이지 폴백 경로에만** 적용
+- **파일명/저장 견고화** (`shared/filename-sanitize.js` 신규): Windows 예약어(`con/prn/aux/nul/com[1-9]/lpt[1-9]`) 보호, trailing `.`/공백 제거, control 문자 치환, 길이 180 제한
+  - 적용: 스트림 저장(`saveBlob`/`defaultName`/`downloadViaDownloads`) + 배치 다운로드(`safeName`/ZIP 엔트리/사용자 파일명)
+
+### 파일
+- 신규: `extension/shared/filename-sanitize.js`
+- 수정: `extension/background/downloader.js`, `service-worker.js`, `storage.js`, `extension/downloader/downloader.js`, `extension/options/options.js`, `extension/options/options.html`, `manifest.json`
+
 ## v1.0.9 (2026-08-31) — 스트림 병렬 다운로드 + 체크포인트 재개 + CDN Referer 재생
 
 ### 주요 변경 [chrome]

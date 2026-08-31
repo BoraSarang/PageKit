@@ -25,6 +25,7 @@ import {
   clearDownloadCheckpoint,
 } from '../shared/download-checkpoint.js';
 import { MSG } from '../shared/messages.js';
+import { sanitizeFilename, ensureExtension } from '../shared/filename-sanitize.js';
 
 const $ = (id) => document.getElementById(id);
 const DebugLogger = globalThis.DebugLogger;
@@ -53,14 +54,12 @@ function streamLimitMsg() {
     : '스트림 용량이 설정된 상한을 초과해 중단합니다.';
 }
 
-// 기본 파일명: 페이지 제목 우선 → URL 경로 이름 → stream (특수문자/길이 가드)
+// 기본 파일명: 페이지 제목 우선 → URL 경로 이름 → stream. 공용 sanitize(예약어/트레일링/제어문자/길이) 적용.
 function defaultName() {
-  const title = decodeURIComponent(JOB.title)
-    .replace(/[\\/:*?"<>|\n\r\t]/g, '_')
-    .trim()
-    .slice(0, 80);
-  if (title) return title;
-  return (JOB.name || '').replace(/\.m3u8$/i, '') || 'stream';
+  const title = decodeURIComponent(JOB.title).trim();
+  if (title) return sanitizeFilename(title, 'stream');
+  const name = (JOB.name || '').replace(/\.m3u8$/i, '');
+  return sanitizeFilename(name || 'stream', 'stream');
 }
 
 let abortCtl = null; // 진행 중 취소용
@@ -244,9 +243,8 @@ function setProgressBytes(bytes, totalBytes, mbps) {
 async function saveBlob(blob, ext) {
   setState('파일 저장 중…');
   const objectUrl = URL.createObjectURL(blob);
-  let fileName = $('dl-filename').value.trim() || defaultName();
-  fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
-  if (!/\.[a-z0-9]{1,6}$/i.test(fileName)) fileName += ext;
+  let fileName = sanitizeFilename($('dl-filename').value.trim() || defaultName(), 'stream');
+  fileName = ensureExtension(fileName, ext);
   const filename = `PageKit/${JOB.folder}/videos/${fileName}`;
   try {
     const downloadId = await new Promise((resolve, reject) => {
@@ -689,9 +687,8 @@ async function downloadDirectSequential() {
 }
 
 async function downloadViaDownloads() {
-  let fileName = $('dl-filename').value.trim() || defaultName();
-  fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
-  if (!/\.[a-z0-9]{1,6}$/i.test(fileName)) fileName += '.mp4';
+  let fileName = sanitizeFilename($('dl-filename').value.trim() || defaultName(), 'stream');
+  fileName = ensureExtension(fileName, '.mp4');
   const filename = `PageKit/${JOB.folder}/videos/${fileName}`;
   const downloadId = await new Promise((resolve, reject) => {
     chrome.downloads.download({ url: JOB.url, filename, conflictAction: 'uniquify' }, (id) => {

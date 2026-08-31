@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   streamDetect: true,
   unlockEnabled: false,
   streamMaxMB: 0, // 스트림 병합 총 용량 상한(MB). 0 = 제한 없음 (기본)
+  fallbackMobileUA: '', // 페이지 폴백 다운로드 시 모바일 UA 값 (빈 값 = 사용 안 함)
 };
 
 export async function getLocal(key, fallback = null) {
