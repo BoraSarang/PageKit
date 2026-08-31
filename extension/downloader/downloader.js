@@ -737,6 +737,32 @@ $('dl-open').addEventListener('click', () => {
   if (lastDownloadId != null) chrome.downloads.show(lastDownloadId);
 });
 
+// 창 세로 자동 리사이즈 — 콘텐츠(화질 선택·리뷰·진행/완료) 높이에 맞춰 팝업 창 세로를 조정 (상한 900px)
+let _fitTimer = null;
+async function fitWindow() {
+  try {
+    const win = await chrome.windows.getCurrent();
+    if (!win) return;
+    const docH = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+    const want = Math.min(900, Math.max(420, docH + 50)); // +50: 크롬 타이틀바/테두리 버퍼
+    if (Math.abs(want - (win.height || 0)) < 12) return; // 실변화 없으면 건너뜀
+    await chrome.windows.update(win.id, { height: want });
+  } catch {
+    /* 미지원/오류 — 무시 */
+  }
+}
+function scheduleFit() {
+  clearTimeout(_fitTimer);
+  _fitTimer = setTimeout(fitWindow, 150);
+}
+function initFit() {
+  fitWindow();
+  try {
+    const mo = new MutationObserver(() => scheduleFit()); // 화질/용량/진행/완료 비동기 변화 감지
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+  } catch {}
+}
+
 // 시작 시 검토 화면 표시 — 자동 시작 없음. 사용자가 [다운로드 시작]을 눌러야만 진행한다.
 if (JOB.url && JOB.url.startsWith('http')) {
   $('dl-filename').value = defaultName();
@@ -748,8 +774,10 @@ if (JOB.url && JOB.url.startsWith('http')) {
   (async () => {
     try {
       if (isM3u8Url(JOB.url) || isMpdUrl(JOB.url)) await prepareQuality();
+      await fitWindow(); // 매니페스트 해석 후 콘텐츠가 채워지면 재조정
     } catch {
       /* 해석 실패 시 화질/리뷰 없이 기본 다운로드만 허용 */
     }
   })();
 }
+initFit();

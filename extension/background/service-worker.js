@@ -113,8 +113,8 @@ async function openStreamWindow(job) {
   const win = await chrome.windows.create({
     url,
     type: 'popup',
-    width: 520,
-    height: 400,
+    width: 560,
+    height: 480,
     focused: true,
   });
   if (chrome.runtime.lastError || !win) {
