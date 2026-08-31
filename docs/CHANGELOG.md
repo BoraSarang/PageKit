@@ -1,5 +1,11 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.8 (2026-08-23) — 랜딩 GitHub Pages 연결
+
+### 주요 변경 [infra/docs]
+- 랜딩 페이지를 **GitHub Pages로 배포** (`.github/workflows/pages.yml` 추가, `landing/` 소스 → `https://borasarang.github.io/PageKit/`)
+- README에 랜딩 배지·문서 링크 추가
+
 ## v1.0.7 (2026-08-23) — 랜딩 스크린샷 섹션 제거
 
 ### 주요 변경 [docs]

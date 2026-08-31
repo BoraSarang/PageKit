@@ -5,8 +5,9 @@
 **웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
 _Grab the good stuff from any page: media collection · batch download · page quality audit._
 
-[![version](https://img.shields.io/badge/version-1.0.7-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![version](https://img.shields.io/badge/version-1.0.8-0d9488)](https://github.com/BoraSarang/PageKit/releases)
 [![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
+[![Landing](https://img.shields.io/badge/랜딩%20페이지-PageKit-14B8A6)](https://borasarang.github.io/PageKit/)
 [![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](https://github.com/BoraSarang/PageKit/pulls)
 
@@ -160,6 +161,7 @@ SW가 라우팅만 담당하고, 분석은 항상 **요청 시 대상 탭 격리
 
 ### 문서 Docs
 
+홍보 랜딩: [`https://borasarang.github.io/PageKit/`](https://borasarang.github.io/PageKit/) ([source](landing/index.html))
 [`PRD`](docs/PRD.md) · [`DESIGN`](docs/DESIGN.md) · [`CHANGELOG`](docs/CHANGELOG.md) · [`TODO`](docs/TODO.md) · [`PERMISSIONS`](docs/chrome/PERMISSIONS.md)
 
 ---
