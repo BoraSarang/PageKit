@@ -1,5 +1,11 @@
 # Agent Instructions
 
+> ## 🏷️ 버전 규칙 (2026-08-23 사용자 확정)
+> 확장 버전은 **SemVer `1.0.x` (패치만 증가)** 방식이다.
+> - **코드·문서·아이콘 등 어떤 수정(커밋)이든** `manifest.json`의 `version` 패치 번호를 **+1 올리고 커밋한다** (예: `1.0.2` → `1.0.3`). `1.x.0`(마이너)는 사용자가 명시적으로 지시할 때만.
+> - 함께 갱신: `README.md` 버전 배지, `docs/chrome/PERMISSIONS.md` 버전·갱신 필드, `docs/CHANGELOG.md` 최신 섹션 번호.
+> - CHANGELOG 섹션 번호도 `v1.0.x` 형식을 따른다.
+
 > ## ⚠️ 테스트 브라우저 규칙 (2026-08-15 사용자 확정 — 최우선)
 > 1. **테스트 브라우저 = Google Chrome** (`/Applications/Google Chrome.app`, 프로필 `.chrome-profile`, CDP `--remote-debugging-port`)
 > 2. **웨일(Whale)은 절대 건드리지 않는다** — 프로세스 종료/재시작/프로필(`.whale-profile*`) 삭제·수정/확장 리로드 전부 금지 (사용자가 실사용 중)
