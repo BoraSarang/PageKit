@@ -140,9 +140,7 @@ async function mergeStreamVariants() {
     m3u8.map(async (it) => {
       try {
         const m = parseM3U8(await fetchStreamText(it.url, 6000), it.url);
-        return m.isMaster && m.variants.length
-          ? { id: it.id, urls: new Set(m.variants.map((v) => v.url)) }
-          : null;
+        return m.isMaster && m.variants.length ? { id: it.id, variants: m.variants } : null;
       } catch {
         return null;
       }
@@ -160,11 +158,22 @@ async function mergeStreamVariants() {
       merged++;
     }
   }
+  // 마스터에 형식 목록(정보용 select) 저장 — 해상도·fps·대역폭 라벨
+  for (const mt of masters) {
+    const mIt = streams.find((s) => s.id === mt.id);
+    if (!mIt) continue;
+    mIt.variants = mt.variants
+      .map((v) => {
+        const parts = [];
+        if (v.resolution) parts.push(v.resolution);
+        if (v.frameRate) parts.push(`${v.frameRate}fps`);
+        if (v.bandwidth) parts.push(`${Math.round(v.bandwidth / 1000)}kbps`);
+        return { label: parts.join(' · ') || '스트림', url: v.url };
+      })
+      .filter((v, i, a) => a.findIndex((x) => x.label === v.label) === i);
+    if (mIt.variants.length >= 2) mIt.mergedCount = merged || mIt.variants.length - 1;
+  }
   if (merged) {
-    for (const id of masterIds) {
-      const mIt = streams.find((s) => s.id === id);
-      if (mIt) mIt.mergedCount = merged;
-    }
     DebugLogger.feature('PANEL', `스트림 화질 변형 통합 (${merged}건 숨김)`);
   }
 }
@@ -336,29 +345,18 @@ function youtubeCardHtml(list) {
       <div class="pk-thumb">▶</div>
       <div class="pk-info">
         <div class="pk-name" title="${esc(copyUrl)}">${esc(shortenUrl(analysis?.title || '유튜브 동영상'))}</div>
-        <div class="pk-meta">이 영상은 다운로드할 수 없습니다 · 아래 형식 정보를 확인하세요</div>
+        <div class="pk-meta">이 영상은 다운로드할 수 없습니다 · 형식을 확인하고 주소를 복사하세요</div>
       </div>
       <span class="pk-tag pk-tag-no">다운로드 불가</span>
     </div>
     <div class="pk-yt-det">
-      <label class="pk-yt-label">형식</label>
-      <select class="pk-yt-select" aria-label="유튜브 형식">${options}</select>
-      <div class="pk-yt-info" id="yt-fmt-info"></div>
+      <select class="pk-yt-select" aria-label="유튜브 지원 형식">${options}</select>
       <button type="button" class="pk-btn pk-btn-yt-copy" data-copy="${esc(copyUrl)}">🔗 주소 복사</button>
     </div>`;
 }
 
-// 유튜브 카드의 형식 셀렉트 선택 상세 표시 + 주소 복사 (render 직후 호출)
+// 유튜브 카드의 주소 복사 버튼 바인딩 (render 직후 호출 — 형식 select는 정보용)
 function bindYoutubeCard() {
-  const sel = document.querySelector('.pk-yt-select');
-  const info = document.getElementById('yt-fmt-info');
-  if (sel && info) {
-    sel.onchange = () => {
-      const opt = sel.options[sel.selectedIndex];
-      info.textContent = opt ? opt.textContent : '';
-    };
-    sel.onchange?.();
-  }
   const copyBtn = document.querySelector('.pk-btn-yt-copy');
   if (copyBtn) {
     copyBtn.onclick = async () => {
@@ -371,6 +369,33 @@ function bindYoutubeCard() {
       }
     };
   }
+}
+
+// 일반(mp4/m3u8 등) 스트림 카드 — 마스터 매니페스트의 화질 통합 + 정보용 형식 select (유튜브처럼 한 줄)
+function streamCardHtml(it) {
+  const copyUrl = it.url || '';
+  const options = (it.variants || [])
+    .map((v, i) => `<option value="${i}">${esc(v.label)}</option>`)
+    .join('');
+  const mergedCount = it.mergedCount || it.variants?.length || 0;
+  return `
+    <div class="pk-group">
+      <div class="pk-group-title" role="button" title="클릭하여 펼치기/접기">
+        <span class="pk-arrow">▾</span> ${esc(it.name || shortenUrl(it.url))}
+        <span class="pk-group-count">${esc(String(mergedCount))}</span>
+      </div>
+      <div class="pk-group-body">
+        <label class="pk-item" data-id="${it.id}">
+          <div class="pk-thumb">📡</div>
+          <div class="pk-info">
+            <div class="pk-name" title="${esc(copyUrl)}">${esc(it.name || shortenUrl(it.url))}</div>
+            <div class="pk-meta">화질 ${esc(String(mergedCount))}개 통합 · 다운로드 가능</div>
+          </div>
+          <input type="checkbox" data-id="${it.id}" ${selection.has(it.id) ? 'checked' : ''} />
+        </label>
+        <div class="pk-stream-det"><select class="pk-yt-select" aria-label="지원 형식">${options}</select></div>
+      </div>
+    </div>`;
 }
 
 function render() {
@@ -445,13 +470,20 @@ function render() {
   const maxItems = 500;
   let inner;
   if (currentTab === 'streams') {
-    // 유튜브 스트림(다운로드 불가)은 여러 itag/형식이 흩어지지 않게 단일 카드로 묶어 표시
+    // 유튜브 스트림(다운로드 불가)은 흩어진 itag/형식을 단일 카드로,
+    // 화질 변형을 통합한 마스터 매니페스트도 카드로 묶어 표시
     const yt = items.filter(isYoutubeStream);
-    const rest = items.filter((it) => !isYoutubeStream(it));
+    const masters = items.filter(
+      (it) => !isYoutubeStream(it) && it.variants && it.variants.length >= 2
+    );
+    const rest = items.filter(
+      (it) => !isYoutubeStream(it) && !(it.variants && it.variants.length >= 2)
+    );
     inner =
       (yt.length
         ? `<div class="pk-group"><div class="pk-group-title" role="button" title="클릭하여 펼치기/접기"><span class="pk-arrow">▾</span> 유튜브 동영상 <span class="pk-group-count">1</span></div><div class="pk-group-body">${youtubeCardHtml(yt)}</div></div>`
         : '') +
+      masters.slice(0, maxItems).map(streamCardHtml).join('') +
       groupStreams(rest.slice(0, maxItems))
         .map(
           (g) => `
