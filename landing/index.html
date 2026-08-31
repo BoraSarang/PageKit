@@ -76,7 +76,6 @@ tailwind.config = {
     }
   }
   html { scroll-behavior: smooth; }
-  .shot-tile:before { content: "📸"; display: block; font-size: 28px; margin-bottom: 10px; }
 </style>
 </head>
 <body class="font-sans antialiased">
@@ -92,7 +91,6 @@ tailwind.config = {
     </a>
     <div class="hidden items-center gap-7 text-sm font-medium sm:flex">
       <a href="#features" class="focus-visible-ring rounded transition-pk hover:opacity-70" style="color: var(--fg);">기능</a>
-      <a href="#shots" class="focus-visible-ring rounded transition-pk hover:opacity-70" style="color: var(--fg);">미리보기</a>
       <a href="#how" class="focus-visible-ring rounded transition-pk hover:opacity-70" style="color: var(--fg);">사용법</a>
       <a href="https://github.com/BoraSarang/PageKit/releases/latest" class="focus-visible-ring rounded bg-accent px-4 py-2 font-semibold text-black transition-pk hover:bg-accentDark">설치하기</a>
     </div>
@@ -106,7 +104,7 @@ tailwind.config = {
 <section class="relative overflow-hidden" style="background: var(--bg);">
   <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-16 md:pt-24 lg:grid-cols-2">
     <div>
-      <p class="mb-4 inline-block rounded-full border px-3 py-1 text-xs font-semibold" style="border-color: var(--border); color: var(--fg);">Chrome · 웨일 확장 프로그램 · v1.0.6</p>
+      <p class="mb-4 inline-block rounded-full border px-3 py-1 text-xs font-semibold" style="border-color: var(--border); color: var(--fg);">Chrome · 웨일 확장 프로그램 · v1.0.7</p>
       <h1 class="text-4xl font-extrabold leading-tight md:text-5xl" style="color: var(--fg);">
         페이지의 알짜를 모으고,<br>
         <span class="text-primary">품질까지 한 번에</span>
@@ -305,33 +303,6 @@ tailwind.config = {
   </div>
 </section>
 
-<!-- 3-1. 실제 화면 스크린샷 (플레이스홀더 — 캡처 가이드 참조) -->
-<section id="shots" class="border-t" style="border-color: var(--border); background: var(--card);">
-  <div class="mx-auto max-w-6xl px-5 py-16 md:py-20">
-    <h2 class="text-center text-2xl font-extrabold md:text-3xl" style="color: var(--fg);">실제 모습</h2>
-    <p class="mx-auto mt-3 max-w-xl text-center text-muted-pk">작업 화면 4종 — 캡처본은 저장소에 곧 추가됩니다.</p>
-    <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      <div class="shot-tile rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-pk" style="border-color: var(--border); background: var(--bg);">
-        <p class="font-semibold" style="color: var(--fg);">툴바 팝업</p>
-        <p class="mt-1 font-normal">분석 · 품질 진단 진입</p>
-      </div>
-      <div class="shot-tile rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-pk" style="border-color: var(--border); background: var(--bg);">
-        <p class="font-semibold" style="color: var(--fg);">미디어 패널</p>
-        <p class="mt-1 font-normal">이미지 · 영상 · 링크 · 스트림</p>
-      </div>
-      <div class="shot-tile rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-pk" style="border-color: var(--border); background: var(--bg);">
-        <p class="font-semibold" style="color: var(--fg);">품질 리포트</p>
-        <p class="mt-1 font-normal">SEO · CWV · 접근성 · 콘텐츠</p>
-      </div>
-      <div class="shot-tile rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-pk" style="border-color: var(--border); background: var(--bg);">
-        <p class="font-semibold" style="color: var(--fg);">스트림 작업 창</p>
-        <p class="mt-1 font-normal">화질 검토 → MP4 병합</p>
-      </div>
-    </div>
-    <p class="mt-6 text-center text-xs text-muted-pk">캡처 가이드: <a href="../docs/screenshots-guide.md" class="font-semibold focus-visible-ring rounded transition-pk hover:opacity-70" style="color: var(--fg);">docs/screenshots-guide.md</a></p>
-  </div>
-</section>
-
 <!-- 4. 사용법 -->
 <section id="how" class="border-t" style="border-color: var(--border); background: var(--bg);">
   <div class="mx-auto max-w-6xl px-5 py-16 md:py-20">
@@ -381,7 +352,7 @@ tailwind.config = {
       문의
       <a href="mailto:leeborasarang@gmail.com" class="focus-visible-ring rounded font-medium transition-pk hover:opacity-70" style="color: var(--fg);">leeborasarang@gmail.com</a>
     </p>
-    <p>© 2026 PageKit · v1.0.6 · <a href="https://github.com/BoraSarang/PageKit" class="focus-visible-ring rounded font-medium transition-pk hover:opacity-70" style="color: var(--fg);">GitHub</a> · <a href="https://github.com/BoraSarang/PageKit/blob/main/docs/CHANGELOG.md" class="focus-visible-ring rounded font-medium transition-pk hover:opacity-70" style="color: var(--fg);">변경 이력</a></p>
+    <p>© 2026 PageKit · v1.0.7 · <a href="https://github.com/BoraSarang/PageKit" class="focus-visible-ring rounded font-medium transition-pk hover:opacity-70" style="color: var(--fg);">GitHub</a> · <a href="https://github.com/BoraSarang/PageKit/blob/main/docs/CHANGELOG.md" class="focus-visible-ring rounded font-medium transition-pk hover:opacity-70" style="color: var(--fg);">변경 이력</a></p>
   </div>
 </footer>
 

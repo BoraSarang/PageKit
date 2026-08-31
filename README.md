@@ -5,7 +5,7 @@
 **웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
 _Grab the good stuff from any page: media collection · batch download · page quality audit._
 
-[![version](https://img.shields.io/badge/version-1.0.6-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![version](https://img.shields.io/badge/version-1.0.7-0d9488)](https://github.com/BoraSarang/PageKit/releases)
 [![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
 [![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](https://github.com/BoraSarang/PageKit/pulls)
