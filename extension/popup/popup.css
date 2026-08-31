@@ -7,11 +7,15 @@
   --pk-border: #e2e8f0;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   width: 320px;
-  font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   background: var(--pk-bg);
   color: var(--pk-text);
   font-size: 13px;
@@ -25,8 +29,15 @@ body {
   background: linear-gradient(135deg, var(--pk-primary), var(--pk-accent));
   color: white;
 }
-.pk-logo { width: 24px; height: 24px; }
-.pk-header h1 { font-size: 15px; font-weight: 700; flex: 1; }
+.pk-logo {
+  width: 24px;
+  height: 24px;
+}
+.pk-header h1 {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+}
 .pk-badge {
   background: #ef4444;
   color: white;
@@ -36,7 +47,25 @@ body {
   font-weight: 700;
 }
 
-.pk-main { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pk-main {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pk-action {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pk-hint {
+  font-size: 11px;
+  color: var(--pk-muted);
+  line-height: 1.4;
+  padding: 0 4px;
+  word-break: keep-all;
+}
 
 .pk-btn {
   border: none;
@@ -48,17 +77,53 @@ body {
   transition: filter 0.12s;
   text-align: left;
 }
-.pk-btn:hover { filter: brightness(1.06); }
-.pk-btn:active { filter: brightness(0.95); }
-.pk-btn-primary { background: var(--pk-primary); color: white; width: 100%; }
-.pk-btn-secondary { background: white; color: var(--pk-primary); border: 1px solid var(--pk-border); width: 100%; }
-.pk-btn-ghost { background: transparent; color: var(--pk-muted); border: 1px dashed var(--pk-border); width: 100%; }
+.pk-btn:hover {
+  filter: brightness(1.06);
+}
+.pk-btn:active {
+  filter: brightness(0.95);
+}
+.pk-btn-primary {
+  background: var(--pk-primary);
+  color: white;
+  width: 100%;
+}
+.pk-btn-secondary {
+  background: white;
+  color: var(--pk-primary);
+  border: 1px solid var(--pk-border);
+  width: 100%;
+}
+.pk-btn-ghost {
+  background: transparent;
+  color: var(--pk-muted);
+  border: 1px dashed var(--pk-border);
+  width: 100%;
+}
 
-.pk-section { background: white; border: 1px solid var(--pk-border); border-radius: 10px; padding: 10px 12px; }
-.pk-section h2 { font-size: 12px; color: var(--pk-muted); margin-bottom: 6px; }
+.pk-section {
+  background: white;
+  border: 1px solid var(--pk-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.pk-section h2 {
+  font-size: 12px;
+  color: var(--pk-muted);
+  margin-bottom: 6px;
+}
 
-.pk-summary-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; word-break: break-all; }
-.pk-summary-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.pk-summary-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.pk-summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .pk-summary-stats .chip {
   background: #eff6ff;
   color: var(--pk-primary);
@@ -67,13 +132,28 @@ body {
   font-size: 11px;
   font-weight: 600;
 }
-.pk-summary-article { margin-top: 8px; color: var(--pk-muted); font-size: 12px; }
-
-#pk-dl-list .pk-dl-item { font-size: 12px; padding: 3px 0; }
-#pk-dl-list .pk-dl-item .bar {
-  height: 4px; background: var(--pk-border); border-radius: 2px; margin-top: 3px; overflow: hidden;
+.pk-summary-article {
+  margin-top: 8px;
+  color: var(--pk-muted);
+  font-size: 12px;
 }
-#pk-dl-list .pk-dl-item .bar > span { display: block; height: 100%; background: var(--pk-accent); }
+
+#pk-dl-list .pk-dl-item {
+  font-size: 12px;
+  padding: 3px 0;
+}
+#pk-dl-list .pk-dl-item .bar {
+  height: 4px;
+  background: var(--pk-border);
+  border-radius: 2px;
+  margin-top: 3px;
+  overflow: hidden;
+}
+#pk-dl-list .pk-dl-item .bar > span {
+  display: block;
+  height: 100%;
+  background: var(--pk-accent);
+}
 
 .pk-footer {
   padding: 8px 14px;
@@ -82,5 +162,13 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-.pk-version { color: var(--pk-muted); font-size: 11px; font-weight: 600; }
-.pk-footer a { color: var(--pk-muted); font-size: 11px; text-decoration: none; }
+.pk-version {
+  color: var(--pk-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.pk-footer a {
+  color: var(--pk-muted);
+  font-size: 11px;
+  text-decoration: none;
+}

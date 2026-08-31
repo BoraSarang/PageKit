@@ -71,6 +71,7 @@ function setProgress(done, total, bytes, mbps = 0) {
 }
 
 function showResult(ok, title, msg, retry = false) {
+  _downloading = false; // 진행 종료 — 이후 결과 화면 전환 시 리사이즈 허용
   $('dl-progress').hidden = true;
   const box = $('dl-result');
   box.hidden = false;
@@ -81,6 +82,7 @@ function showResult(ok, title, msg, retry = false) {
   $('dl-open').hidden = !ok;
   $('dl-start').disabled = false;
   $('dl-filename').disabled = false;
+  scheduleFit(); // 결과 화면 전환 1회 반영
 }
 
 // 예상 용량: 재생 길이(초) × 대역폭(bps) / 8 → "약 N MB" 문자열. 결과 없으면 null.
@@ -584,6 +586,7 @@ async function runDownload() {
   $('dl-bar-fill').style.width = '0%';
   $('dl-meta').textContent = '';
   speedWin = [];
+  _downloading = true; // 진행 시작 — 다운로드 중 리사이즈 루프 방지 (진행 화면은 고정 높이)
 
   abortCtl = new AbortController();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -739,7 +742,9 @@ $('dl-open').addEventListener('click', () => {
 
 // 창 세로 자동 리사이즈 — 콘텐츠(화질 선택·리뷰·진행/완료) 높이에 맞춰 팝업 창 세로를 조정 (상한 900px)
 let _fitTimer = null;
+let _downloading = false; // 다운로드 진행 중 — 고빈도 진행 텍스트 mutation이 창 크기 리사이즈를 자극하지 않도록 차단
 async function fitWindow() {
+  if (_downloading) return; // 진행 중에는 창 크기 고정
   try {
     const win = await chrome.windows.getCurrent();
     if (!win) return;
@@ -758,7 +763,10 @@ function scheduleFit() {
 function initFit() {
   fitWindow();
   try {
-    const mo = new MutationObserver(() => scheduleFit()); // 화질/용량/진행/완료 비동기 변화 감지
+    const mo = new MutationObserver(() => {
+      if (_downloading) return; // 진행 중 텍스트/바 mutation은 무시 — 리사이즈 루프 방지
+      scheduleFit();
+    });
     mo.observe(document.body, { childList: true, subtree: true, characterData: true });
   } catch {}
 }
