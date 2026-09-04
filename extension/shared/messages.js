@@ -28,6 +28,8 @@ export const MSG = {
   QUALITY_EXPORT: 'pk.quality.export',
   QUALITY_FRAME_ANALYZE: 'pk.quality.frame.analyze',
   QUALITY_FRAME_RESULT: 'pk.quality.frame.result',
+  QUALITY_CHECK_BROKEN_LINKS: 'pk.quality.checkBrokenLinks',
+  QUALITY_HIGHLIGHT_BROKEN_LINKS: 'pk.quality.highlightBrokenLinks',
 };
 
 export const PANEL_SOURCES = ['icon', 'context', 'shortcut', 'popup'];

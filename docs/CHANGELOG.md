@@ -1,5 +1,17 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.11 (2026-08-31) — 깨진 링크 실측 + SERP 미리보기
+
+### 주요 변경 [chrome]
+- **깨진 링크 실측** (`linkSEO` 모듈 확장): 분석 시 내부 링크만 별도 수집(`internalLinks`) → 사이드패널 [내부 링크 확인] 클릭 시 **background HEAD 요청으로 실측** (동시성 5, 링크당 10s, 4xx/5xx만 broken, HEAD 차단 시 GET 폴백)
+  - broken 링크는 `linkSEO` MAJOR 이슈로 반영, [페이지에서 강조] 버튼으로 해당 탭에 `pk-broken-link` 클래스+빨간 점선 하이라이트 (요청 시에만 DOM 수정, 토글 해제 가능)
+- **SERP 미리보기** (`seoMeta` 기반 사이드패널 위젯): 구글 스타일 스니펫(URL→파란 제목→설명)을 **데스크톱/모바일 전환**으로 표시 + TITLE(30–60)/DESCRIPTION(120–160) 길이 게이지(초과=빨강·절반 미달=노랑·정상=초록)
+- 참고: 두 번째 웨일 스토어 확장 SEO Toolkit(`aefjmobjljedkfcehobblafegffppdhc`) 분석 결과, PageKit에 부재한 2가지 기능 채택 (코드 복사 없이 로직만 반영)
+
+### 파일
+- 수정: `content/quality-analyzer.js`, `background/quality-handler.js`, `shared/messages.js`, `sidepanel/quality-tab.js`, `sidepanel/quality-tab.html`, `sidepanel/quality-tab.css`, `extension/manifest.json`
+- 신규: `e2e/run-quality-seo.cjs` (품질 SEO E2E — SERP/깨진 링크 실측 시나리오)
+
 ## v1.0.10 (2026-08-31) — 서명 CDN 모바일 UA 폴백 + 파일명/저장 견고화
 
 ### 주요 변경 [chrome]

@@ -2,6 +2,15 @@
 
 > 진행 규칙: 진행중(⏳) → 완료(✅) → 검증(🔍). 세션 단절 시 이 파일과 session 로그로 복구.
 
+## v1.0.11 (chrome) — 깨진 링크 실측 + SERP 미리보기 (참고기능 ①②)
+
+| T | 작업 | 상태 | 비고 |
+|---|------|------|------|
+| T-207 | 브로큰 링크 실측 — content 내부 링크 수집 + background HEAD 판정(내부만·동시성5·timeout10s) | ✅ | internalLinks + MSG.QUALITY_CHECK_BROKEN_LINKS, checkHead HEAD→GET 폴백 |
+| T-208 | broken 링크 이슈(MAJOR·최대 20건) + 요청 시 페이지 하이라이트(pk-broken-link) | ✅ | 사이드패널 [내부 링크 확인]/[페이지에서 강조] 토글, content 리스너 + 스타일 주입 |
+| T-209 | SERP 미리보기 사이드패널 위젯(desktop/mobile + 길이 게이지) | ✅ | seoMeta.meta 기반, TITLE 30-60/DESC 120-160 게이지 |
+| T-210 | ①② 단위검증 + strict-check + E2E smoke + 문서 동기화(1.0.11) | ✅ | `/tmp` 단위(HEAD/셈러퍼/SERP) + run-quality-seo.cjs 신규 통과 + 기존 smoke 통과 + 문서 동기화 |
+
 ## v1.0.10 (chrome) — 모바일 UA 폴백 + 저장·파일명 견고화 (참고기능 ③④)
 
 | T | 작업 | 상태 | 비고 |

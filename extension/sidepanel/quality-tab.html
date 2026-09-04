@@ -1,74 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PageKit 품질 진단</title>
-  <link rel="stylesheet" href="quality-tab.css" />
-</head>
-<body>
-  <header>
-    <h1>🔍 품질 진단</h1>
-    <button id="btn-analyze" class="btn btn-primary">분석 시작</button>
-  </header>
-  <main>
-    <div class="target-bar" id="analysis-target" hidden>
-      <div class="target-title" id="target-title"></div>
-      <div class="target-url" id="target-url"></div>
-    </div>
-    <section class="score-card" id="score-card" style="display:none;">
-      <div class="score-main">
-        <div id="overall-score" class="score-value score-poor">--</div>
-        <div class="score-label">전체 점수 (100점 만점)</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PageKit 품질 진단</title>
+    <link rel="stylesheet" href="quality-tab.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🔍 품질 진단</h1>
+      <button id="btn-analyze" class="btn btn-primary">분석 시작</button>
+    </header>
+    <main>
+      <div class="target-bar" id="analysis-target" hidden>
+        <div class="target-title" id="target-title"></div>
+        <div class="target-url" id="target-url"></div>
       </div>
-      <div class="sub-scores" id="sub-scores">
-        <div class="sub-score"><div id="score-seo" class="val">--</div><div class="lbl">SEO</div></div>
-        <div class="sub-score"><div id="score-perf" class="val">--</div><div class="lbl">성능</div></div>
-        <div class="sub-score"><div id="score-a11y" class="val">--</div><div class="lbl">접근성</div></div>
-        <div class="sub-score"><div id="score-bp" class="val">--</div><div class="lbl">콘텐츠</div></div>
-      </div>
-    </section>
-
-    <section class="controls">
-      <div class="control-row">
-        <strong style="font-size:12px;">분석 모듈</strong>
-        <span style="flex:1;"></span>
-        <button id="btn-check-all" class="btn btn-secondary">전체 선택</button>
-        <button id="btn-uncheck-all" class="btn btn-secondary">전체 해제</button>
-      </div>
-      <div class="check-group" id="module-checks"></div>
-    </section>
-
-    <section class="charts" id="charts-section" style="display:none;">
-      <div class="chart-box">
-        <div class="chart-title">Core Web Vitals</div>
-        <div class="gauge-grid">
-          <div class="gauge" id="gauge-lcp"><div class="gauge-label">LCP</div><svg viewBox="0 0 100 100"><circle class="gauge-bg" cx="50" cy="50" r="42"></circle><circle id="gauge-lcp-progress" class="gauge-progress" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"></circle></svg><div id="gauge-lcp-val" class="gauge-value">--</div><div class="gauge-label">ms</div></div>
-          <div class="gauge" id="gauge-inp"><div class="gauge-label">INP</div><svg viewBox="0 0 100 100"><circle class="gauge-bg" cx="50" cy="50" r="42"></circle><circle id="gauge-inp-progress" class="gauge-progress" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"></circle></svg><div id="gauge-inp-val" class="gauge-value">--</div><div class="gauge-label">ms</div></div>
-          <div class="gauge" id="gauge-cls"><div class="gauge-label">CLS</div><svg viewBox="0 0 100 100"><circle class="gauge-bg" cx="50" cy="50" r="42"></circle><circle id="gauge-cls-progress" class="gauge-progress" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"></circle></svg><div id="gauge-cls-val" class="gauge-value">--</div></div>
+      <section class="score-card" id="score-card" style="display: none">
+        <div class="score-main">
+          <div id="overall-score" class="score-value score-poor">--</div>
+          <div class="score-label">전체 점수 (100점 만점)</div>
         </div>
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">리소스 폭포수 (Top 5 느린 리소스)</div>
-        <div class="waterfall" id="waterfall"></div>
-      </div>
-    </section>
+        <div class="sub-scores" id="sub-scores">
+          <div class="sub-score">
+            <div id="score-seo" class="val">--</div>
+            <div class="lbl">SEO</div>
+          </div>
+          <div class="sub-score">
+            <div id="score-perf" class="val">--</div>
+            <div class="lbl">성능</div>
+          </div>
+          <div class="sub-score">
+            <div id="score-a11y" class="val">--</div>
+            <div class="lbl">접근성</div>
+          </div>
+          <div class="sub-score">
+            <div id="score-bp" class="val">--</div>
+            <div class="lbl">콘텐츠</div>
+          </div>
+        </div>
+      </section>
 
-    <section class="issues" id="issues-section" style="display:none;">
-      <div class="issues-header">
-        <span class="issues-title">이슈 리스트</span>
-        <span id="issue-count" class="issue-count">0개</span>
-      </div>
-      <div class="issue-list" id="issue-list"></div>
-    </section>
+      <section class="serp-card" id="serp-card" style="display: none">
+        <div class="serp-head">
+          <span class="serp-title">SERP 미리보기</span>
+          <div class="serp-toggle">
+            <button type="button" class="serp-mode is-active" data-serif="desktop">
+              🖥 데스크톱
+            </button>
+            <button type="button" class="serp-mode" data-serif="mobile">📱 모바일</button>
+          </div>
+        </div>
+        <div class="serp-preview" id="serp-preview-body">
+          <div class="serp-url"></div>
+          <div class="serp-snippet-title"></div>
+          <div class="serp-snippet-desc"></div>
+        </div>
+        <div class="serp-gauges" id="serp-gauges"></div>
+      </section>
 
-    <div class="export-bar" id="export-bar" style="display:none;">
-      <button id="btn-export-json" class="btn btn-secondary">JSON 내보내기</button>
-      <button id="btn-export-html" class="btn btn-secondary">HTML 리포트</button>
-      <a id="btn-open-settings" class="btn btn-secondary" href="#" target="_blank">설정 열기</a>
-    </div>
-  </main>
-  <script src="../debug.js"></script>
-  <script type="module" src="quality-tab.js?v=2"></script>
-</body>
+      <section class="controls">
+        <div class="control-row">
+          <strong style="font-size: 12px">분석 모듈</strong>
+          <span style="flex: 1"></span>
+          <button id="btn-check-all" class="btn btn-secondary">전체 선택</button>
+          <button id="btn-uncheck-all" class="btn btn-secondary">전체 해제</button>
+        </div>
+        <div class="check-group" id="module-checks"></div>
+      </section>
+
+      <section class="charts" id="charts-section" style="display: none">
+        <div class="chart-box">
+          <div class="chart-title">Core Web Vitals</div>
+          <div class="gauge-grid">
+            <div class="gauge" id="gauge-lcp">
+              <div class="gauge-label">LCP</div>
+              <svg viewBox="0 0 100 100">
+                <circle class="gauge-bg" cx="50" cy="50" r="42"></circle>
+                <circle
+                  id="gauge-lcp-progress"
+                  class="gauge-progress"
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  stroke-dasharray="264"
+                  stroke-dashoffset="264"
+                ></circle>
+              </svg>
+              <div id="gauge-lcp-val" class="gauge-value">--</div>
+              <div class="gauge-label">ms</div>
+            </div>
+            <div class="gauge" id="gauge-inp">
+              <div class="gauge-label">INP</div>
+              <svg viewBox="0 0 100 100">
+                <circle class="gauge-bg" cx="50" cy="50" r="42"></circle>
+                <circle
+                  id="gauge-inp-progress"
+                  class="gauge-progress"
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  stroke-dasharray="264"
+                  stroke-dashoffset="264"
+                ></circle>
+              </svg>
+              <div id="gauge-inp-val" class="gauge-value">--</div>
+              <div class="gauge-label">ms</div>
+            </div>
+            <div class="gauge" id="gauge-cls">
+              <div class="gauge-label">CLS</div>
+              <svg viewBox="0 0 100 100">
+                <circle class="gauge-bg" cx="50" cy="50" r="42"></circle>
+                <circle
+                  id="gauge-cls-progress"
+                  class="gauge-progress"
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  stroke-dasharray="264"
+                  stroke-dashoffset="264"
+                ></circle>
+              </svg>
+              <div id="gauge-cls-val" class="gauge-value">--</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">리소스 폭포수 (Top 5 느린 리소스)</div>
+          <div class="waterfall" id="waterfall"></div>
+        </div>
+      </section>
+
+      <section class="issues" id="issues-section" style="display: none">
+        <div class="issues-header">
+          <span class="issues-title">이슈 리스트</span>
+          <span id="issue-count" class="issue-count">0개</span>
+        </div>
+        <div class="issue-list" id="issue-list"></div>
+      </section>
+
+      <section class="broken-card" id="broken-card" style="display: none">
+        <div class="broken-head">
+          <span class="broken-title">깨진 링크 실측</span>
+          <button id="btn-check-broken" class="btn btn-secondary">🔗 내부 링크 확인</button>
+        </div>
+        <div class="broken-body" id="broken-body">
+          <input id="broken-status-text" class="broken-status" readonly />
+          <div class="broken-list" id="broken-list"></div>
+          <div class="broken-actions">
+            <button id="btn-highlight-broken" class="btn btn-secondary" style="display: none">
+              페이지에서 강조
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="export-bar" id="export-bar" style="display: none">
+        <button id="btn-export-json" class="btn btn-secondary">JSON 내보내기</button>
+        <button id="btn-export-html" class="btn btn-secondary">HTML 리포트</button>
+        <a id="btn-open-settings" class="btn btn-secondary" href="#" target="_blank">설정 열기</a>
+      </div>
+    </main>
+    <script src="../debug.js"></script>
+    <script type="module" src="quality-tab.js?v=2"></script>
+  </body>
 </html>

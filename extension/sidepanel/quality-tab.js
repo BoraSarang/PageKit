@@ -23,10 +23,21 @@ const MODULES = [
 let currentResult = null;
 let analyzing = false;
 
+// SERP 미리보기 — Google 스타일 (desktop: title 60/desc 160, mobile: title 30/desc 120)
+const SERP_LIMITS = {
+  desktop: { title: 60, desc: 160 },
+  mobile: { title: 30, desc: 120 },
+};
+let serpMode = 'desktop';
+let brokenStatus = new Map();
+let brokenList = [];
+
 function init() {
   renderModuleChecks();
   bindEvents();
   loadSavedModules();
+  bindSerpToggle();
+  bindBrokenEvents();
   // 옵션 autoRun(기본 켬)에 따라 즉시 분석 + 탭 추적 자동 재분석 활성화
   sendMessage({ type: MSG.QUALITY_GET_CONFIG })
     .then((resp) => {
@@ -230,9 +241,230 @@ function renderResult(result) {
   // 리소스 폭포수
   renderWaterfall(result.modules?.resourceTiming?.summary?.slowest || []);
 
+  // SERP 미리보기 (seoMeta.meta 데이터 기반)
+  renderSerpPreview(result.modules?.seoMeta?.meta, result.url);
+
+  // 깨진 링크 실측 카드 (linkSEO 내부 링크 존재 시)
+  const internalLinks = result.modules?.linkSEO?.internalLinks || [];
+  if (internalLinks.length) {
+    show('broken-card');
+  } else {
+    const el = $('broken-card');
+    if (el) el.style.display = 'none';
+  }
+
   // 이슈 리스트
   renderIssues(result.issues || []);
 }
+
+function bindSerpToggle() {
+  document.querySelectorAll('.serp-mode').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      serpMode = btn.dataset.serif === 'desktop' ? 'desktop' : 'mobile';
+      document.querySelectorAll('.serp-mode').forEach((b) => {
+        b.classList.toggle('is-active', b === btn);
+      });
+      const preview = $('serp-preview-body');
+      if (preview) {
+        preview.classList.toggle('is-mobile', serpMode === 'mobile');
+      }
+      // 현재 결과로 재렌더 (top-level currentResult 보존)
+      const meta = currentResult?.modules?.seoMeta?.meta;
+      if (meta) renderSerpPreview(meta, currentResult?.url);
+    });
+  });
+}
+
+// Google 스타일 SERP 스니펫 + title/description 길이 게이지
+function renderSerpPreview(meta, pageUrl = '') {
+  const card = $('serp-card');
+  if (!card || !meta) return;
+  card.style.display = '';
+
+  const mode = SERP_LIMITS[serpMode];
+  const title = meta.title || '';
+  const desc = meta.description || '';
+  const url = meta.canonical || pageUrl || '';
+
+  const preview = $('serp-preview-body');
+  const urlEl = preview.querySelector('.serp-url');
+  const titleEl = preview.querySelector('.serp-snippet-title');
+  const descEl = preview.querySelector('.serp-snippet-desc');
+  preview.classList.toggle('is-mobile', serpMode === 'mobile');
+
+  let displayUrl = url;
+  if (displayUrl) {
+    try {
+      const u = new URL(displayUrl);
+      displayUrl = u.hostname + u.pathname;
+    } catch {}
+  }
+  urlEl.textContent = displayUrl || 'URL 없음';
+  titleEl.textContent = title
+    ? title.length > mode.title
+      ? title.slice(0, mode.title) + '…'
+      : title
+    : '제목이 설정되지 않았습니다';
+  descEl.textContent = desc
+    ? desc.length > mode.desc
+      ? desc.slice(0, mode.desc) + '…'
+      : desc
+    : '메타 설명이 설정되지 않았습니다';
+  urlEl.classList.toggle('serp-dim', !url);
+  titleEl.classList.toggle('serp-dim', !title);
+  descEl.classList.toggle('serp-dim', !desc);
+
+  // 길이 게이지: 최적 범위(title 30-60 / desc 120-160) 반영
+  const gauges = [
+    { label: 'TITLE', len: title.length, min: 30, max: mode.title, unit: 'chars' },
+    {
+      label: 'DESCRIPTION',
+      len: desc.length,
+      min: Math.min(120, mode.desc),
+      max: mode.desc,
+      unit: 'chars',
+    },
+  ];
+  const val = (n, m) => (n > m ? m : n);
+  $('serp-gauges').innerHTML = gauges
+    .map((g) => {
+      const pcnt = Math.min(100, Math.round((g.len / g.max) * 100));
+      const color = g.len > g.max ? '#ef4444' : g.len < g.min ? '#f59e0b' : '#0d9f6e';
+      return `<div class="serp-gauge">
+        <span class="serp-gauge-label">${g.label}</span>
+        <div class="serp-gauge-track"><i class="serp-gauge-fill" style="width:${pcnt}%;background:${color}"></i></div>
+        <span class="serp-gauge-val">${val(g.len, g.max)}/${g.max}</span>
+      </div>`;
+    })
+    .join('');
+  DebugLogger.feature('QUALITY', `SERP 미리보기 렌더 (${serpMode})`);
+}
+
+function bindBrokenEvents() {
+  $('btn-check-broken').addEventListener('click', checkBrokenLinks);
+  $('btn-highlight-broken').addEventListener('click', () =>
+    highlightBrokenLinks(!brokenHighlighted)
+  );
+}
+
+// 내부 링크 HEAD 실측 (background 위임) — 동시성 5
+async function checkBrokenLinks() {
+  const internalLinks = currentResult?.modules?.linkSEO?.internalLinks || [];
+  if (!internalLinks.length) return;
+  const btn = $('btn-check-broken');
+  const statusEl = $('broken-status-text');
+  btn.disabled = true;
+  btn.textContent = '확인 중…';
+  statusEl.value = `내부 링크 ${internalLinks.length}건 확인 중… (동시성 5)`;
+  DebugLogger.feature('QUALITY', `내부 링크 ${internalLinks.length}건 HEAD 실측 시작`);
+  try {
+    const resp = await sendMessage({
+      type: MSG.QUALITY_CHECK_BROKEN_LINKS,
+      payload: { urls: internalLinks.map((l) => l.url) },
+    });
+    if (!resp?.ok) throw new Error(resp?.error || '깨진 링크 확인 실패');
+    const { broken, checked } = resp.data;
+    brokenList = broken;
+    brokenStatus = Object.keys(resp.data.statusMap || {}).reduce((m, k) => {
+      m[k] = resp.data.statusMap[k];
+      return m;
+    }, {});
+
+    // 이슈에 반영 (MAJOR)
+    const issueList = currentResult.issues || [];
+    const oldCount = issueList.filter((i) => i.module === 'linkSEO' && i.brk).length;
+    for (let i = 0; i < oldCount; i++) {
+      const idx = issueList.findIndex((x) => x.module === 'linkSEO' && x.brk);
+      if (idx >= 0) issueList.splice(idx, 1);
+    }
+    broken.slice(0, 20).forEach((b) => {
+      const text = internalLinks.find((l) => l.url === b.url)?.text || '';
+      issueList.push({
+        module: 'linkSEO',
+        severity: SEVERITY_KEY.MAJOR,
+        brk: true,
+        location: b.url,
+        message: `깨진 링크 — HTTP ${b.status}`,
+        fix: text
+          ? `"${text}" 링크가 열리지 않습니다. 대상 페이지/URL을 확인하세요.`
+          : '대상 URL이 응답하지 않습니다.',
+      });
+    });
+    renderIssues(issueList);
+    $('issue-count').textContent = `${issueList.length}개`;
+
+    // broken 목록 렌더
+    renderBrokenList(broken);
+  } catch (e) {
+    statusEl.value = e.message || '깨진 링크 확인 실패';
+    DebugLogger.error('QUALITY', '깨진 링크 실측 실패', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔗 내부 링크 확인';
+  }
+}
+
+function renderBrokenList(broken) {
+  const container = $('broken-list');
+  const statusEl = $('broken-status-text');
+  const hlBtn = $('btn-highlight-broken');
+  if (!broken.length) {
+    container.innerHTML =
+      '<div style="color:var(--green);font-size:11px;">깨진 링크 없음 — 모든 내부 링크 정상입니다.</div>';
+    hlBtn.style.display = 'none';
+    statusEl.value = `${currentResult?.modules?.linkSEO?.internalLinks?.length || 0}건 확인 · 깨진 링크 0건`;
+    return;
+  }
+  container.innerHTML = broken
+    .slice(0, 30)
+    .map(
+      (b) =>
+        `<div class="broken-item"><code>${escapeHtml(b.url)}</code><span class="brk-status">${b.status}</span></div>`
+    )
+    .join('');
+  if (broken.length > 30) {
+    container.innerHTML += `<div style="color:var(--muted);font-size:10px;">외 ${broken.length - 30}건…</div>`;
+  }
+  statusEl.value = `${broken.length}건 깨진 링크 발견`;
+  hlBtn.style.display = '';
+}
+
+// 브로큰 링크 페이지 하이라이트 토글 (content 경유 — 요청 시에만 DOM 수정)
+let brokenHighlighted = false;
+async function highlightBrokenLinks(on) {
+  if (!brokenList.length) return;
+  const hlBtn = $('btn-highlight-broken');
+  hlBtn.disabled = true;
+  DebugLogger.feature('QUALITY', `브로큰 링크 페이지 강조 (${on}, ${brokenList.length}건)`);
+  try {
+    // 분석 대상 탭 = 활성 웹 탭 (패널이 열려도 활성 탭은 유지됨)
+    const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabId = active?.id;
+    if (!tabId) throw new Error('대상 탭을 찾을 수 없습니다');
+    const statusMapObj = Object.fromEntries(brokenList.map((b) => [b.url, b.status]));
+    const resp = await sendMessage({
+      type: MSG.QUALITY_HIGHLIGHT_BROKEN_LINKS,
+      payload: {
+        // 해제 시 빈 목록 → content가 전체 클래스 제거
+        urls: on ? brokenList.map((b) => b.url) : [],
+        status: on ? statusMapObj : {},
+        tabId,
+      },
+    });
+    if (!resp?.ok) throw new Error(resp?.error || '강조 실패');
+    brokenHighlighted = on;
+    hlBtn.textContent = on
+      ? `강조 해제 (${brokenList.length}건)`
+      : `페이지에서 강조 (${brokenList.length}건)`;
+  } catch (e) {
+    DebugLogger.error('QUALITY', '브로큰 링크 강조 실패', e.message);
+  } finally {
+    hlBtn.disabled = false;
+  }
+}
+
+// SEVERITY 상수 — quality-rules.js 전역에서 가져오기 (createIssue와 동일 소스)
+const SEVERITY_KEY = globalThis.pkQualityRules?.SEVERITY || { MAJOR: 'major' };
 
 function updateGauge(key, value, threshold, emptyText = '--') {
   const valEl = $(`gauge-${key}-val`);

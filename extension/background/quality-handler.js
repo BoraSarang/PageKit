@@ -20,6 +20,30 @@ function friendlyScriptError(e) {
   return m || '알 수 없는 오류로 분석에 실패했습니다.';
 }
 
+// 단일 링크 HEAD 실측 — HEAD 실패/차단 시 GET 폴백 1회, 네트워크 오류·abort는 undefined(비판정)
+async function checkHead(url, timeoutMs) {
+  const probe = async (method) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        credentials: 'omit',
+      });
+      clearTimeout(timer);
+      return res.status;
+    } catch {
+      clearTimeout(timer);
+      return null;
+    }
+  };
+  const head = await probe('HEAD');
+  if (head != null) return head;
+  return probe('GET');
+}
+
 export function handleQualityMessage(message, sender, sendResponse) {
   switch (message.type) {
     case MSG.QUALITY_GET_CONFIG: {
@@ -140,6 +164,60 @@ export function handleQualityMessage(message, sender, sendResponse) {
             saveAs: false,
           });
           sendResponse({ ok: true, downloadId });
+        } catch (e) {
+          sendResponse({ ok: false, error: e.message });
+        }
+      })();
+      return true;
+    }
+    case MSG.QUALITY_CHECK_BROKEN_LINKS: {
+      // 내부 링크 HEAD 실측 — 동시성 5 셈러퍼, 링크당 타임아웃 10s, 4xx/5xx만 broken
+      (async () => {
+        const urls = Array.isArray(message.payload?.urls) ? message.payload.urls.slice(0, 100) : [];
+        const broken = [];
+        const statusMap = {};
+        const CONCURRENCY = 5;
+        const TIMEOUT_MS = 10000;
+        let idx = 0;
+        const workers = Array.from({ length: Math.min(CONCURRENCY, urls.length) }, async () => {
+          while (idx < urls.length) {
+            const i = idx++;
+            const url = urls[i];
+            const status = await checkHead(url, TIMEOUT_MS);
+            statusMap[url] = status;
+            if (status && status >= 400) broken.push({ url, status });
+          }
+        });
+        await Promise.all(workers);
+        sendResponse({
+          ok: true,
+          data: {
+            broken,
+            checked: urls.length,
+            statusMap,
+          },
+        });
+      })();
+      return true;
+    }
+    case MSG.QUALITY_HIGHLIGHT_BROKEN_LINKS: {
+      // broken 링크 하이라이트 → 분석한 탭의 content 리스너로만 전달 (요청 시 DOM 수정)
+      (async () => {
+        const tabId = message.payload?.tabId;
+        if (!tabId) {
+          sendResponse({ ok: false, error: '대상 탭이 없습니다.' });
+          return;
+        }
+        try {
+          const resp = await chrome.tabs.sendMessage(
+            tabId,
+            {
+              type: MSG.QUALITY_HIGHLIGHT_BROKEN_LINKS,
+              payload: message.payload,
+            },
+            { frameId: 0 }
+          );
+          sendResponse(resp?.ok ? { ok: true } : { ok: false, error: resp?.error || '강조 실패' });
         } catch (e) {
           sendResponse({ ok: false, error: e.message });
         }

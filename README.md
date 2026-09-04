@@ -5,7 +5,7 @@
 **웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
 _Grab the good stuff from any page: media collection · batch download · page quality audit._
 
-[![version](https://img.shields.io/badge/version-1.0.10-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![version](https://img.shields.io/badge/version-1.0.11-0d9488)](https://github.com/BoraSarang/PageKit/releases)
 [![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
 [![Landing](https://img.shields.io/badge/랜딩%20페이지-PageKit-14B8A6)](https://borasarang.github.io/PageKit/)
 [![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
@@ -29,7 +29,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 | 📦  | **배치 ZIP 저장**           | 선택 항목을 폴더 구조 그대로 ZIP으로 일괄 저장, 실패 항목 자동 재시도                                                               |
 | 🔗  | **링크 추출 · CSV**         | 중복 제거 추출 + 정규식 필터 프리셋 + CSV 내보내기                                                                                  |
 | 🔓  | **우클릭·복사 해제**        | 복사·저장이 막힌 페이지에서 자유롭게 사용                                                                                           |
-| 🔍  | **페이지 품질 진단** ⭐NEW  | SEO·성능(Core Web Vitals 실측)·접근성(axe-core 내장)·콘텐츠 품질을 종합 진단하고 **HTML/JSON 리포트**로 저장                        |
+| 🔍  | **페이지 품질 진단** ⭐NEW  | SEO·성능(Core Web Vitals 실측)·접근성(axe-core 내장)·콘텐츠 품질을 종합 진단하고 **HTML/JSON 리포트**로 저장. **SERP 미리보기**(데스크톱/모바일) + **깨진 링크 실측**(내부 링크 HEAD 체크·페이지 강조) |
 
 > 💡 모든 처리는 **100% 로컬**에서 이루어집니다. 서버 통신 없음, 추적 없음.
 > ⚡ Manifest V3 · 요청 시에만 스크립트 주입하는 가벼운 구조.
@@ -75,6 +75,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 - [x] 스트림 화질 통합 카드 · 검토 화면(예상 용량 포함) · 유튜브 형식 확인 · 자동 리사이즈 (v1.0.2~1.0.6)
 - [x] 스트림 병렬 Range 다운로드 · 체크포인트 재개 · CDN Referer 헤더 재생 (v1.0.9)
 - [x] 서명 CDN 페이지 폴백 모바일 UA · 파일명/저장 견고화(예약어·트레일링·제어문자) (v1.0.10)
+- [x] 페이지 품질 진단 — SERP 미리보기(데스크톱/모바일) · 깨진 링크 실측(내부 HEAD 체크·페이지 하이라이트) (v1.0.11)
 - [ ] Chrome Web Store 정식 배포
 - [ ] 진단 히스토리·비교 리포트
 
@@ -92,7 +93,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 | 📦  | **Batch ZIP save**              | Download selected items preserving folder structure, with auto-retry                                                                      |
 | 🔗  | **Link extractor · CSV**        | Deduped extraction, regex filter presets, CSV export                                                                                      |
 | 🔓  | **Unlock right-click/copy**     | Freely use pages that block copy/save                                                                                                     |
-| 🔍  | **Page quality audit** ⭐NEW    | One-shot SEO, performance (real Core Web Vitals), accessibility (embedded axe-core) and content-quality checks with **HTML/JSON reports** |
+| 🔍  | **Page quality audit** ⭐NEW    | One-shot SEO, performance (real Core Web Vitals), accessibility (embedded axe-core) and content-quality checks with **HTML/JSON reports** · **SERP preview** (desktop/mobile toggle) + **broken link checker** (internal HEAD check · page highlight) |
 
 > 💡 100% local processing. No servers, no tracking.
 > ⚡ Lightweight Manifest V3 — scripts are injected only on demand.

@@ -550,12 +550,19 @@
 
     // 리다이렉트 체인 감지는 백그라운드에서 HEAD 요청으로 수행 (여기서는 생략)
 
+    // 내부 링크만 별도 수집 — 브로큰 링크 실측(background HEAD) 대상
+    const internalLinks = links
+      .filter((l) => l.internal)
+      .map((l) => ({ url: l.url, text: l.text }))
+      .slice(0, 100);
+
     return {
       issues,
       links,
       totalLinks: links.length,
       internal: links.filter((l) => l.internal).length,
       external: links.filter((l) => !l.internal).length,
+      internalLinks,
     };
   }
 
@@ -1124,6 +1131,42 @@
 
     if (message?.type === 'pk.quality.getConfig') {
       getConfig().then((config) => sendResponse({ ok: true, data: config }));
+      return true;
+    }
+
+    // 브로큰 링크 하이라이트 (깨진 링크 실측 후 사용자 요청 시에만 페이지 DOM 수정)
+    if (message?.type === 'pk.quality.highlightBrokenLinks') {
+      const urls = message.payload?.urls || [];
+      if (window !== window.top) return false; // 메인 프레임만
+      // 강조 스타일 주입 (멱등)
+      if (!document.getElementById('pk-broken-style')) {
+        const style = document.createElement('style');
+        style.id = 'pk-broken-style';
+        style.textContent =
+          '.pk-broken-link{outline:2px dashed #dc2626;outline-offset:2px;background:rgba(220,38,38,.08);}';
+        document.head.appendChild(style);
+      }
+      document.querySelectorAll('a[href]').forEach((a) => {
+        if (urls.length === 0) {
+          a.classList.remove('pk-broken-link');
+          delete a.dataset.pkBrokenStatus;
+          a.title = a.title?.replace(/^\[PageKit\] 깨진 링크[^]*$/, '');
+          return;
+        }
+        let href;
+        try {
+          href = new URL(a.getAttribute('href') || '', location.href).href;
+        } catch {
+          return;
+        }
+        const broken = urls.includes(href);
+        a.classList.toggle('pk-broken-link', broken);
+        if (broken && !a.dataset.pkBrokenStatus) {
+          a.dataset.pkBrokenStatus = '1';
+          a.title = `[PageKit] 깨진 링크 — HTTP ${message.payload?.status?.[href] ?? '확인 불가'}`;
+        }
+      });
+      sendResponse({ ok: true, count: urls.length });
       return true;
     }
 
