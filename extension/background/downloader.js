@@ -10,6 +10,7 @@ import { BGLogger } from './logger.js';
 import * as storage from './storage.js';
 import { createZip } from '../shared/zip.js';
 import { sanitizeFilename, ensureExtension } from '../shared/filename-sanitize.js';
+import { supportsDownloads } from '../shared/browser-shim.js';
 
 const MAX_RETRY = 2;
 let jobSeq = 0;
@@ -224,6 +225,15 @@ function b64ToBytes(b64) {
 const ZIP_MAX_TOTAL = 100 * 1024 * 1024;
 
 async function zipPack(items, tabId) {
+  // Safari 등 downloads 미지원 환경: fetch 수집 전에 조기 실패 (v1.0.12)
+  if (!supportsDownloads()) {
+    BGLogger.error('DLZIP', 'Safari ZIP 저장 미지원 (downloads API 없음)', {
+      code: 'E-SAF-DL-1001',
+    });
+    throw Object.assign(new Error('E-SAF-DL-1001 이 브라우저는 파일 저장을 지원하지 않습니다.'), {
+      code: 'E-SAF-DL-1001',
+    });
+  }
   const usable = items.filter((it) => it?.url?.startsWith('http') && it.downloadable !== false);
   if (!usable.length) throw new Error('ZIP으로 묶을 항목이 없습니다.');
   const entries = [];
@@ -292,6 +302,15 @@ async function downloadStream(job) {
 }
 
 async function runDownload(job, viaPage = false) {
+  // Safari 등 downloads 미지원 환경: 조기 실패로 표시 (v1.0.12)
+  if (!supportsDownloads()) {
+    BGLogger.error('DL', `Safari 배치 다운로드 미지원 ${job.item.url}`, { code: 'E-SAF-DL-1001' });
+    job.state = 'failed';
+    releaseReferer(domainFrom(job.item.url));
+    await persist();
+    broadcast();
+    return;
+  }
   const settings = await storage.getSettings();
   try {
     const name = job.name;
@@ -376,33 +395,35 @@ let ensureInjectedFn = null;
 
 export function initDownloader(deps = {}) {
   ensureInjectedFn = deps.ensureInjected || null; // fetchViaPage 폴백용
-  chrome.downloads.onChanged.addListener(async (delta) => {
-    const job = running.find((j) => j.downloadId === delta.id);
-    if (!job) return;
+  if (chrome.downloads && chrome.downloads.onChanged) {
+    chrome.downloads.onChanged.addListener(async (delta) => {
+      const job = running.find((j) => j.downloadId === delta.id);
+      if (!job) return;
 
-    if (delta.state) {
-      if (delta.state.current === 'complete') {
-        job.state = 'complete';
-        job.progress = 100;
-        BGLogger.info('DL', `완료: ${job.name}`);
-        releaseReferer(domainFrom(job.item.url));
-        await persist();
-        broadcast();
-        // 완료 후 약간 지연 제거
-        setTimeout(() => removeJob(job.jobId), 8000);
-      } else if (delta.state.current === 'interrupted') {
-        BGLogger.warn('DL', `중단: ${job.name} (${delta.error?.current || 'unknown'})`);
-        await handleFail(job, delta.error?.current);
+      if (delta.state) {
+        if (delta.state.current === 'complete') {
+          job.state = 'complete';
+          job.progress = 100;
+          BGLogger.info('DL', `완료: ${job.name}`);
+          releaseReferer(domainFrom(job.item.url));
+          await persist();
+          broadcast();
+          // 완료 후 약간 지연 제거
+          setTimeout(() => removeJob(job.jobId), 8000);
+        } else if (delta.state.current === 'interrupted') {
+          BGLogger.warn('DL', `중단: ${job.name} (${delta.error?.current || 'unknown'})`);
+          await handleFail(job, delta.error?.current);
+        }
       }
-    }
-    if (delta.bytesReceived) {
-      const total = job.item.size || 0;
-      job.progress =
-        total > 0
-          ? Math.min(99, Math.round((delta.bytesReceived.current / total) * 100))
-          : job.progress;
-    }
-  });
+      if (delta.bytesReceived) {
+        const total = job.item.size || 0;
+        job.progress =
+          total > 0
+            ? Math.min(99, Math.round((delta.bytesReceived.current / total) * 100))
+            : job.progress;
+      }
+    });
+  }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'pk.dl.start') {
@@ -618,7 +639,8 @@ export function initDownloader(deps = {}) {
     }
     if (message?.type === 'pk.dl.cancel') {
       const job = running.find((j) => j.jobId === message.payload?.jobId);
-      if (job?.downloadId != null) chrome.downloads.cancel(job.downloadId);
+      if (job?.downloadId != null && chrome.downloads && chrome.downloads.cancel)
+        chrome.downloads.cancel(job.downloadId);
       removeJob(message.payload?.jobId);
       sendResponse({ ok: true });
       return false;

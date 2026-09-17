@@ -1,5 +1,5 @@
 #!/bin/bash
-# build_and_run.sh — WPageTools 빌드 디스패처 (AGENTS.md 18장 표준, v0.1 chrome 전용)
+# build_and_run.sh — WPageTools 빌드 디스패처 (chrome + safari, v1.0.12)
 # usage:
 #   ./build_and_run.sh debug chrome   # 문법 검증 + 환경 체크 + Chrome 프로필 실행
 #   ./build_and_run.sh debug all      # chrome 동일 (현재 chrome 단일 플랫폼)
@@ -18,8 +18,8 @@ die()  { printf '\033[1;31m[build]\033[0m ERROR %s\n' "$*" >&2; exit 1; }
 
 check_platform() {
   case "$PLATFORM" in
-    chrome|all) ;;
-    *) die "미지원 플랫폼: $PLATFORM (현재 chrome|all만 지원)" ;;
+    chrome|all|safari) ;;
+    *) die "미지원 플랫폼: $PLATFORM (chrome|all|safari 지원)" ;;
   esac
 }
 
@@ -80,7 +80,26 @@ do_debug() {
   run_env_expiry
   validate_manifest
   syntax_check
-  run_chrome
+  if [ "$PLATFORM" = "safari" ]; then
+    build_safari
+  else
+    run_chrome
+  fi
+}
+
+build_safari() {
+  log "Safari 확장 빌드 (xcodebuild, 무서명 로컬 개발용)"
+  local proj="$ROOT/safari/PageKit for Safari/PageKit for Safari.xcodeproj"
+  [ -d "$proj" ] || die "Xcode 프로젝트 없음: $proj (T-SAF-04 재생성 필요)"
+  xcodebuild -project "$proj" -scheme "PageKit for Safari" -configuration Debug build || die "xcodebuild 실패"
+  local built
+  built="$(find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name "PageKit for Safari.app" -path "*Debug*" 2>/dev/null | head -1)"
+  [ -n "$built" ] || die "빌드 산출물(PageKit for Safari.app)을 찾지 못함"
+  local dest="$HOME/Applications/PageKit for Safari.app"
+  mkdir -p "$HOME/Applications"
+  [ ! -e "$dest" ] || rm -rf "$dest"
+  cp -Rf "$built" "$dest" || die "복사 실패: $dest"
+  log "설치됨: $dest — Safari > 설정 > 개발자 > '무서명 확장 허용' 후 실행"
 }
 
 do_e2e() {
@@ -88,8 +107,13 @@ do_e2e() {
   run_env_expiry
   validate_manifest
   syntax_check
-  log "E2E: docs/e2e/PLAN.md 시나리오 수동 실행 준비 (Chrome 열림)"
-  run_chrome
+  if [ "$PLATFORM" = "safari" ]; then
+    build_safari
+    log "E2E: Safari 수동 체크리스트 (팝업→팝업윈도우 패널→분석→다운로드, PLAN_v1.0.12_safari T-SAF-06)"
+  else
+    log "E2E: docs/e2e/PLAN.md 시나리오 수동 실행 준비 (Chrome 열림)"
+    run_chrome
+  fi
 }
 
 case "$MODE" in
@@ -98,7 +122,9 @@ case "$MODE" in
   help|*) cat <<'HELP'
 usage: ./build_and_run.sh <mode> <platform>
   debug chrome — 문법 검증 + manifest 검증 + Chrome 확장 로드 실행
+  debug safari — 문법 검증 + manifest 검증 + xcodebuild Debug 빌드 (Safari 실행은 수동)
   e2e   chrome — 위와 동일 + E2E 시나리오 준비
+  e2e   safari — 위와 동일 + Safari 수동 체크리스트 안내
 HELP
   ;;
 esac

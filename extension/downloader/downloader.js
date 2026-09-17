@@ -26,6 +26,7 @@ import {
 } from '../shared/download-checkpoint.js';
 import { MSG } from '../shared/messages.js';
 import { sanitizeFilename, ensureExtension } from '../shared/filename-sanitize.js';
+import { downloadFile } from '../shared/safari-download.js';
 
 const $ = (id) => document.getElementById(id);
 const DebugLogger = globalThis.DebugLogger;
@@ -247,23 +248,24 @@ async function saveBlob(blob, ext) {
   fileName = ensureExtension(fileName, ext);
   const filename = `PageKit/${JOB.folder}/videos/${fileName}`;
   try {
-    const downloadId = await new Promise((resolve, reject) => {
-      chrome.downloads.download({ url: objectUrl, filename, conflictAction: 'uniquify' }, (id) => {
-        const err = chrome.runtime.lastError;
-        if (err) reject(new Error(err.message));
-        else resolve(id);
-      });
-    });
-    lastDownloadId = downloadId;
+    // downloads API 우선, Safari는 앵커 폴백 (safari-download.js, v1.0.12)
+    const r = await downloadFile({ url: objectUrl, filename });
+    lastDownloadId = r.id ?? null;
     const sizeMb = (blob.size / 1048576).toFixed(1);
-    DebugLogger.info('DLWIN', `스트림 저장 완료 ${sizeMb}MB → ${filename} id=${downloadId}`);
+    DebugLogger.info(
+      'DLWIN',
+      `스트림 저장 완료 ${sizeMb}MB → ${filename}${r.fallback ? ' (앵커 폴백)' : ` id=${r.id}`}`
+    );
     showResult(
       true,
       '다운로드 완료',
       `${fileName} (${sizeMb}MB) 저장됨.\n위치: 다운로드 폴더 › ${filename}\n10초 후 창이 자동으로 닫힙니다.`
     );
     chrome.runtime
-      .sendMessage({ type: MSG.STREAM_DONE, payload: { filename: fileName, sizeMb, downloadId } })
+      .sendMessage({
+        type: MSG.STREAM_DONE,
+        payload: { filename: fileName, sizeMb, downloadId: lastDownloadId },
+      })
       .catch(() => {});
     // 창 자동 닫기: SW 타이머는 서비스 워커 수명과 함께 유실될 수 있어 창이 직접 닫는다.
     // 큐의 다음 작업이 오면 BG가 탭 URL을 교체(재로드)하므로 이 타이머는 자연 소멸한다.
@@ -690,13 +692,14 @@ async function downloadViaDownloads() {
   let fileName = sanitizeFilename($('dl-filename').value.trim() || defaultName(), 'stream');
   fileName = ensureExtension(fileName, '.mp4');
   const filename = `PageKit/${JOB.folder}/videos/${fileName}`;
-  const downloadId = await new Promise((resolve, reject) => {
-    chrome.downloads.download({ url: JOB.url, filename, conflictAction: 'uniquify' }, (id) => {
-      const err = chrome.runtime.lastError;
-      if (err) reject(new Error(`E-CHR-DL-1005 브라우저 다운로드 실패 (${err.message})`));
-      else resolve(id);
-    });
-  });
+  // downloads API 우선, Safari는 앵커 폴백 (safari-download.js, v1.0.12)
+  let downloadId;
+  try {
+    const r = await downloadFile({ url: JOB.url, filename });
+    downloadId = r.id ?? null;
+  } catch (e) {
+    throw new Error(`E-CHR-DL-1005 브라우저 다운로드 실패 (${e.message})`);
+  }
   lastDownloadId = downloadId;
   DebugLogger.info('DLWIN', `브라우저 다운로더 전송 ${filename} id=${downloadId}`);
   showResult(
@@ -929,7 +932,8 @@ $('dl-close').addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: MSG.STREAM_CANCEL }).catch(() => {});
 });
 $('dl-open').addEventListener('click', () => {
-  if (lastDownloadId != null) chrome.downloads.show(lastDownloadId);
+  if (lastDownloadId != null && chrome.downloads && chrome.downloads.show)
+    chrome.downloads.show(lastDownloadId);
 });
 
 // 창 세로 자동 리사이즈 — 콘텐츠(화질 선택·리뷰·진행/완료) 높이에 맞춰 팝업 창 세로를 조정 (상한 900px)

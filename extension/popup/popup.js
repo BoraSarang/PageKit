@@ -1,9 +1,16 @@
 // popup/popup.js — 팝업 로직 (사이드 패널 진입 메뉴 + 다운로드 상태)
 
+import { openPanelFromGesture } from '../shared/panel-host.js';
+import { extApi, supportsSidePanel } from '../shared/browser-shim.js';
+
 const $ = (id) => document.getElementById(id);
 
 function getActiveTab() {
-  return chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => tab);
+  // Safari 툴바 팝업: 팝업 윈도우와 무관하게 마지막 포커스 창의 탭 조회 (T-SAF-07)
+  const scope = supportsSidePanel() ? { currentWindow: true } : { lastFocusedWindow: true };
+  return extApi()
+    .tabs.query({ active: true, ...scope })
+    .then(([tab]) => tab);
 }
 
 function renderDownloads(jobs) {
@@ -35,6 +42,7 @@ async function init() {
   $('pk-version').textContent = `v${chrome.runtime.getManifest().version}`;
 
   // 사이드 패널 열기 (뷰 지정) — 팝업에서 직접 호출 (BG 경유 시 사용자 제스처 상실로 실패 가능)
+  // Safari는 panel-host가 팝업 윈도우로 폴백 (v1.0.12)
   async function openPanelWith(view) {
     DebugLogger.feature('POPUP', `사이드 패널 열기 요청 view=${view}`);
     const tab = await getActiveTab();
@@ -43,13 +51,13 @@ async function init() {
       return;
     }
     try {
-      const paths = {
-        media: 'sidepanel/panel.html',
-        quality: 'sidepanel/quality-tab.html?auto=1',
-      };
-      // 패널 경로 전환 후 오픈 (품질 진단 = 단독 패널, auto=1은 즉시 분석 플래그)
-      await chrome.sidePanel.setOptions({ path: paths[view] || paths.media });
-      await chrome.sidePanel.open({ windowId: tab.windowId });
+      const r = await openPanelFromGesture(view, tab.windowId);
+      if (!r.ok) {
+        DebugLogger.error('[POPUP] 패널 열기 실패', r.error?.code || 'unknown', {
+          code: r.error?.code || 'E-CHR-UI-1001',
+        });
+        return;
+      }
       window.close();
     } catch (e) {
       DebugLogger.error('[POPUP] 패널 열기 실패', `${e.name}: ${e.message}`, {

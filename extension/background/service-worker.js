@@ -3,6 +3,7 @@
 import { BGLogger } from './logger.js';
 import { DebugLogger } from '../debug-module.js';
 import { openSidePanel } from './sidepanel-controller.js';
+import { supportsNotifications } from '../shared/browser-shim.js';
 import { MSG, msgOk, msgErr } from '../shared/messages.js';
 import * as storage from './storage.js';
 import { initDownloader, ensureReferer, ensureMobileUA, releaseMobileUA } from './downloader.js';
@@ -141,12 +142,14 @@ chrome.windows.onRemoved.addListener(() => {
   chrome.action.setBadgeText({ text: '' }).catch(() => {});
 });
 
-chrome.notifications.onClicked.addListener(() => {
-  if (streamDownloadId != null) {
-    chrome.downloads.show(streamDownloadId);
-    streamDownloadId = null;
-  }
-});
+if (chrome.notifications && chrome.notifications.onClicked) {
+  chrome.notifications.onClicked.addListener(() => {
+    if (streamDownloadId != null) {
+      if (chrome.downloads && chrome.downloads.show) chrome.downloads.show(streamDownloadId);
+      streamDownloadId = null;
+    }
+  });
+}
 
 // --- 설치/시작 시 초기화 ---
 chrome.runtime.onInstalled.addListener((details) => {
@@ -306,6 +309,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       getCapturedStreams().then((caps) => sendResponse(msgOk(caps)));
       return true;
     }
+    case MSG.YOUTUBE_PLAYER_FETCH: {
+      // 유튜브 player API BG 폴백 (T-SAF-08) — Safari 콘텐츠 fetch 차단 시 extractor가 위임.
+      // 확장 오리진 fetch + host_permissions(<all_urls>)라 CORS 무관. ANDROID_SDKLESS는 쿠키 불필요.
+      (async () => {
+        try {
+          const videoId = message.payload?.videoId || '';
+          if (!videoId) {
+            sendResponse(msgErr('E-CHR-VALID-1001', 'videoId 없음'));
+            return;
+          }
+          const resp = await fetch(
+            'https://www.youtube.com/youtubei/v1/player?key=AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                context: {
+                  client: {
+                    clientName: 'ANDROID',
+                    clientVersion: '20.10.38',
+                    osName: 'Android',
+                    osVersion: '11',
+                    androidSdkVersion: 30,
+                    hl: 'ko',
+                  },
+                },
+                videoId,
+                contentCheckOk: true,
+                racyCheckOk: true,
+              }),
+            }
+          );
+          if (!resp.ok) {
+            sendResponse(msgErr('E-CHR-NET-1001', `player API ${resp.status}`));
+            return;
+          }
+          const json = await resp.json();
+          const st = json.streamingData || {};
+          BGLogger.feature(
+            'YT',
+            `BG player API 폴백 ${videoId} (formats ${(st.formats || []).length}+${(st.adaptiveFormats || []).length})`
+          );
+          sendResponse(
+            msgOk({ formats: st.formats || [], adaptiveFormats: st.adaptiveFormats || [] })
+          );
+        } catch (e) {
+          BGLogger.error('YT', `BG player API 폴백 실패 (${e.message})`);
+          sendResponse(msgErr('E-CHR-NET-1001', e.message));
+        }
+      })();
+      return true;
+    }
     case MSG.STREAM_PROGRESS: {
       const pct = Math.max(0, Math.min(100, message.payload?.percent ?? 0));
       chrome.action.setBadgeText({ text: pct >= 100 ? '' : `${pct}%` }).catch(() => {});
@@ -317,16 +372,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.action.setBadgeText({ text: '' }).catch(() => {});
       releaseMobileUA(streamTabId).catch(() => {});
       streamTabId = null;
-      // 완료 — 시스템 알림 (창 자동 닫기는 다운로더가 10초 후 직접 수행:
-      // SW 타이머는 서비스 워커 수명과 함께 유실될 수 있으므로 창 측에서 보장)
-      chrome.notifications
-        .create({
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('icons/icon48.png'),
-          title: 'PageKit 스트림 저장 완료',
-          message: `${p.filename || '동영상'} (${p.sizeMb || 0}MB) — 10초 후 창이 자동으로 닫힙니다.`,
-        })
-        .catch(() => {});
+      // 완료 — 시스템 알림 (Safari 미지원 시 생략, v1.0.12)
+      if (supportsNotifications()) {
+        chrome.notifications
+          .create({
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icons/icon48.png'),
+            title: 'PageKit 스트림 저장 완료',
+            message: `${p.filename || '동영상'} (${p.sizeMb || 0}MB) — 10초 후 창이 자동으로 닫힙니다.`,
+          })
+          .catch(() => {});
+      } else {
+        BGLogger.info('DL', '시스템 알림 생략 (Safari 미지원)');
+      }
       BGLogger.info('DL', `스트림 저장 완료 알림 ${p.filename} (${p.sizeMb}MB)`);
       return false;
     }

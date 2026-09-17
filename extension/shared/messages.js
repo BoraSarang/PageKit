@@ -17,6 +17,7 @@ export const MSG = {
   STREAM_FAIL: 'pk.stream.fail',
   STREAM_CANCEL: 'pk.stream.cancel',
   GET_CAPTURED_STREAMS: 'pk.stream.captured.get',
+  YOUTUBE_PLAYER_FETCH: 'pk.youtube.playerFetch',
   THUMB_FETCH: 'pk.thumb.fetch',
   HIGHLIGHT_TOGGLE: 'pk.ui.highlight',
   SETTINGS_GET: 'pk.settings.get',

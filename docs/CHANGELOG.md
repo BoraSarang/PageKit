@@ -1,5 +1,21 @@
 # CHANGELOG — PageKit (Chrome Extension v0.1.0)
 
+## v1.0.12 (2026-09-17) — Safari macOS 이식 (로컬 개발용)
+
+### 주요 변경 [safari]
+- **Safari macOS 확장 추가** (`safari/` Xcode 프로젝트, macos-only, 앱 이름 "PageKit for Safari", 번들ID `com.borasarang.PageKit-for-Safari`, 원본 참조 방식, Debug 빌드 성공, 산출물 `/Users/lee/Applications/PageKit for Safari.app`)
+- **패널 호스트 추상화** (`shared/panel-host.js` 신규): Safari에 `sidePanel`이 없어 동일 `panel.html`·`quality-tab.html?auto=1`을 팝업 윈도우(420×720, 최종 폴백 새 탭)로 표시. `background/sidepanel-controller.js`·`popup/popup.js`에서 분기
+- **네임스페이스 shim** (`shared/browser-shim.js` 신규): `browser ?? chrome` + `supportsSidePanel/Downloads/Notifications` 탐지
+- **downloads 폴백** (`shared/safari-download.js` 신규): packager 감사에서 `downloads`·`notifications` 미지원 확인 → 확장 페이지는 앵커(`a[download]`) 폴백, SW 무DOM 경로는 `E-SAF-DL-1001` 한국어 안내. `notifications` 생성·클릭 가드
+- **에러코드**: `E-SAF-UI-1001`·`E-SAF-DL-1001`·`E-SAF-NET-1001` (`error_message_ko.json`)
+- **T-SAF-07 툴바 진입 수정** (`queryActivePageTab` 신규): Safari 팝업 윈도우는 별도 창이라 `currentWindow` 조회가 확장 자신을 반환 → `lastFocusedWindow`+전체 창 폴백으로 http 탭 탐색. 적용: panel(분석·자동재분석)·popup(윈도우ID)·quality-tab(강조 대상)
+- **T-SAF-08 유튜브 해상도 폴백** (`pk.youtube.playerFetch` 신규): Safari 콘텐츠 fetch 차단 시 SW가 확장 오리진에서 player API 직접 호출 후 병합. 기존 로직은 `pushYoutubeFormats()`로 분리해 공유
+- Chrome 경로 무변경 (회귀: `node --check` + `strict-check` + smoke 통과)
+
+### 파일
+- 신규: `extension/shared/browser-shim.js`, `extension/shared/panel-host.js`, `extension/shared/safari-download.js`, `docs/plans/PLAN_v1.0.12_safari.md`, `docs/safari/PERMISSIONS.md`, `docs/safari/MESSAGING.md`, `safari/` Xcode 프로젝트
+- 수정: `background/sidepanel-controller.js`, `background/service-worker.js`, `background/downloader.js`, `background/quality-handler.js`, `content/extractor.js`, `popup/popup.js`, `sidepanel/panel.js`, `sidepanel/quality-tab.js`, `downloader/downloader.js`, `extension/manifest.json`, `README.md`, `landing/index.html`, `build_and_run.sh`, `error_message_ko.json`
+
 ## v1.0.11 (2026-08-31) — 깨진 링크 실측 + SERP 미리보기
 
 ### 주요 변경 [chrome]

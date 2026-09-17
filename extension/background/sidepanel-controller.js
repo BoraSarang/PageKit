@@ -3,6 +3,8 @@
 
 import { BGLogger } from './logger.js';
 import { PANEL_SOURCES } from '../shared/messages.js';
+import { supportsSidePanel } from '../shared/browser-shim.js';
+import { openPanelFromGesture } from '../shared/panel-host.js';
 
 let lastOpenAt = 0;
 
@@ -39,6 +41,18 @@ export async function openSidePanel(source, windowId, view = 'media') {
       return { ok: true };
     }
     lastOpenAt = now;
+    // Safari 등 sidePanel 미지원 환경 → 팝업 윈도우 폴백 (panel-host, v1.0.12)
+    if (!supportsSidePanel()) {
+      const r = await openPanelFromGesture(view, wId);
+      if (r.ok) {
+        BGLogger.feature(
+          'PANEL',
+          `Safari 패널 열림 source=${source} view=${view} fallback=${r.fallback || 'window'}`
+        );
+        return r;
+      }
+      return r;
+    }
     // 제스처 보존: setOptions를 대기 없이 병행 실행. await가 open 앞에 끼면
     // 컨텍스트 메뉴·단축키의 사용자 제스처가 소멸해 open 실패 → 새탭 폴백이 발생함.
     chrome.sidePanel

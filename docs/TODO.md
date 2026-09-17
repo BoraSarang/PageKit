@@ -251,6 +251,19 @@
 
 ### 남은 과제
 | T | 작업 | 상태 | 비고 |
-|---|------|------|------|
+|---|---|------|------|
 | T-110 | E2E 자동화 스캔폴드 (Whale 격리 임시프로필 + playwright-core, 브라우저 다운로드 없음) | ✅ | `./scripts/e2e-chrome.sh` — 11개 스모크 통과(팝업/품질패널/옵션). Chrome 137+ 제약으로 실행 브라우저는 Whale(AGENTS 규칙 6 참조) |
 | T-111 | 스토어 배포 준비 | 🔶 | ✅자동 부분: PERMISSIONS.md v0.7.29 현행화, webstore-publish에 vm엄격파서 적용, dry-run 통과(ZIP 268KB 생성). ⬜사용자 작업: 개발자 계정 등록, privacy_policy URL, 스크린샷 1~5장, 스토어 설명 문구 |
+
+## v1.0.12 (safari) — Safari macOS 확장 추가 (Epic WPageTools-zs6, PLAN_v1.0.12_safari.md)
+
+| T | 작업 | 상태 | 비고 |
+|---|---|------|------|
+| T-SAF-01 | PLAN+TODO+DESIGN 문서 (`PLAN_v1.0.12_safari.md`, DESIGN 11장, `docs/safari/` 2종) | ✅ | bd WPageTools-zs6.1 CLOSED |
+| T-SAF-02 | 호환성 감사 (packager 감사 + strict-check 사파리 분기 + 판정 매트릭스) | ✅ | 미지원 키: sidePanel/side_panel/downloads/type/notifications — bd WPageTools-zs6.2 CLOSED |
+| T-SAF-03 | browser-shim + panel-host 추상화 + sidepanel-controller 분기 | ✅ | `browser-shim`·`panel-host`·`safari-download` 신규 + 9파일 가드 — bd WPageTools-zs6.3 CLOSED |
+| T-SAF-04 | Xcode 프로젝트 생성 (`safari/`, macos-only, `com.borasarang.PageKit`) | ✅ | xcodebuild Debug BUILD SUCCEEDED — bd WPageTools-zs6.4 CLOSED |
+| T-SAF-05 | `build_and_run.sh` safari + 버전 1.0.12 동기화 | ✅ | debug/e2e safari + manifest/README/PERMISSIONS/CHANGELOG — bd WPageTools-zs6.5 CLOSED |
+| T-SAF-06 | 검증 (smoke+E2E+Chrome 회귀+Safari 수동) | 🔶 | 자동 통과(strict-check/smoke/`debug safari`) — ⬜Safari 수동(무서명 허용+팝업윈도우 실측)은 사용자 단계 |
+| T-SAF-07 | 툴바 진입 분석 실패 (currentWindow가 팝업 자신을 조회) | ✅ | `queryActivePageTab` 헬퍼 신규 + panel/popup/quality-tab 적용, 회귀 통과 — bd WPageTools-zs6.7 |
+| T-SAF-08 | Safari 유튜브 해상도 목록 미표시 (콘텐츠 fetch 차단) | ✅ | `pk.youtube.playerFetch` BG 폴백 + extractor 2차 시도, 회귀 통과 — bd WPageTools-zs6.8 |

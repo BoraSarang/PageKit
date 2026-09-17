@@ -3,6 +3,8 @@
 // autoRun 끔: 수동 "분석 시작" 버튼으로만 실행
 
 import { MSG } from '../shared/messages.js';
+import { downloadFile } from '../shared/safari-download.js';
+import { queryActivePageTab } from '../shared/browser-shim.js';
 import '../shared/quality-rules.js'; // 리포트 단일 구현(globalThis.pkQualityRules)
 import '../shared/dom-utils.js';
 
@@ -437,9 +439,9 @@ async function highlightBrokenLinks(on) {
   hlBtn.disabled = true;
   DebugLogger.feature('QUALITY', `브로큰 링크 페이지 강조 (${on}, ${brokenList.length}건)`);
   try {
-    // 분석 대상 탭 = 활성 웹 탭 (패널이 열려도 활성 탭은 유지됨)
-    const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const tabId = active?.id;
+    // 분석 대상 탭 = 활성 웹 탭 (Safari 팝업 윈도우는 별도 창이라 헬퍼 사용, T-SAF-07)
+    const target = await queryActivePageTab();
+    const tabId = target?.id;
     if (!tabId) throw new Error('대상 탭을 찾을 수 없습니다');
     const statusMapObj = Object.fromEntries(brokenList.map((b) => [b.url, b.status]));
     const resp = await sendMessage({
@@ -594,7 +596,20 @@ function exportResult(format) {
       ? globalThis.pkQualityRules.generateHtmlReport(currentResult)
       : JSON.stringify(currentResult, null, 2);
   const url = `data:${format === 'html' ? 'text/html' : 'application/json'};charset=utf-8,${encodeURIComponent(content)}`;
-  chrome.downloads.download({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false });
+  // downloads API 우선, Safari는 앵커 폴백 (safari-download.js, v1.0.12)
+  downloadFile({ url, filename: `PageKit/quality-reports/${name}`, saveAs: false })
+    .then((r) => {
+      DebugLogger.feature(
+        'QUALITY',
+        `리포트 저장 완료 (${format}${r.fallback ? ' — 앵커 폴백' : ''}) → ${name}`
+      );
+    })
+    .catch((e) => {
+      DebugLogger.error('[QUALITY] 리포트 저장 실패', e.message, {
+        code: e.code || 'E-CHR-DL-1002',
+      });
+      setTargetBar('리포트 저장 실패', e.message);
+    });
 }
 
 function scoreClass(score) {

@@ -2,6 +2,8 @@
 
 import { MSG } from '../shared/messages.js';
 import { fetchStreamText, parseM3U8 } from '../shared/m3u8.js';
+import { downloadFile } from '../shared/safari-download.js';
+import { queryActivePageTab } from '../shared/browser-shim.js';
 import '../shared/dom-utils.js';
 
 const { $, escapeHtml: esc } = globalThis.pkDom;
@@ -39,13 +41,8 @@ async function analyze(force = false) {
     if (t?.url && /^https?:/.test(t.url)) tab = t;
   }
   if (!tab) {
-    const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-    // 패널(확장 페이지)이 활성 탭이면 같은 창의 웹 탭으로 폴백
-    if (active?.url && /^https?:/.test(active.url)) tab = active;
-    else {
-      const tabs = await chrome.tabs.query({ currentWindow: true });
-      tab = tabs.find((t) => t.url && /^https?:/.test(t.url)) || null;
-    }
+    // Safari 팝업 윈도우는 별도 창 — currentWindow 직접 조회 대신 헬퍼 사용 (T-SAF-07)
+    tab = await queryActivePageTab();
   }
   // 빈 URL/특수 페이지(확장 페이지, 새 탭 등)는 분석 불가 — 주입 시도 자체를 생략
   if (!tab?.id || !tab.url || !/^https?:/.test(tab.url)) return;
@@ -792,18 +789,23 @@ $('pk-export-csv').addEventListener('click', () => {
     host = new URL(analysis?.url || '').hostname.replace(/^www\./, '') || 'page';
   } catch {}
   const filename = `PageKit/${host}/links/${new Date().toISOString().slice(0, 10)}_pagekit.csv`;
-  chrome.downloads.download({ url: objectUrl, filename, conflictAction: 'uniquify' }, (id) => {
-    URL.revokeObjectURL(objectUrl);
-    if (chrome.runtime.lastError) {
-      DebugLogger.error('[PANEL] CSV 저장 실패', chrome.runtime.lastError.message, {
-        code: 'E-CHR-DL-1002',
+  // downloads API 우선, Safari는 앵커 폴백 (safari-download.js, v1.0.12)
+  downloadFile({ url: objectUrl, filename })
+    .then((r) => {
+      URL.revokeObjectURL(objectUrl);
+      DebugLogger.feature(
+        'PANEL',
+        `CSV 내보내기 완료 (${items.length}건, 필터 적용${r.fallback ? ' — 앵커 폴백' : ''}) → ${filename}`
+      );
+      toast(`CSV ${items.length}건 저장됨`);
+    })
+    .catch((e) => {
+      URL.revokeObjectURL(objectUrl);
+      DebugLogger.error('[PANEL] CSV 저장 실패', e.message, {
+        code: e.code || 'E-CHR-DL-1002',
       });
       toast('CSV 저장 실패 — 다시 시도해 주세요.');
-      return;
-    }
-    DebugLogger.feature('PANEL', `CSV 내보내기 완료 (${items.length}건, 필터 적용) → ${filename}`);
-    toast(`CSV ${items.length}건 저장됨`);
-  });
+    });
 });
 
 $('pk-download').addEventListener('click', async () => {
@@ -947,9 +949,8 @@ if (pkVersionEl) pkVersionEl.textContent = `v${chrome.runtime.getManifest().vers
 // ---------- 자동 갱신 ----------
 // 패널이 열린 상태에서 활성 탭 전환/URL 변경 시 자동 재분석 (사이드바 갱신)// 주의: changeInfo.url은 tabs 권한 없이는 오지 않으므로 status만 사용 (URL 비교는 활성 탭 재조회로 수행)
 function maybeReanalyze() {
-  chrome.tabs
-    .query({ active: true, currentWindow: true })
-    .then(([tab]) => {
+  queryActivePageTab()
+    .then((tab) => {
       if (!tab?.id) return;
       if (analysisSource.tabId === tab.id && analysisSource.url === (tab.url || '')) return; // 이미 표시 중
       analyze(true);

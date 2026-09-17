@@ -5,7 +5,7 @@
 **웹페이지의 군더더기는 빼고, 알짜배기만 쏙 — 미디어 수집·다운로드 & 페이지 품질 진단**
 _Grab the good stuff from any page: media collection · batch download · page quality audit._
 
-[![version](https://img.shields.io/badge/version-1.0.11-0d9488)](https://github.com/BoraSarang/PageKit/releases)
+[![version](https://img.shields.io/badge/version-1.0.12-0d9488)](https://github.com/BoraSarang/PageKit/releases)
 [![Chrome / Whale](https://img.shields.io/badge/Chrome%20%2F%20Whale-116%2B-3b82f6)](#설치)
 [![Landing](https://img.shields.io/badge/랜딩%20페이지-PageKit-14B8A6)](https://borasarang.github.io/PageKit/)
 [![CI](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml/badge.svg)](https://github.com/BoraSarang/PageKit/actions/workflows/ci.yml)
@@ -38,6 +38,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 
 **Chrome Web Store** — 준비 중 🏗️
 **Whale(웨일)** — 동일하게 동작합니다
+**Safari(macOS)** — 로컬 개발용 (v1.0.12, `safari/` Xcode 프로젝트 → 무서명 실행, 패널은 팝업 윈도우로 대체)
 
 <details open>
 <summary><b>수동 설치 (개발자 모드)</b></summary>
@@ -46,6 +47,16 @@ _Grab the good stuff from any page: media collection · batch download · page q
 2. 압축 해제 후 `chrome://extensions` 접속
 3. 우측 상단 **개발자 모드** ON
 4. **압축해제된 확장 프로그램 로드** → 해제한 폴더 선택
+
+</details>
+
+<details>
+<summary><b>Safari(macOS) 실행 — 로컬 개발용 (v1.0.12+)</b></summary>
+
+1. `./build_and_run.sh debug safari` 실행 (Xcode 빌드 → `~/Applications/PageKit for Safari.app` 복사)
+2. `Safari > 설정 > 고급 > 개발자용 기능 표시` ON → `개발자 > 무서명 확장 허용`
+3. `PageKit for Safari.app` 실행 → `Safari > 설정 > 확장 프로그램`에서 PageKit 켜기
+4. 참고: 사이드패널 대신 팝업 윈도우로 열립니다. App Store 배포는 미지원
 
 </details>
 
@@ -76,6 +87,7 @@ _Grab the good stuff from any page: media collection · batch download · page q
 - [x] 스트림 병렬 Range 다운로드 · 체크포인트 재개 · CDN Referer 헤더 재생 (v1.0.9)
 - [x] 서명 CDN 페이지 폴백 모바일 UA · 파일명/저장 견고화(예약어·트레일링·제어문자) (v1.0.10)
 - [x] 페이지 품질 진단 — SERP 미리보기(데스크톱/모바일) · 깨진 링크 실측(내부 HEAD 체크·페이지 하이라이트) (v1.0.11)
+- [x] Safari(macOS) 로컬 개발용 이식 — 팝업 윈도우 패널 · downloads/알림 폴백 (v1.0.12)
 - [ ] Chrome Web Store 정식 배포
 - [ ] 진단 히스토리·비교 리포트
 

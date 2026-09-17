@@ -188,3 +188,16 @@ await chrome.sidePanel.open({ windowId });
 ## 10. v0.2 후보
 
 - ZIP 패키징 (JSZip), 스트림 세그먼트 브라우저 내 병합, Firefox/Safari 포팅, 외부 다운로드 관리자 연동
+
+## 11. 사파리 패널 호스트 (v1.0.12, macOS만)
+
+- Safari에는 `sidePanel`·`sidebar_action`이 없으므로 **동일 문서 + 다른 호스트** 원칙.
+  - 문서: `sidepanel/panel.html` (미디어), `sidepanel/quality-tab.html?auto=1` (품질 단독) 재사용.
+  - 호스트: `shared/panel-host.js`가 `kind` 1회 판정 (`sidePanel` → `window`).
+- Safari 경로: `windows.create({ url, type: 'popup', width: 420, height: 720 })`.
+  - `panel/app/devtool` 타입 미지원 → 반드시 `popup`.
+  - 팝업 윈도우는 탐색 후에도 유지되므로 패널 문서의 기존 탭 추적 구독(`onActivated/onUpdated`) 그대로 동작.
+- 진입점 분기: `background/sidepanel-controller.js`가 `chrome.sidePanel` 존재 검사 → 없으면 panel-host 위임. 기존 탭 폴백(`tabs.create`)은 양쪽 공통 최종 폴백.
+- 제스처 보존: `setOptions` fire-and-forget 원칙을 사파리 경로에도 적용. `windows.create` 역시 사용자 제스처 필요 → `await`를 open 앞에 두지 않음.
+- 네임스페이스: `shared/browser-shim.js` (`browser ?? chrome`, Promise 통일). Safari는 콜백·Promise 모두 지원하므로 Promise로 통일.
+- 에러코드: `E-SAF-UI-1001` (패널 열기 실패), `E-SAF-DL-1001` (다운로드), `E-SAF-NET-1001` (DNR degraded).

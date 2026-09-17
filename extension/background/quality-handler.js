@@ -3,6 +3,7 @@
 
 import { BGLogger } from './logger.js';
 import { MSG } from '../shared/messages.js';
+import { supportsDownloads } from '../shared/browser-shim.js';
 import '../shared/quality-rules.js'; // generateHtmlReport 단일 구현(globalThis.pkQualityRules)
 
 const generateHtmlReport = (data) => globalThis.pkQualityRules.generateHtmlReport(data);
@@ -148,6 +149,15 @@ export function handleQualityMessage(message, sender, sendResponse) {
     case MSG.QUALITY_EXPORT: {
       (async () => {
         try {
+          // Safari 등 downloads 미지원 환경: DOM이 없어 앵커 폴백 불가 → 한국어 안내 (v1.0.12)
+          if (!supportsDownloads()) {
+            BGLogger.error('QUALITY', 'Safari 리포트 저장 미지원', { code: 'E-SAF-DL-1001' });
+            sendResponse({
+              ok: false,
+              error: 'E-SAF-DL-1001 이 브라우저는 파일 저장을 지원하지 않습니다.',
+            });
+            return;
+          }
           const format = message.payload?.format || 'json';
           const ext = message.payload?.format === 'html' ? 'html' : 'json';
           const name =

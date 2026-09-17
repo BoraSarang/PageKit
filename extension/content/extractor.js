@@ -827,6 +827,64 @@
   // ANDROID_SDKLESS 클라이언트(20.10.38, PO Token 불필요 — yt-dlp #14693 검증)로 직접 호출해
   // adaptiveFormats URL을 획득. same-origin(youtube.com) fetch라 CORS 통과.
   // 결과: formats(progressive) + adaptiveFormats(video-only/audio-only)를 스트림으로 병합.
+  // T-SAF-08: Safari는 콘텐츠 fetch가 차단될 수 있어 0건이면 BG 폴백으로 재시도.
+  function pushYoutubeFormats(result, formats, title) {
+    const all = (formats || [])
+      .filter((f) => f.url && /^https:\/\//.test(f.url))
+      .sort((a, b) => parseInt(b.bitrate || 0, 10) - parseInt(a.bitrate || 0, 10));
+    if (!all.length) return 0;
+    const seen = new Set(result.media.streams.map((s) => s.url));
+    const seenItag = new Set(); // 같은 itag(코덱 변형 제외) 중복 방지 — 서명 URL이라 같은 itag는 대표 1개만
+    let added = 0;
+    for (const f of all) {
+      if (seen.has(f.url)) continue;
+      if (f.itag) {
+        if (seenItag.has(f.itag)) continue;
+        seenItag.add(f.itag);
+      }
+      seen.add(f.url);
+      const mime = f.mimeType?.split(';')[0] || '';
+      const isVideo = mime.startsWith('video');
+      const isAudio = mime.startsWith('audio');
+      const res =
+        f.width && f.height ? `${f.height}p${f.fps > 30 ? f.fps : ''}` : isAudio ? '오디오' : '';
+      const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'm4a';
+      const size = f.contentLength ? ` · ${(Number(f.contentLength) / 1048576).toFixed(1)}MB` : '';
+      const kind = !isVideo && !isAudio ? '' : isAudio ? ' (오디오 전용)' : ' (영상 전용)';
+      const cm = f.mimeType?.match(/codecs="([^"]+)"/);
+      const codec = cm
+        ? cm[1].split('.')[0] === 'avc1'
+          ? 'H.264'
+          : cm[1].split('.')[0] === 'av01'
+            ? 'AV1'
+            : cm[1].split('.')[0] === 'vp9'
+              ? 'VP9'
+              : cm[1].split('.')[0] === 'vp8'
+                ? 'VP8'
+                : cm[1].split('.')[0] === 'mp4a'
+                  ? 'AAC'
+                  : cm[1].split('.')[0] === 'opus'
+                    ? 'Opus'
+                    : cm[1].split('.')[0]
+        : '';
+      result.media.streams.push({
+        id: `s${result.media.streams.length}`,
+        url: f.url,
+        name: `유튜브 ${res}${kind} · ${ext}${codec ? ` · ${codec}` : ''}${size}`,
+        protocol: 'direct',
+        format: isAudio ? 'audio-only' : isVideo ? 'video-only' : 'progressive',
+        itag: f.itag,
+        qualities: [],
+        inArticle: true,
+        downloadable: true,
+        source: 'youtube-player',
+        referer: location.href,
+      });
+      added++;
+    }
+    return added;
+  }
+
   async function mergeYoutubePlayerFormats(result) {
     try {
       if (!/^(?:www\.)?youtube\.com$/i.test(location.hostname)) return;
@@ -834,8 +892,10 @@
         new URLSearchParams(location.search).get('v') ||
         (location.pathname.match(/^\/shorts\/([\w-]+)/) || [])[1];
       if (!videoId) return;
-      // 페이지 재생 중 이미 API 호출이 있으면 재사용 (ytcfg 캐시 응답은 URL 미포함 — 직접 호출이 확실)
-      const body = {
+      const title = (document.title || '').replace(/\s*-\s*YouTube\s*$/, '').trim() || videoId;
+      const apiUrl =
+        'https://www.youtube.com/youtubei/v1/player?key=AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc';
+      const apiBody = {
         context: {
           client: {
             clientName: 'ANDROID',
@@ -850,75 +910,58 @@
         contentCheckOk: true,
         racyCheckOk: true,
       };
-      const resp = await fetch(
-        'https://www.youtube.com/youtubei/v1/player?key=AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
-        {
+      // 1차: 페이지 컨텍스트 직접 호출 (Chrome 정상 경로)
+      let added = 0;
+      try {
+        const resp = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }
-      );
-      if (!resp.ok) return;
-      const json = await resp.json();
-      const st = json.streamingData || {};
-      const all = [...(st.formats || []), ...(st.adaptiveFormats || [])]
-        .filter((f) => f.url && /^https:\/\//.test(f.url))
-        .sort((a, b) => parseInt(b.bitrate || 0, 10) - parseInt(a.bitrate || 0, 10));
-      if (!all.length) return;
-      const seen = new Set(result.media.streams.map((s) => s.url));
-      const seenItag = new Set(); // 같은 itag(코덱 변형 제외) 중복 방지 — 서명 URL이라 같은 itag는 대표 1개만
-      const title = (document.title || '').replace(/\s*-\s*YouTube\s*$/, '').trim() || videoId;
-      for (const f of all) {
-        if (seen.has(f.url)) continue;
-        if (f.itag) {
-          if (seenItag.has(f.itag)) continue;
-          seenItag.add(f.itag);
-        }
-        seen.add(f.url);
-        const mime = f.mimeType?.split(';')[0] || '';
-        const isVideo = mime.startsWith('video');
-        const isAudio = mime.startsWith('audio');
-        const res =
-          f.width && f.height ? `${f.height}p${f.fps > 30 ? f.fps : ''}` : isAudio ? '오디오' : '';
-        const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'm4a';
-        const size = f.contentLength
-          ? ` · ${(Number(f.contentLength) / 1048576).toFixed(1)}MB`
-          : '';
-        const kind = !isVideo && !isAudio ? '' : isAudio ? ' (오디오 전용)' : ' (영상 전용)';
-        const cm = f.mimeType?.match(/codecs="([^"]+)"/);
-        const codec = cm
-          ? cm[1].split('.')[0] === 'avc1'
-            ? 'H.264'
-            : cm[1].split('.')[0] === 'av01'
-              ? 'AV1'
-              : cm[1].split('.')[0] === 'vp9'
-                ? 'VP9'
-                : cm[1].split('.')[0] === 'vp8'
-                  ? 'VP8'
-                  : cm[1].split('.')[0] === 'mp4a'
-                    ? 'AAC'
-                    : cm[1].split('.')[0] === 'opus'
-                      ? 'Opus'
-                      : cm[1].split('.')[0]
-          : '';
-        result.media.streams.push({
-          id: `s${result.media.streams.length}`,
-          url: f.url,
-          name: `유튜브 ${res}${kind} · ${ext}${codec ? ` · ${codec}` : ''}${size}`,
-          protocol: 'direct',
-          format: isAudio ? 'audio-only' : isVideo ? 'video-only' : 'progressive',
-          itag: f.itag,
-          qualities: [],
-          inArticle: true,
-          downloadable: true,
-          source: 'youtube-player',
-          referer: location.href,
+          body: JSON.stringify(apiBody),
         });
+        if (resp.ok) {
+          const json = await resp.json();
+          const st = json.streamingData || {};
+          added = pushYoutubeFormats(
+            result,
+            [...(st.formats || []), ...(st.adaptiveFormats || [])],
+            title
+          );
+        } else {
+          DebugLogger.debug(
+            'EXTRACT',
+            `유튜브 player API 직접 호출 실패 status=${resp.status} — BG 폴백 시도`
+          );
+        }
+      } catch (e) {
+        DebugLogger.debug(
+          'EXTRACT',
+          `유튜브 player API 직접 호출 실패: ${e.message} — BG 폴백 시도`
+        );
       }
-      DebugLogger.feature(
-        'EXTRACT',
-        `유튜브 player API 병합 (${all.length}건) — ${title.slice(0, 30)}`
-      );
+      // 2차: BG 폴백 (Safari 콘텐츠 fetch 차단 대응 — T-SAF-08)
+      if (added === 0) {
+        try {
+          const r = await chrome.runtime.sendMessage({
+            type: 'pk.youtube.playerFetch',
+            payload: { videoId },
+          });
+          if (r?.ok && r.data) {
+            added = pushYoutubeFormats(
+              result,
+              [...(r.data.formats || []), ...(r.data.adaptiveFormats || [])],
+              title
+            );
+          }
+        } catch (e) {
+          DebugLogger.debug('EXTRACT', `유튜브 player API BG 폴백 실패: ${e.message}`);
+        }
+      }
+      if (added > 0) {
+        DebugLogger.feature(
+          'EXTRACT',
+          `유튜브 player API 병합 (${added}건) — ${title.slice(0, 30)}`
+        );
+      }
     } catch (e) {
       DebugLogger.debug('EXTRACT', `유튜브 player API 병합 실패: ${e.message}`);
     }
